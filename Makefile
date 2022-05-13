@@ -10,19 +10,17 @@ CFLAGS= -DWEBRTC_POSIX -DWEBRTC_LINUX \
 -pipe -fno-ident -fdata-sections -ffunction-sections -fPIC -fpermissive \
 -fdeclspec -fexceptions
 
-WEBRTC_LIB_PATH=-L./webrtc/lib 
-WEBRTC_HEADER_PATH=-I./webrtc/include \
--I./webrtc/include/third_party/abseil-cpp \
--I./webrtc/include/tools/json_schema_compiler \
+WEBRTC_LIB_PATH=-L/usr/local/lib
+WEBRTC_HEADER_PATH=-I/usr/local/include/webrtc \
+-I/usr/local/include/webrtc/third_party/abseil-cpp \
+-I/usr/local/include/webrtc/tools/json_schema_compiler \
 -lX11 -ldl
-WEBRTC_STATIC_LIB=./webrtc/lib/libwebrtc.a
+WEBRTC_STATIC_LIB=/usr/local/lib/libwebrtc.a
 
 
-SIGNALR_LIB_PATH=-L./SignalR-Client-Cpp/build-release/bin
-SIGNALR_HEADER_PATH=-I./SignalR-Client-Cpp/include \
--I./SignalR-Client-Cpp/submodules/vcpkg/installed/arm-linux/include
-SIGNALR_LIB=-lmicrosoft-signalr #-lssl -lcrypto
-CPPREST_STATIC_LIB=./SignalR-Client-Cpp/submodules/vcpkg/installed/arm-linux/lib/*.a
+SIGNALR_LIB_PATH=-L/usr/local/lib
+SIGNALR_HEADER_PATH=-I/usr/local/include
+SIGNALR_LIB=-lmicrosoft-signalr -lcpprest -lssl -lcrypto
 
 all: main
 
