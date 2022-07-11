@@ -18,28 +18,31 @@
 #include <string>
 #include <vector>
 
-#include "api/media_stream_interface.h"
-#include "api/peer_connection_interface.h"
-#include "examples/peerconnection/client/main_wnd.h"
-#include "examples/peerconnection/client/peer_connection_client.h"
-#include "rtc_base/thread.h"
-#include "signal.h"
+#include <api/media_stream_interface.h>
+#include <api/peer_connection_interface.h>
+#include <examples/peerconnection/client/main_wnd.h>
+#include <examples/peerconnection/client/peer_connection_client.h>
 
-namespace webrtc {
-class VideoCaptureModule;
-}  // namespace webrtc
+namespace webrtc
+{
+    class VideoCaptureModule;
+} // namespace webrtc
 
-namespace cricket {
-class VideoRenderer;
-}  // namespace cricket
+namespace cricket
+{
+    class VideoRenderer;
+} // namespace cricket
 
-class DummySetSessionDescriptionObserver : public webrtc::SetSessionDescriptionObserver {
-   public:
-    static DummySetSessionDescriptionObserver* Create() {
+class DummySetSessionDescriptionObserver : public webrtc::SetSessionDescriptionObserver
+{
+public:
+    static DummySetSessionDescriptionObserver *Create()
+    {
         return new rtc::RefCountedObject<DummySetSessionDescriptionObserver>();
     }
     virtual void OnSuccess() { std::cout << "=> Dummy OnSuccess: " << std::endl; }
-    virtual void OnFailure(webrtc::RTCError error) {
+    virtual void OnFailure(webrtc::RTCError error)
+    {
         std::cout << "=> Dummy OnSuccess: " << error.message() << std::endl;
     }
 };
@@ -48,8 +51,10 @@ class Conductor : public webrtc::PeerConnectionObserver,
                   public webrtc::CreateSessionDescriptionObserver
 //   public PeerConnectionClientObserver
 {
-   public:
-    enum CallbackID {
+public:
+    std::string signalr_url;
+    enum CallbackID
+    {
         MEDIA_CHANNELS_INITIALIZED = 1,
         PEER_CONNECTION_CLOSED,
         SEND_MESSAGE_TO_PEER,
@@ -58,13 +63,12 @@ class Conductor : public webrtc::PeerConnectionObserver,
     };
 
     Conductor(std::string server_url);
-
+    ~Conductor();
     void ConnectToPeer();
 
     // bool connection_active() const;
 
-   protected:
-    ~Conductor();
+protected:
     bool InitializePeerConnection();
     // bool ReinitializePeerConnectionForLoopback();
     bool CreatePeerConnection();
@@ -87,7 +91,7 @@ class Conductor : public webrtc::PeerConnectionObserver,
     //     webrtc::PeerConnectionInterface::IceConnectionState new_state) override {}
     void OnIceGatheringChange(
         webrtc::PeerConnectionInterface::IceGatheringState new_state) override;
-    void OnIceCandidate(const webrtc::IceCandidateInterface* candidate) override;
+    void OnIceCandidate(const webrtc::IceCandidateInterface *candidate) override;
     // void OnIceConnectionReceivingChange(bool receiving) override {}
 
     //
@@ -109,10 +113,10 @@ class Conductor : public webrtc::PeerConnectionObserver,
     // void OnServerConnectionFailure() override;
 
     // CreateSessionDescriptionObserver implementation.
-    void OnSuccess(webrtc::SessionDescriptionInterface* desc) override;
+    void OnSuccess(webrtc::SessionDescriptionInterface *desc) override;
     void OnFailure(webrtc::RTCError error) override;
 
-   protected:
+protected:
     // Send a message to the remote peer.
     // void SendMessage(const std::string& json_object);
 
@@ -125,10 +129,8 @@ class Conductor : public webrtc::PeerConnectionObserver,
     rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> peer_connection_factory_;
     rtc::scoped_refptr<webrtc::AudioTrackInterface> audio_track_;
     rtc::scoped_refptr<webrtc::VideoTrackInterface> video_track_;
-    PeerConnectionClient* client_;
-    std::deque<std::string*> pending_messages_;
-    std::string signalr_url_;
-    std::unique_ptr<SignalServer> signal_server_;
+    PeerConnectionClient *client_;
+    std::deque<std::string *> pending_messages_;
 };
 
-#endif  // CONDUCTOR_H_
+#endif // CONDUCTOR_H_

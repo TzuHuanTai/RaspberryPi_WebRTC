@@ -1,0 +1,21 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "/usr/local/include/**",
+                "/usr/local/include/signalrclient/*",
+                "/usr/local/include/webrtc/*",
+                "/usr/local/include/webrtc/third_party/abseil-cpp/*",
+                "/usr/local/include/webrtc/tools/json_schema_compiler/*"
+            ],
+            "defines": [],
+            "compilerPath": "/usr/bin/clang",
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "linux-clang-arm64"
+        }
+    ],
+    "version": 4
+}

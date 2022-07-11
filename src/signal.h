@@ -2,20 +2,25 @@
 #define SIGNAL_H_
 
 #include <string>
+#include <signalrclient/hub_connection.h>
+#include <signalrclient/hub_connection_builder.h>
+#include <signalrclient/signalr_value.h>
 
-#include "signalrclient/hub_connection.h"
-#include "signalrclient/hub_connection_builder.h"
+class SignalServer : public std::enable_shared_from_this<SignalServer>
+{
+public:
+    std::string url;
 
-class SignalServer {
-   public:
-    SignalServer(std::string server_url);
-    ~SignalServer();
+    SignalServer(std::string url);
+    ~SignalServer(){};
 
-    void Start();
-    void Send(std::string method, const char* context);
+    void Connect();
+    void Disconnect();
+    void Subscribe(std::string event_name, const signalr::hub_connection::method_invoked_handler& handler);
+    void SendMessage(std::string method, const char *context);
 
-   private:
-    std::unique_ptr<signalr::hub_connection> connection_;
+private:
+    signalr::hub_connection connection_;
 };
 
 #endif

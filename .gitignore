@@ -1,6 +1,5 @@
-*
-!.gitignore
-!*.cpp
-!*.h
-!Makefile
-!README.md
+*.o
+
+# executable
+main
+signal
