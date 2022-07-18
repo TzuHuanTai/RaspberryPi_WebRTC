@@ -17,8 +17,8 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <functional>
 
-#include <api/media_stream_interface.h>
 #include <api/peer_connection_interface.h>
 #include <examples/peerconnection/client/main_wnd.h>
 #include <examples/peerconnection/client/peer_connection_client.h>
@@ -33,23 +33,81 @@ namespace cricket
     class VideoRenderer;
 } // namespace cricket
 
-class DummySetSessionDescriptionObserver : public webrtc::SetSessionDescriptionObserver
+class SetSessionDescription : public webrtc::SetSessionDescriptionObserver
 {
 public:
-    static DummySetSessionDescriptionObserver *Create()
+    typedef std::function<void()> OnSuccessFunc;
+    typedef std::function<void(webrtc::RTCError)> OnFailureFunc;
+
+    SetSessionDescription(OnSuccessFunc on_success, OnFailureFunc on_failure)
+        : on_success_(std::move(on_success)),
+          on_failure_(std::move(on_failure)){}
+
+    static SetSessionDescription *Create(OnSuccessFunc on_success, OnFailureFunc on_failure)
     {
-        return new rtc::RefCountedObject<DummySetSessionDescriptionObserver>();
+        return new rtc::RefCountedObject<SetSessionDescription>(std::move(on_success), std::move(on_failure));
     }
-    virtual void OnSuccess() { std::cout << "=> Dummy OnSuccess: " << std::endl; }
-    virtual void OnFailure(webrtc::RTCError error)
+
+protected:
+    void OnSuccess() override
     {
-        std::cout << "=> Dummy OnSuccess: " << error.message() << std::endl;
+        std::cout << "=> Set OnSuccess: " << std::endl;
+        auto f = std::move(on_success_);
+        if (f) {
+            f();
+        }
     }
+    void OnFailure(webrtc::RTCError error) override
+    {
+        std::cout << "=> Set OnFailure: " << error.message() << std::endl;
+        auto f = std::move(on_failure_);
+        if (f) {
+            f(error);
+        }
+    }
+
+    OnSuccessFunc on_success_;
+    OnFailureFunc on_failure_;
 };
 
-class Conductor : public webrtc::PeerConnectionObserver,
-                  public webrtc::CreateSessionDescriptionObserver
-//   public PeerConnectionClientObserver
+class CreateSessionDescription : public webrtc::CreateSessionDescriptionObserver
+{
+public:
+    typedef std::function<void(webrtc::SessionDescriptionInterface *desc)> OnSuccessFunc;
+    typedef std::function<void(webrtc::RTCError)> OnFailureFunc;
+
+    CreateSessionDescription(OnSuccessFunc on_success, OnFailureFunc on_failure)
+        : on_success_(std::move(on_success)),
+          on_failure_(std::move(on_failure)){}
+
+    static CreateSessionDescription *Create(OnSuccessFunc on_success, OnFailureFunc on_failure)
+    {
+        return new rtc::RefCountedObject<CreateSessionDescription>(std::move(on_success), std::move(on_failure));
+    }
+
+protected:
+    void OnSuccess(webrtc::SessionDescriptionInterface *desc) override
+    {
+        std::cout << "=> Set OnSuccess: " << std::endl;
+        auto f = std::move(on_success_);
+        if (f) {
+            f(desc);
+        }
+    }
+    void OnFailure(webrtc::RTCError error) override
+    {
+        std::cout << "=> Set OnFailure: " << error.message() << std::endl;
+        auto f = std::move(on_failure_);
+        if (f) {
+            f(error);
+        }
+    }
+
+    OnSuccessFunc on_success_;
+    OnFailureFunc on_failure_;
+};
+
+class Conductor : public webrtc::PeerConnectionObserver
 {
 public:
     std::string signalr_url;
@@ -65,6 +123,18 @@ public:
     Conductor(std::string server_url);
     ~Conductor();
     void ConnectToPeer();
+    typedef std::function<void()> OnSetSuccessFunc;
+    typedef std::function<void(webrtc::RTCError)> OnFailureFunc;
+    typedef std::function<void(webrtc::SessionDescriptionInterface *desc)> OnCreateSuccessFunc;
+
+    // typedef std::function<void(std::string)> OnSignalingFunc;
+    // OnSignalingFunc answer_sdp_;
+    // OnSignalingFunc answer_ice_;
+
+    void SetOfferSDP(const std::string sdp,
+                              OnSetSuccessFunc on_success,
+                              OnFailureFunc on_failure);
+    void CreateAnswer(OnCreateSuccessFunc on_success, OnFailureFunc on_failure);
 
     // bool connection_active() const;
 
@@ -113,8 +183,6 @@ protected:
     // void OnServerConnectionFailure() override;
 
     // CreateSessionDescriptionObserver implementation.
-    void OnSuccess(webrtc::SessionDescriptionInterface *desc) override;
-    void OnFailure(webrtc::RTCError error) override;
 
 protected:
     // Send a message to the remote peer.

@@ -35,7 +35,7 @@ signal.o:
 conductor.o:
 	$(CC) $(CFLAGS) $(WEBRTC_HEADER_PATH) -c ./src/conductor.cpp
 
-main: conductor.o
+main: conductor.o signal.o
 	$(CC) $(CFLAGS) $(WEBRTC_HEADER_PATH) $(SIGNALR_LIB_PATH) $(SIGNALR_HEADER_PATH) $(SIGNALR_LIB) ./src/main.cpp *.o -o main ${WEBRTC_STATIC_LIB} ${WEBRTC_LINK_LIB}
 
 clean: 

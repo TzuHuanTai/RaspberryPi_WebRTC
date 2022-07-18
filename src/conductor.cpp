@@ -1,4 +1,4 @@
-#include <iostream>
+#include "conductor.h"
 
 #include <api/audio_codecs/builtin_audio_decoder_factory.h>
 #include <api/audio_codecs/builtin_audio_encoder_factory.h>
@@ -13,9 +13,8 @@
 #include <rtc_base/ssl_adapter.h>
 #include <rtc_base/thread.h>
 
-#include "conductor.h"
-
-Conductor::Conductor(std::string signal_url): signalr_url(signalr_url){
+Conductor::Conductor(std::string signal_url) : signalr_url(signalr_url)
+{
     std::cout << "=> Conductor: init" << std::endl;
     if (InitializePeerConnection())
     {
@@ -26,7 +25,7 @@ Conductor::Conductor(std::string signal_url): signalr_url(signalr_url){
 void Conductor::ConnectToPeer()
 {
     std::cout << "=> ConnectToPeer: " << (peer_connection_ != nullptr) << std::endl;
-    peer_connection_->CreateOffer(this, webrtc::PeerConnectionInterface::RTCOfferAnswerOptions());
+    // peer_connection_->CreateOffer(this, webrtc::PeerConnectionInterface::RTCOfferAnswerOptions());
 }
 
 void Conductor::AddTracks()
@@ -136,22 +135,48 @@ void Conductor::OnIceCandidate(const webrtc::IceCandidateInterface *candidate)
     std::cout << "=> OnIceCandidate contenx: " << ice << std::endl;
 }
 
-void Conductor::OnSuccess(webrtc::SessionDescriptionInterface *desc)
+void Conductor::SetOfferSDP(const std::string sdp,
+                            OnSetSuccessFunc on_success,
+                            OnFailureFunc on_failure)
 {
-    std::cout << "=> OnSuccess: init" << std::endl;
-    peer_connection_->SetLocalDescription(DummySetSessionDescriptionObserver::Create(), desc);
-    std::string sdp;
-    desc->ToString(&sdp);
-    std::cout << "=> OnSuccess: " << sdp << std::endl;
+    std::cout << "=> SetOfferSDP: start" << std::endl;
 
-    // signal_server_->Send("Echo", "===123===");
-    // signal_server_->Send("Echo", "===456===");
-    // signal_server_->Send("Echo", "===789===");
+    webrtc::SdpParseError error;
+    std::unique_ptr<webrtc::SessionDescriptionInterface> session_description =
+        webrtc::CreateSessionDescription(webrtc::SdpType::kOffer, sdp, &error);
+    if (!session_description)
+    {
+        RTC_LOG(LS_ERROR) << __FUNCTION__
+                          << "Failed to create session description: "
+                          << error.description.c_str()
+                          << "\nline: " << error.line.c_str();
+        return;
+    }
+    peer_connection_->SetRemoteDescription(
+        SetSessionDescription::Create(std::move(on_success), std::move(on_failure)),
+        session_description.release());
+
+    //this->offer_sdp_(sdp);
 }
 
-void Conductor::OnFailure(webrtc::RTCError error)
+void Conductor::CreateAnswer(OnCreateSuccessFunc on_success, OnFailureFunc on_failure)
 {
-    std::cout << "=> OnFailure: " << error.message() << std::endl;
+    auto with_set_local_desc = [this, on_success = std::move(on_success)](
+                                   webrtc::SessionDescriptionInterface *desc)
+    {
+        std::string sdp;
+        desc->ToString(&sdp);
+        RTC_LOG(LS_INFO) << "Created session description : " << sdp;
+        peer_connection_->SetLocalDescription(
+            SetSessionDescription::Create(nullptr, nullptr), desc);
+        if (on_success)
+        {
+            on_success(desc);
+        }
+    };
+    peer_connection_->CreateAnswer(
+        CreateSessionDescription::Create(std::move(with_set_local_desc), std::move(on_failure)),
+        webrtc::PeerConnectionInterface::RTCOfferAnswerOptions());
 }
 
 Conductor::~Conductor()
