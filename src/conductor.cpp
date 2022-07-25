@@ -117,12 +117,14 @@ void Conductor::OnSignalingChange(webrtc::PeerConnectionInterface::SignalingStat
 
 void Conductor::OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> channel)
 {
-    channel_=channel;
-    std::cout << "=> OnDataChannel: connected to " << channel->label() <<", "<< channel->state() << std::endl;
+    channel_ = channel;
+    std::cout << "=> OnDataChannel: connected to " << channel->label() << ", " << channel->state() << std::endl;
 }
 
-void Conductor::SendData(const std::string msg){
-    if (channel_->state() != webrtc::DataChannelInterface::kOpen) {
+void Conductor::SendData(const std::string msg)
+{
+    if (channel_->state() != webrtc::DataChannelInterface::kOpen)
+    {
         std::cout << "=> channel: != kopen " << std::endl;
         return;
     }
@@ -134,6 +136,21 @@ void Conductor::SendData(const std::string msg){
 void Conductor::OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionState new_state)
 {
     std::cout << "=> OnConnectionChange: " << webrtc::PeerConnectionInterface::PeerConnectionInterface::AsString(new_state) << std::endl;
+    if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kConnected)
+    {
+        if (complete_signaling)
+        {
+            complete_signaling();
+        }
+    }
+    else if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kDisconnected)
+    {
+        peer_connection_->Close();
+    }
+    else if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kClosed)
+    {
+        loop = false;
+    }
 }
 
 void Conductor::OnStandardizedIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState new_state)
@@ -150,7 +167,7 @@ void Conductor::OnIceCandidate(const webrtc::IceCandidateInterface *candidate)
 {
     std::string ice;
     candidate->ToString(&ice);
-    invoke_answer_ice_(candidate->sdp_mid(), candidate->sdp_mline_index(), ice);
+    invoke_answer_ice(candidate->sdp_mid(), candidate->sdp_mline_index(), ice);
 }
 
 void Conductor::SetOfferSDP(const std::string sdp,

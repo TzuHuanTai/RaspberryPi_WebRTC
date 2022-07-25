@@ -110,6 +110,7 @@ protected:
 class Conductor : public webrtc::PeerConnectionObserver
 {
 public:
+    bool loop = true;
     std::string signalr_url;
     enum CallbackID
     {
@@ -129,8 +130,9 @@ public:
 
     typedef std::function<void(std::string)> InvokeSdpFunc;
     typedef std::function<void(std::string, int, std::string)> InvokeIceFunc;
-    InvokeSdpFunc invoke_answer_sdp_;
-    InvokeIceFunc invoke_answer_ice_;
+    InvokeSdpFunc invoke_answer_sdp;
+    InvokeIceFunc invoke_answer_ice;
+    OnSetSuccessFunc complete_signaling;
 
     void SetOfferSDP(const std::string sdp,
                               OnSetSuccessFunc on_success,
@@ -192,7 +194,6 @@ protected:
     // void SendMessage(const std::string& json_object);
 
     int peer_id_;
-    bool loopback_;
     std::unique_ptr<rtc::Thread> network_thread_;
     std::unique_ptr<rtc::Thread> worker_thread_;
     std::unique_ptr<rtc::Thread> signaling_thread_;

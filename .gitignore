@@ -1,4 +1,5 @@
 *.o
+*.tmp
 
 # executable
 main
