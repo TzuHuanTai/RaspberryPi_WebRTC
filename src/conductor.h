@@ -127,15 +127,17 @@ public:
     typedef std::function<void(webrtc::RTCError)> OnFailureFunc;
     typedef std::function<void(webrtc::SessionDescriptionInterface *desc)> OnCreateSuccessFunc;
 
-    // typedef std::function<void(std::string)> OnSignalingFunc;
-    // OnSignalingFunc answer_sdp_;
-    // OnSignalingFunc answer_ice_;
+    typedef std::function<void(std::string)> InvokeSdpFunc;
+    typedef std::function<void(std::string, int, std::string)> InvokeIceFunc;
+    InvokeSdpFunc invoke_answer_sdp_;
+    InvokeIceFunc invoke_answer_ice_;
 
     void SetOfferSDP(const std::string sdp,
                               OnSetSuccessFunc on_success,
                               OnFailureFunc on_failure);
+    void AddIceCandidate(std::string sdp_mid, int sdp_mline_index, std::string candidate);
     void CreateAnswer(OnCreateSuccessFunc on_success, OnFailureFunc on_failure);
-
+    void SendData(const std::string msg);
     // bool connection_active() const;
 
 protected:
@@ -157,12 +159,13 @@ protected:
     // void OnRemoveTrack(rtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver) override;
     void OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> channel) override;
     // void OnRenegotiationNeeded() override {}
-    // void OnIceConnectionChange(
-    //     webrtc::PeerConnectionInterface::IceConnectionState new_state) override {}
+    void OnStandardizedIceConnectionChange(
+      webrtc::PeerConnectionInterface::IceConnectionState new_state) override;
     void OnIceGatheringChange(
         webrtc::PeerConnectionInterface::IceGatheringState new_state) override;
     void OnIceCandidate(const webrtc::IceCandidateInterface *candidate) override;
     // void OnIceConnectionReceivingChange(bool receiving) override {}
+    void OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionState new_state) override;
 
     //
     // PeerConnectionClientObserver implementation.
@@ -197,6 +200,7 @@ protected:
     rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> peer_connection_factory_;
     rtc::scoped_refptr<webrtc::AudioTrackInterface> audio_track_;
     rtc::scoped_refptr<webrtc::VideoTrackInterface> video_track_;
+    rtc::scoped_refptr<webrtc::DataChannelInterface> channel_;
     PeerConnectionClient *client_;
     std::deque<std::string *> pending_messages_;
 };

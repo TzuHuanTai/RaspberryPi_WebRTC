@@ -18,11 +18,14 @@ public:
     void Connect();
     void Disconnect();
     void Subscribe(std::string event_name, const signalr::hub_connection::method_invoked_handler& handler);
-    void SendMessage(std::string method, const char *context);
-    void SendTest();
-    void SendTest2();
+    void ClientJoin(std::string cameraId);
 
 private:
+    std::string offer_sdp_="OfferSDP";
+    std::string offer_ice_="OfferICE";
+    std::string answer_sdp_="AnswerSDP";
+    std::string answer_ice_="AnswerICE";
+    void SendMessage(std::string method, std::vector<signalr::value> args);
     std::shared_ptr<Conductor> conductor_;
     signalr::hub_connection connection_;
 };

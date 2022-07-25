@@ -4,7 +4,7 @@
 #include <string>
 
 struct SignalingConfig {
-  std::string signaling_url = "http://192.168.107.36:5000/SignalingServer";
+  std::string signaling_url = "http://127.0.0.1:5000/SignalingServer";
 };
 
 #endif //CONFIG_H_

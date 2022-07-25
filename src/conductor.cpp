@@ -117,7 +117,28 @@ void Conductor::OnSignalingChange(webrtc::PeerConnectionInterface::SignalingStat
 
 void Conductor::OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> channel)
 {
-    std::cout << "=> OnDataChannel: " << channel->id() << std::endl;
+    channel_=channel;
+    std::cout << "=> OnDataChannel: connected to " << channel->label() <<", "<< channel->state() << std::endl;
+}
+
+void Conductor::SendData(const std::string msg){
+    if (channel_->state() != webrtc::DataChannelInterface::kOpen) {
+        std::cout << "=> channel: != kopen " << std::endl;
+        return;
+    }
+    webrtc::DataBuffer data(msg);
+    channel_->Send(data);
+    std::cout << "=> SendData: \"" << msg << "\" was sent to " << channel_->label() << std::endl;
+}
+
+void Conductor::OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionState new_state)
+{
+    std::cout << "=> OnConnectionChange: " << webrtc::PeerConnectionInterface::PeerConnectionInterface::AsString(new_state) << std::endl;
+}
+
+void Conductor::OnStandardizedIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState new_state)
+{
+    std::cout << "=> OnIceGatheringChange: " << new_state << std::endl;
 }
 
 void Conductor::OnIceGatheringChange(webrtc::PeerConnectionInterface::IceGatheringState new_state)
@@ -129,10 +150,7 @@ void Conductor::OnIceCandidate(const webrtc::IceCandidateInterface *candidate)
 {
     std::string ice;
     candidate->ToString(&ice);
-    std::cout << "=> OnIceCandidate server_url: " << candidate->server_url() << std::endl;
-    std::cout << "=> OnIceCandidate sdp_mline_index: " << candidate->sdp_mline_index() << std::endl;
-    std::cout << "=> OnIceCandidate sdp_mid: " << candidate->sdp_mid() << std::endl;
-    std::cout << "=> OnIceCandidate contenx: " << ice << std::endl;
+    invoke_answer_ice_(candidate->sdp_mid(), candidate->sdp_mline_index(), ice);
 }
 
 void Conductor::SetOfferSDP(const std::string sdp,
@@ -155,8 +173,29 @@ void Conductor::SetOfferSDP(const std::string sdp,
     peer_connection_->SetRemoteDescription(
         SetSessionDescription::Create(std::move(on_success), std::move(on_failure)),
         session_description.release());
+}
 
-    //this->offer_sdp_(sdp);
+void Conductor::AddIceCandidate(std::string sdp_mid, int sdp_mline_index, std::string sdp)
+{
+    std::cout << "=> AddIceCandidate: start creating" << std::endl;
+    webrtc::SdpParseError error;
+    std::unique_ptr<webrtc::IceCandidateInterface> candidate(
+        webrtc::CreateIceCandidate(sdp_mid, sdp_mline_index, sdp, &error));
+    if (!candidate.get())
+    {
+        RTC_LOG(LS_ERROR) << "Can't parse received candidate message: "
+                          << error.description.c_str()
+                          << "\nline: " << error.line.c_str();
+        return;
+    }
+    std::cout << "=> AddIceCandidate: add candidated" << std::endl;
+    peer_connection_->AddIceCandidate(
+        std::move(candidate), [sdp](webrtc::RTCError error)
+        { RTC_LOG(LS_WARNING)
+              << __FUNCTION__ << " Failed to apply the received candidate. type="
+              << webrtc::ToString(error.type()) << " message=" << error.message()
+              << " sdp=" << sdp; });
+    std::cout << "=> AddIceCandidate: end" << std::endl;
 }
 
 void Conductor::CreateAnswer(OnCreateSuccessFunc on_success, OnFailureFunc on_failure)
@@ -166,7 +205,6 @@ void Conductor::CreateAnswer(OnCreateSuccessFunc on_success, OnFailureFunc on_fa
     {
         std::string sdp;
         desc->ToString(&sdp);
-        RTC_LOG(LS_INFO) << "Created session description : " << sdp;
         peer_connection_->SetLocalDescription(
             SetSessionDescription::Create(nullptr, nullptr), desc);
         if (on_success)

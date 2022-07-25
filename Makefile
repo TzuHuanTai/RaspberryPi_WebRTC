@@ -22,7 +22,7 @@ SIGNALR_LIB_PATH=-L/usr/local/lib
 SIGNALR_HEADER_PATH=-I/usr/local/include
 SIGNALR_LIB=-lmicrosoft-signalr -lcpprest -lssl -lcrypto
 
-.PHONY: all signal main clean
+.PHONY: all signal.o conductor.o main
 
 all: main
 

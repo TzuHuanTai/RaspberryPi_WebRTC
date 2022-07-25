@@ -4,6 +4,7 @@
 #include <future>
 #include <iostream>
 #include <sstream>
+#include <map>
 #include <unistd.h>
 
 SignalServer::SignalServer(std::string url, std::shared_ptr<Conductor> conductor)
@@ -11,39 +12,87 @@ SignalServer::SignalServer(std::string url, std::shared_ptr<Conductor> conductor
       conductor_(conductor),
       connection_(signalr::hub_connection_builder::create(url).build())
 {
-    // conductor_->answer_sdp_ = [this](std::string sdp)
-    // {
-    //     this->SendMessage("AnswerSDP", sdp.c_str());
-    // };
+    conductor_->invoke_answer_sdp_ = [this](std::string sdp)
+    {
+        std::cout << "=> invoke_answer_sdp_: " << sdp << std::endl;
+        std::map<std::string, signalr::value> sdp_message = {
+            {"sdp", sdp},
+            {"type", "Answer"}};
+        std::vector<signalr::value> args{sdp_message};
+        SendMessage(answer_sdp_, args);
+    };
 
-    // conductor_->answer_ice_ = [this](std::string candidate)
-    // {
-    //     this->SendMessage("AnswerICE", candidate.c_str());
-    // };
-
-    // this->Subscribe(
-    //     "OfferSPD",
-    //     [this](const std::vector<signalr::value> &m)
-    //     {
-    //         const std::string sdp = m[0].as_string();
-    //         std::cout << "Receive OfferSPD: " << sdp << std::endl;
-    //         conductor_->SetOfferSDP(sdp, [this](){
-    //             conductor_->CreateAnswer([this](webrtc::SessionDescriptionInterface* desc){
-    //                 std::string sdp;
-    //                 desc->ToString(&sdp);
-    //                 this->SendMessage("AnswerSDP", sdp.c_str());
-    //             }, nullptr);
-    //         }, nullptr);
-    //     });
+    conductor_->invoke_answer_ice_ = [this](std::string sdp_mid, int sdp_mline_index, std::string candidate)
+    {
+        std::cout << "=> invoke_answer_ice_" << sdp_mid << ", " << sdp_mline_index << ", " << candidate << std::endl;
+        std::map<std::string, signalr::value> ice_message = {
+            {"sdpMid", sdp_mid},
+            {"sdpMLineIndex", static_cast<double>(sdp_mline_index)},
+            {"candidate", candidate}};
+        std::vector<signalr::value> args{ice_message};
+        SendMessage(answer_ice_, args);
+    };
 
     Subscribe(
-        "OfferICE",
-        [](const std::vector<signalr::value> &m)
+        offer_sdp_,
+        [this](const std::vector<signalr::value> &m)
         {
-            std::cout << "Receive OfferICE: " << m[0].as_string() << std::endl;
+            std::cout << "=> OfferSDP: Received!" << std::endl;
+            const std::map<std::string, signalr::value> object = m[0].as_map();
+
+            std::string sdp;
+            for (const auto &s : object)
+            {
+                std::cout << "=> key: " << s.first << ", value: " << s.second.as_string() << std::endl;
+                if (s.first == "sdp")
+                {
+                    sdp = s.second.as_string();
+                }
+            }
+
+            conductor_->SetOfferSDP(
+                sdp,
+                [this]()
+                {
+                    conductor_->CreateAnswer(
+                        [this](webrtc::SessionDescriptionInterface *desc)
+                        {
+                            std::string answer_sdp;
+                            desc->ToString(&answer_sdp);
+                            conductor_->invoke_answer_sdp_(answer_sdp);
+                        },
+                        nullptr);
+                },
+                nullptr);
         });
 
-    // conductor_->ConnectToPeer();
+    Subscribe(
+        offer_ice_,
+        [this](const std::vector<signalr::value> &m)
+        {
+            std::cout << "=> OfferICE: Received!" << std::endl;
+            const std::map<std::string, signalr::value> ice = m[0].as_map();
+
+            std::string sdp_mid;
+            int sdp_mline_index;
+            std::string candidate;
+
+            for (const auto &s : ice)
+            {
+                if(s.first == "candidate"){
+                    candidate=s.second.as_string();
+                }else if(s.first == "sdpMLineIndex"){
+                    sdp_mline_index=(int)s.second.as_double();
+                }else if(s.first == "sdpMid"){
+                    sdp_mid=s.second.as_string();
+                }
+            }
+            
+            std::cout << "=> OfferICE: " << sdp_mline_index <<", "<< sdp_mid <<", "<< candidate << std::endl;
+
+            // bug: Failed to apply the received candidate. connect but without datachannel!? 
+            //conductor_->AddIceCandidate(sdp_mid, sdp_mline_index, candidate);
+        });
 }
 
 void SignalServer::Connect()
@@ -67,10 +116,9 @@ void SignalServer::Subscribe(std::string event_name, const signalr::hub_connecti
     connection_.on(event_name, handler);
 };
 
-void SignalServer::SendMessage(std::string method, const char *context)
+void SignalServer::SendMessage(std::string method, std::vector<signalr::value> args)
 {
     std::promise<void> send_task;
-    std::vector<signalr::value> args{std::string("c++"), context};
     connection_.invoke(method, args,
                        [&send_task](const signalr::value &value, std::exception_ptr exception)
                        {
@@ -79,26 +127,8 @@ void SignalServer::SendMessage(std::string method, const char *context)
     send_task.get_future().get();
 };
 
-void SignalServer::SendTest()
+void SignalServer::ClientJoin(std::string cameraId)
 {
-    std::promise<void> send_task;
-    std::vector<signalr::value> args{std::string("c++"), "Client", std::string("c++"), "webrtc64b32g"};
-    connection_.invoke("ClientJoin", args,
-                       [&send_task](const signalr::value &value, std::exception_ptr exception)
-                       {
-                           send_task.set_value();
-                       });
-    send_task.get_future().get();
-};
-
-void SignalServer::SendTest2()
-{
-    std::promise<void> send_task;
-    std::vector<signalr::value> args{ std::string("c++"), "Client" };
-    connection_.invoke("Echo", args,
-                       [&send_task](const signalr::value &value, std::exception_ptr exception)
-                       {
-                           send_task.set_value();
-                       });
-    send_task.get_future().get();
+    std::vector<signalr::value> args{"Client", cameraId};
+    SendMessage("ClientJoin", args);
 };
