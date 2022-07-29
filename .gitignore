@@ -1,6 +1,8 @@
 *.o
 *.tmp
+*.jpg
 
 # executable
 main
 signal
+test_v4l2_capture

@@ -22,9 +22,12 @@ SIGNALR_LIB_PATH=-L/usr/local/lib
 SIGNALR_HEADER_PATH=-I/usr/local/include
 SIGNALR_LIB=-lmicrosoft-signalr -lcpprest -lssl -lcrypto
 
-.PHONY: all signal.o conductor.o main
+.PHONY: all signal.o conductor.o main test_v4l2_capture
 
 all: main
+
+test_v4l2_capture:
+	$(CC) $(CFLAGS) ./test/test_v4l2_capture.cpp -o test_v4l2_capture
 
 signal:
 	$(CC) $(CFLAGS) $(SIGNALR_LIB_PATH) $(SIGNALR_HEADER_PATH) ${WEBRTC_HEADER_PATH} $(SIGNALR_LIB) ./src/signal.cpp -o signal
