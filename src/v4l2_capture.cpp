@@ -12,6 +12,7 @@
 // WebRTC
 #include <api/scoped_refptr.h>
 #include <api/video/i420_buffer.h>
+#include <api/video/video_frame_buffer.h>
 #include <media/base/video_common.h>
 #include <modules/video_capture/video_capture.h>
 #include <modules/video_capture/video_capture_factory.h>
@@ -33,6 +34,11 @@ V4L2Capture::V4L2Capture(std::string device) : device_(device)
 
 V4L2Capture::~V4L2Capture()
 {
+    if (!capture_thread_.empty())
+    {
+        capture_thread_.Finalize();
+    }
+
     printf("~V4L2Capture Close fd: %d\n", fd_);
     close(fd_);
 }
@@ -110,6 +116,12 @@ V4L2Capture &V4L2Capture::SetFps(uint fps)
         perror("ioctl Setting Fps");
         exit(0);
     }
+    return *this;
+}
+
+V4L2Capture &V4L2Capture::SetCaptureFunc(std::function<bool()> capture_func)
+{
+    capture_func_ = std::move(capture_func);
     return *this;
 }
 
@@ -210,4 +222,37 @@ void V4L2Capture::StartCapture()
     {
         perror("Start Capture");
     }
+
+    if (capture_func_ == nullptr)
+    {
+        capture_func_ = [this]() -> bool
+        { return CaptureProcess(); };
+    }
+
+    // start capture thread;
+    if (capture_thread_.empty())
+    {
+        capture_thread_ = rtc::PlatformThread::SpawnJoinable(
+            [this]()
+            { this->CaptureThread(); },
+            "CaptureThread",
+            rtc::ThreadAttributes().SetPriority(rtc::ThreadPriority::kHigh));
+    }
+}
+
+void V4L2Capture::CaptureThread()
+{
+    std::cout << "CaptureThread: start" << std::endl;
+
+    while (capture_func_())
+    {
+    }
+}
+
+bool V4L2Capture::CaptureProcess()
+{
+    std::cout << "capture_func_ is not set!" << std::endl;
+    Buffer buffer = CaptureImage();
+    usleep(0);
+    return true;
 }
