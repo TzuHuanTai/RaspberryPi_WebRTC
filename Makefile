@@ -13,6 +13,7 @@ CFLAGS= -DWEBRTC_POSIX -DWEBRTC_LINUX \
 WEBRTC_LIB_PATH=-L/usr/local/lib
 WEBRTC_HEADER_PATH=-I/usr/local/include/webrtc \
 -I/usr/local/include/webrtc/third_party/abseil-cpp \
+-I/usr/local/include/webrtc/third_party/libyuv/include \
 -I/usr/local/include/webrtc/tools/json_schema_compiler
 WEBRTC_LINK_LIB=-lX11 -ldl
 WEBRTC_STATIC_LIB=/usr/local/lib/libwebrtc.a
@@ -38,7 +39,7 @@ signal:
 signal.o:
 	$(CC) $(CFLAGS) $(SIGNALR_HEADER_PATH) ${WEBRTC_HEADER_PATH} -c ./src/signal.cpp
 
-conductor.o:
+conductor.o: v4l2_capture.o
 	$(CC) $(CFLAGS) $(WEBRTC_HEADER_PATH) -c ./src/conductor.cpp
 
 main: conductor.o signal.o

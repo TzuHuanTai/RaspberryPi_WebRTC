@@ -23,16 +23,6 @@
 #include <examples/peerconnection/client/main_wnd.h>
 #include <examples/peerconnection/client/peer_connection_client.h>
 
-namespace webrtc
-{
-    class VideoCaptureModule;
-} // namespace webrtc
-
-namespace cricket
-{
-    class VideoRenderer;
-} // namespace cricket
-
 class SetSessionDescription : public webrtc::SetSessionDescriptionObserver
 {
 public:
@@ -140,14 +130,12 @@ public:
     void AddIceCandidate(std::string sdp_mid, int sdp_mline_index, std::string candidate);
     void CreateAnswer(OnCreateSuccessFunc on_success, OnFailureFunc on_failure);
     void SendData(const std::string msg);
-    // bool connection_active() const;
 
 protected:
     bool InitializePeerConnection();
     // bool ReinitializePeerConnectionForLoopback();
     bool CreatePeerConnection();
     // void DeletePeerConnection();
-    // void EnsureStreamingUI();
     void AddTracks();
 
     //
@@ -201,6 +189,7 @@ protected:
     rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> peer_connection_factory_;
     rtc::scoped_refptr<webrtc::AudioTrackInterface> audio_track_;
     rtc::scoped_refptr<webrtc::VideoTrackInterface> video_track_;
+    rtc::scoped_refptr<webrtc::RtpSenderInterface> video_sender_;
     rtc::scoped_refptr<webrtc::DataChannelInterface> channel_;
     PeerConnectionClient *client_;
     std::deque<std::string *> pending_messages_;

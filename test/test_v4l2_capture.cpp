@@ -24,21 +24,17 @@ void WriteImage(Buffer buffer, int index)
 int main(int argc, char *argv[])
 {
     int i = 0;
-    V4L2Capture capture("/dev/video0");
+    auto capture = V4L2Capture::Create("/dev/video0");
 
     auto test = [&capture, &i]() -> bool
     {
-        Buffer buffer = capture.CaptureImage();
+        Buffer buffer = capture->CaptureImage();
         WriteImage(buffer, ++i);
-        if (i > 20)
-        {
-            return false;
-        }
-        return true;
+        return false;
     };
 
-    capture.SetFormat()
-        .SetFps(1)
-        // .SetCaptureFunc(test)
+    (*capture).SetFormat(1920,1080)
+        .SetFps(30)
+        .SetCaptureFunc(test)
         .StartCapture();
 }

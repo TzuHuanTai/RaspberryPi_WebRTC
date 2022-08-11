@@ -8,6 +8,7 @@
                 "/usr/local/include/signalrclient/*",
                 "/usr/local/include/webrtc/*",
                 "/usr/local/include/webrtc/third_party/abseil-cpp/*",
+                "/usr/local/include/webrtc/third_party/libyuv/include/*",
                 "/usr/local/include/webrtc/tools/json_schema_compiler/*"
             ],
             "defines": [],

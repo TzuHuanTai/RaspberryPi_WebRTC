@@ -1,10 +1,12 @@
 #include "conductor.h"
+#include "v4l2_capture.h"
 
 #include <api/audio_codecs/builtin_audio_decoder_factory.h>
 #include <api/audio_codecs/builtin_audio_encoder_factory.h>
 #include <api/create_peerconnection_factory.h>
 #include <api/video_codecs/builtin_video_decoder_factory.h>
 #include <api/video_codecs/builtin_video_encoder_factory.h>
+#include <pc/video_track_source_proxy.h>
 #include <modules/audio_device/include/audio_device.h>
 #include <modules/audio_device/include/audio_device_factory.h>
 #include <modules/audio_device/linux/audio_device_alsa_linux.h>
@@ -36,18 +38,39 @@ void Conductor::AddTracks()
         return;
     }
 
+    std::string stream_id = "test_stream_id";
+
     auto options = peer_connection_factory_->CreateAudioSource(cricket::AudioOptions());
     audio_track_ = peer_connection_factory_->CreateAudioTrack(
         "my_audio_label", options.get());
 
-    auto res = peer_connection_->AddTrack(audio_track_, {"my_stream_id"});
-    if (!res.ok())
+    auto video_track_source = V4L2Capture::Create("/dev/video0");
+    (*video_track_source).SetFps(30).SetFormat(640, 480).StartCapture();
+
+    rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> video_source =
+        webrtc::VideoTrackSourceProxy::Create(
+            signaling_thread_.get(), worker_thread_.get(), video_track_source);
+    rtc::scoped_refptr<webrtc::VideoTrackInterface> video_track_ =
+        peer_connection_factory_->CreateVideoTrack("my_video_label", video_source.get());
+
+    auto audio_res = peer_connection_->AddTrack(audio_track_, {stream_id});
+    if (!audio_res.ok())
     {
-        std::cout << "=> AddTracks: audio_track_ " << res.error().message() << std::endl;
+        std::cout << "=> AddTracks: audio_track_ failed" << audio_res.error().message() << std::endl;
     }
-    else
+
+    if (video_track_)
     {
-        std::cout << "=> AddTracks: audio_track_ success!" << std::endl;
+        auto video_res = peer_connection_->AddTrack(video_track_, {stream_id});
+        if (!video_res.ok())
+        {
+            std::cout << "=> AddTracks: video_track_ failed" << video_res.error().message() << std::endl;
+        }
+
+        video_sender_ = video_res.value();
+        webrtc::RtpParameters parameters = video_sender_->GetParameters();
+        parameters.degradation_preference = webrtc::DegradationPreference::MAINTAIN_FRAMERATE;
+        video_sender_->SetParameters(parameters);
     }
 }
 
@@ -59,8 +82,9 @@ bool Conductor::CreatePeerConnection()
     server.uri = "stun:stun.l.google.com:19302";
     config.servers.push_back(server);
 
-    peer_connection_ =
-        peer_connection_factory_->CreatePeerConnection(config, nullptr, nullptr, this);
+    webrtc::PeerConnectionDependencies dependencies(this);
+    peer_connection_ = peer_connection_factory_->CreatePeerConnectionOrError(config, std::move(dependencies)).value();
+
     return peer_connection_ != nullptr;
 }
 
@@ -123,7 +147,7 @@ void Conductor::OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> c
 
 void Conductor::SendData(const std::string msg)
 {
-    if (channel_->state() != webrtc::DataChannelInterface::kOpen)
+    if (!channel_ || channel_->state() != webrtc::DataChannelInterface::kOpen)
     {
         std::cout << "=> channel: != kopen " << std::endl;
         return;

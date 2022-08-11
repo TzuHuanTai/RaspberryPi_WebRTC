@@ -95,7 +95,7 @@ SignalServer &SignalServer::SetAnswerSdp()
         std::cout << "=> invoke_answer_sdp: " << sdp << std::endl;
         std::map<std::string, signalr::value> sdp_message = {
             {"sdp", sdp},
-            {"type", "Answer"}};
+            {"type", "answer"}};
         std::vector<signalr::value> args{sdp_message};
         SendMessage(answer_sdp_, args);
     };
