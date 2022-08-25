@@ -153,3 +153,4 @@ using signalr as the webrtc signaling server
 # Reference
 * [Version | WebRTC](https://chromiumdash.appspot.com/branches)
 * [Building old revisions | WebRTC](https://chromium.googlesource.com/chromium/src.git/+/HEAD/docs/building_old_revisions.md)
+* [Using a custom clang binary | WebRTC](https://chromium.googlesource.com/chromium/src/+/master/docs/clang.md#using-a-custom-clang-binary)
