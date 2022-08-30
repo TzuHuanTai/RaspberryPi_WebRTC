@@ -6,3 +6,5 @@
 main
 signal
 test_v4l2_capture
+
+!/doc/*.jpg
