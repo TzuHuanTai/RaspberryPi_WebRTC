@@ -3,9 +3,6 @@
 
 #include "conductor.h"
 
-#include <mutex>
-#include <condition_variable>
-
 #include <signalrclient/hub_connection.h>
 #include <signalrclient/hub_connection_builder.h>
 #include <signalrclient/signalr_value.h>
@@ -31,7 +28,9 @@ public:
     bool ready = false;
 
     SignalServer(std::string url, std::shared_ptr<Conductor> conductor);
-    ~SignalServer(){};
+    ~SignalServer(){
+        std::cout << "=> ~SignalServer: destroied" << std::endl;
+    };
 
     SignalServer &Connect();
     SignalServer &ListenClientId();

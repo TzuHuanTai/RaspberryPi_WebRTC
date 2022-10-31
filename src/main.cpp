@@ -16,25 +16,22 @@ int main(int argc, char *argv[])
         config.signaling_url = argv[1];
     }
 
-    while (true) {
-        std::shared_ptr<Conductor> conductor = std::make_shared<Conductor>(config.signaling_url);
+    std::shared_ptr<Conductor> conductor = std::make_shared<Conductor>();
 
+    while (true) {
+        conductor->CreatePeerConnection();
+
+        std::cout << "=> main: start signalr!" << std::endl;
         SignalServer signalr(config.signaling_url, conductor);
         signalr.JoinAsServer();
-            
-        std::cout << "=> main: SendData!" << std::endl;
 
-        for (int i = 0; i < 5; i++)
-        {
-            sleep(5);
-            conductor->SendData("hihi! test send data");
-        }
+        std::cout << "=> main: wait for ready streaming!" << std::endl;
+        std::unique_lock<std::mutex> lock(conductor->mtx);
+        conductor->cond_var.wait(lock, [&]{return conductor->is_ready_for_streaming;});
 
-        std::cout << "=> main: start loop!" << std::endl;
-        
         auto start = std::chrono::system_clock::now();
         std::time_t end_time;
-        while (conductor->loop) {
+        while (conductor->is_ready_for_streaming) {
             sleep(1);
             auto end = std::chrono::system_clock::now();
             std::chrono::duration<double> elapsed_seconds = end-start;
@@ -43,9 +40,9 @@ int main(int argc, char *argv[])
         }
         
         std::cout << std::ctime(&end_time);
+
+        sleep(1);
     }
-    
-    exit(0);
     
     return 0;
 }
