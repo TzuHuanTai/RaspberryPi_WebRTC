@@ -22,6 +22,12 @@ Step of using signalr as the webrtc signaling server
 
 <hr>
 
+# How to use
+```bash
+make -j
+./main http://localhost:6080/SignalingServer
+```
+
 # Build the [native WebRTC](https://webrtc.github.io/webrtc-org/native-code/development/) lib (`libwebrtc.a`)
 
 ## Preparations
