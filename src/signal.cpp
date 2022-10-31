@@ -14,13 +14,34 @@ SignalServer::SignalServer(std::string url, std::shared_ptr<Conductor> conductor
 {
 }
 
+SignalServer &SignalServer::ListenClientId()
+{
+    Subscribe(
+        topics.connected_client,
+        [this](const std::vector<signalr::value> &m)
+        {
+            std::cout << "[SignalR] ConnectedClient: " << std::endl;
+            std::unique_lock<std::mutex> lock(mtx);
+            if(client_id_.empty()){
+                client_id_ = m[0].as_string();
+                std::cout << client_id_ << std::endl;
+            } else {
+                std::cout << m[0].as_string() << " want to replace " << client_id_ << std::endl;
+            }
+
+            ready = true;
+            cond_var.notify_all();
+        });
+    return *this;
+}
+
 SignalServer &SignalServer::ListenOfferSdp()
 {
     Subscribe(
-        offer_sdp_,
+        topics.offer_sdp,
         [this](const std::vector<signalr::value> &m)
         {
-            std::cout << "=> OfferSDP: Received!" << std::endl;
+            std::cout << "[SignalR] OfferSDP: Received!" << std::endl;
             const std::map<std::string, signalr::value> object = m[0].as_map();
 
             std::string sdp;
@@ -54,7 +75,7 @@ SignalServer &SignalServer::ListenOfferSdp()
 SignalServer &SignalServer::ListenOfferIce()
 {
     Subscribe(
-        offer_ice_,
+        topics.offer_ice,
         [this](const std::vector<signalr::value> &m)
         {
             std::cout << "=> OfferICE: Received!" << std::endl;
@@ -92,12 +113,18 @@ SignalServer &SignalServer::SetAnswerSdp()
 {
     conductor_->invoke_answer_sdp = [this](std::string sdp)
     {
-        std::cout << "=> invoke_answer_sdp: " << sdp << std::endl;
+        std::unique_lock<std::mutex> lock(mtx);
+        std::cout << "[SignalR] Invoke AnswerSDP: " << sdp << std::endl;
         std::map<std::string, signalr::value> sdp_message = {
             {"sdp", sdp},
             {"type", "answer"}};
-        std::vector<signalr::value> args{sdp_message};
-        SendMessage(answer_sdp_, args);
+
+        std::cout << "[SignalR] Invoke AnswerSDP: wait!" << std::endl;
+        cond_var.wait(lock, [this]{return ready;});
+        std::cout << "[SignalR] Invoke AnswerSDP: got clientId " << client_id_ << std::endl;
+        
+        std::vector<signalr::value> args{client_id_, sdp_message};
+        SendMessage(topics.answer_sdp, args);
     };
     return *this;
 }
@@ -106,13 +133,19 @@ SignalServer &SignalServer::SetAnswerIce()
 {
     conductor_->invoke_answer_ice = [this](std::string sdp_mid, int sdp_mline_index, std::string candidate)
     {
-        std::cout << "=> invoke_answer_ice" << sdp_mid << ", " << sdp_mline_index << ", " << candidate << std::endl;
+        std::unique_lock<std::mutex> lock(mtx);
+        std::cout << "[SignalR] Invoke AnswerICE: " << sdp_mid << ", " << sdp_mline_index << ", " << candidate << std::endl;
         std::map<std::string, signalr::value> ice_message = {
             {"sdpMid", sdp_mid},
             {"sdpMLineIndex", static_cast<double>(sdp_mline_index)},
             {"candidate", candidate}};
-        std::vector<signalr::value> args{ice_message};
-        SendMessage(answer_ice_, args);
+
+        std::cout << "[SignalR] Invoke AnswerICE: wait!" << std::endl;
+        cond_var.wait(lock, [this]{return ready;});
+        std::cout << "[SignalR] Invoke AnswerICE: got clientId " << client_id_ << std::endl;
+        
+        std::vector<signalr::value> args{client_id_, ice_message};
+        SendMessage(topics.answer_ice, args);
     };
     return *this;
 }
@@ -120,6 +153,7 @@ SignalServer &SignalServer::SetAnswerIce()
 SignalServer &SignalServer::SetDisconnect()
 {
     conductor_->complete_signaling = [this](){
+        sleep(3);
         Disconnect();
     };
     return *this;
@@ -158,14 +192,24 @@ void SignalServer::SendMessage(std::string method, std::vector<signalr::value> a
     send_task.get_future().get();
 };
 
-void SignalServer::JoinAsClient(std::string cameraId)
+void SignalServer::JoinAsClient()
 {
-    std::vector<signalr::value> args{"Client", cameraId};
-    SendMessage("ClientJoin", args);
+    std::vector<signalr::value> args{};
+    SendMessage(topics.join_as_client, args);
 };
 
 void SignalServer::JoinAsServer()
 {
-    std::vector<signalr::value> args{"Server"};
-    SendMessage("ServerJoin", args);
+    std::cout << "=> SignalServer: start setting!" << std::endl;
+    ListenClientId();
+    ListenOfferSdp();
+    ListenOfferIce();
+    SetAnswerSdp();
+    SetAnswerIce();
+    SetDisconnect();
+
+    Connect();
+
+    std::vector<signalr::value> args{};
+    SendMessage(topics.join_as_server , args);
 };
