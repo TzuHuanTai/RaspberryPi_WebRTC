@@ -18,6 +18,8 @@
 #include <string>
 #include <vector>
 #include <functional>
+#include <mutex>
+#include <condition_variable>
 
 #include <api/peer_connection_interface.h>
 #include <examples/peerconnection/client/main_wnd.h>
@@ -100,20 +102,12 @@ protected:
 class Conductor : public webrtc::PeerConnectionObserver
 {
 public:
-    bool loop = true;
-    std::string signalr_url;
-    enum CallbackID
-    {
-        MEDIA_CHANNELS_INITIALIZED = 1,
-        PEER_CONNECTION_CLOSED,
-        SEND_MESSAGE_TO_PEER,
-        NEW_TRACK_ADDED,
-        TRACK_REMOVED,
-    };
+    std::mutex mtx;
+    bool is_ready_for_streaming = false;
+    std::condition_variable cond_var;
 
-    Conductor(std::string server_url);
+    Conductor();
     ~Conductor();
-    void ConnectToPeer();
     typedef std::function<void()> OnSetSuccessFunc;
     typedef std::function<void(webrtc::RTCError)> OnFailureFunc;
     typedef std::function<void(webrtc::SessionDescriptionInterface *desc)> OnCreateSuccessFunc;
@@ -130,58 +124,26 @@ public:
     void AddIceCandidate(std::string sdp_mid, int sdp_mline_index, std::string candidate);
     void CreateAnswer(OnCreateSuccessFunc on_success, OnFailureFunc on_failure);
     void SendData(const std::string msg);
+    bool CreatePeerConnection();
 
 protected:
     bool InitializePeerConnection();
-    // bool ReinitializePeerConnectionForLoopback();
-    bool CreatePeerConnection();
-    // void DeletePeerConnection();
+    bool InitializeTracks();
     void AddTracks();
 
-    //
-    // PeerConnectionObserver implementation.
-    //
-
     void OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState new_state) override;
-    // void OnAddTrack(
-    //     rtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver,
-    //     const std::vector<rtc::scoped_refptr<webrtc::MediaStreamInterface>>& streams) override;
-    // void OnRemoveTrack(rtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver) override;
     void OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> channel) override;
-    // void OnRenegotiationNeeded() override {}
     void OnStandardizedIceConnectionChange(
       webrtc::PeerConnectionInterface::IceConnectionState new_state) override;
     void OnIceGatheringChange(
         webrtc::PeerConnectionInterface::IceGatheringState new_state) override;
     void OnIceCandidate(const webrtc::IceCandidateInterface *candidate) override;
-    // void OnIceConnectionReceivingChange(bool receiving) override {}
     void OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionState new_state) override;
-
-    //
-    // PeerConnectionClientObserver implementation.
-    //
-
-    // void OnSignedIn() override;
-
-    // void OnDisconnected() override;
-
-    // void OnPeerConnected(int id, const std::string& name) override;
-
-    // void OnPeerDisconnected(int id) override;
-
-    // void OnMessageFromPeer(int peer_id, const std::string& message) override;
-
-    // void OnMessageSent(int err) override;
-
-    // void OnServerConnectionFailure() override;
-
-    // CreateSessionDescriptionObserver implementation.
 
 protected:
     // Send a message to the remote peer.
     // void SendMessage(const std::string& json_object);
 
-    int peer_id_;
     std::unique_ptr<rtc::Thread> network_thread_;
     std::unique_ptr<rtc::Thread> worker_thread_;
     std::unique_ptr<rtc::Thread> signaling_thread_;
@@ -191,7 +153,6 @@ protected:
     rtc::scoped_refptr<webrtc::VideoTrackInterface> video_track_;
     rtc::scoped_refptr<webrtc::RtpSenderInterface> video_sender_;
     rtc::scoped_refptr<webrtc::DataChannelInterface> channel_;
-    PeerConnectionClient *client_;
     std::deque<std::string *> pending_messages_;
 };
 

@@ -15,19 +15,44 @@
 #include <rtc_base/ssl_adapter.h>
 #include <rtc_base/thread.h>
 
-Conductor::Conductor(std::string signal_url) : signalr_url(signalr_url)
+Conductor::Conductor()
 {
     std::cout << "=> Conductor: init" << std::endl;
     if (InitializePeerConnection())
     {
-        std::cout << "=> InitializePeerConnection: success, start connecting signaling server!" << std::endl;
+        std::cout << "=> InitializePeerConnection: success!" << std::endl;
+    }
+
+     if (InitializeTracks())
+    {
+        std::cout << "=> InitializeTracks: success!" << std::endl;
     }
 }
 
-void Conductor::ConnectToPeer()
+bool Conductor::InitializeTracks()
 {
-    std::cout << "=> ConnectToPeer: " << (peer_connection_ != nullptr) << std::endl;
-    // peer_connection_->CreateOffer(this, webrtc::PeerConnectionInterface::RTCOfferAnswerOptions());
+    auto options = peer_connection_factory_->CreateAudioSource(cricket::AudioOptions());
+    audio_track_ = peer_connection_factory_->CreateAudioTrack(
+        "my_audio_label", options.get());
+
+    auto video_track_source = V4L2Capture::Create("/dev/video0");
+    (*video_track_source).SetFps(30).SetFormat(640, 480).StartCapture();
+
+    rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> video_source =
+        webrtc::VideoTrackSourceProxy::Create(
+            signaling_thread_.get(), worker_thread_.get(), video_track_source);
+    video_track_ =
+        peer_connection_factory_->CreateVideoTrack("my_video_label", video_source.get());
+
+    if(video_track_ != nullptr){
+        std::cout << "video_track_ != nullptr" << std::endl;
+    }
+
+    if(audio_track_ != nullptr){
+        std::cout << "audio_track_ != nullptr" << std::endl;
+    }
+    
+    return video_track_ != nullptr && audio_track_ != nullptr;
 }
 
 void Conductor::AddTracks()
@@ -40,38 +65,22 @@ void Conductor::AddTracks()
 
     std::string stream_id = "test_stream_id";
 
-    auto options = peer_connection_factory_->CreateAudioSource(cricket::AudioOptions());
-    audio_track_ = peer_connection_factory_->CreateAudioTrack(
-        "my_audio_label", options.get());
-
-    auto video_track_source = V4L2Capture::Create("/dev/video0");
-    (*video_track_source).SetFps(30).SetFormat(640, 480).StartCapture();
-
-    rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> video_source =
-        webrtc::VideoTrackSourceProxy::Create(
-            signaling_thread_.get(), worker_thread_.get(), video_track_source);
-    rtc::scoped_refptr<webrtc::VideoTrackInterface> video_track_ =
-        peer_connection_factory_->CreateVideoTrack("my_video_label", video_source.get());
-
     auto audio_res = peer_connection_->AddTrack(audio_track_, {stream_id});
     if (!audio_res.ok())
     {
         std::cout << "=> AddTracks: audio_track_ failed" << audio_res.error().message() << std::endl;
     }
 
-    if (video_track_)
+    auto video_res = peer_connection_->AddTrack(video_track_, {stream_id});
+    if (!video_res.ok())
     {
-        auto video_res = peer_connection_->AddTrack(video_track_, {stream_id});
-        if (!video_res.ok())
-        {
-            std::cout << "=> AddTracks: video_track_ failed" << video_res.error().message() << std::endl;
-        }
-
-        video_sender_ = video_res.value();
-        webrtc::RtpParameters parameters = video_sender_->GetParameters();
-        parameters.degradation_preference = webrtc::DegradationPreference::MAINTAIN_FRAMERATE;
-        video_sender_->SetParameters(parameters);
+        std::cout << "=> AddTracks: video_track_ failed" << video_res.error().message() << std::endl;
     }
+
+    video_sender_ = video_res.value();
+    webrtc::RtpParameters parameters = video_sender_->GetParameters();
+    parameters.degradation_preference = webrtc::DegradationPreference::MAINTAIN_FRAMERATE;
+    video_sender_->SetParameters(parameters);
 }
 
 bool Conductor::CreatePeerConnection()
@@ -84,6 +93,8 @@ bool Conductor::CreatePeerConnection()
 
     webrtc::PeerConnectionDependencies dependencies(this);
     peer_connection_ = peer_connection_factory_->CreatePeerConnectionOrError(config, std::move(dependencies)).value();
+
+    AddTracks();
 
     return peer_connection_ != nullptr;
 }
@@ -124,14 +135,7 @@ bool Conductor::InitializePeerConnection()
         std::cout << "=> peer_connection_factory: success!" << std::endl;
     }
 
-    if (CreatePeerConnection())
-    {
-        std::cout << "=> create peer connection: success!" << std::endl;
-    }
-
-    AddTracks();
-
-    return peer_connection_ != nullptr;
+    return peer_connection_factory_ != nullptr;
 }
 
 void Conductor::OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState new_state)
@@ -162,6 +166,10 @@ void Conductor::OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnecti
     std::cout << "=> OnConnectionChange: " << webrtc::PeerConnectionInterface::PeerConnectionInterface::AsString(new_state) << std::endl;
     if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kConnected)
     {
+        std::unique_lock<std::mutex> lock(mtx);
+        is_ready_for_streaming = true;
+        cond_var.notify_all();
+
         if (complete_signaling)
         {
             complete_signaling();
@@ -173,7 +181,7 @@ void Conductor::OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnecti
     }
     else if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kClosed)
     {
-        loop = false;
+        is_ready_for_streaming = false;
     }
 }
 
@@ -260,12 +268,12 @@ void Conductor::CreateAnswer(OnCreateSuccessFunc on_success, OnFailureFunc on_fa
 
 Conductor::~Conductor()
 {
-    // network_thread_->Stop();
-    // worker_thread_->Stop();
-    // signaling_thread_->Stop();
-    // audio_track_ = nullptr;
-    // video_track_ = nullptr;
-    // peer_connection_factory_ = nullptr;
+    audio_track_ = nullptr;
+    video_track_ = nullptr;
+    peer_connection_factory_ = nullptr;
+    network_thread_->Stop();
+    worker_thread_->Stop();
+    signaling_thread_->Stop();
     rtc::CleanupSSL();
     std::cout << "=> ~Conductor: destroied" << std::endl;
 }
