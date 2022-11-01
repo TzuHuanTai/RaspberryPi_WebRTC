@@ -23,10 +23,66 @@ Step of using signalr as the webrtc signaling server
 <hr>
 
 # How to use
+## Compile and run
 ```bash
 make -j
 ./main http://localhost:6080/SignalingServer
 ```
+
+## Run as Linux Service
+1. Set up [PulseAudio](https://wiki.archlinux.org/title/PulseAudio)
+*  Modify this line in `/etc/pulse/system.pa`
+    ```
+    load-module module-native-protocol-unix auth-anonymous=1
+    ```
+
+* `sudo nano /etc/systemd/system/pulseaudio.service`, config sample:
+    ```ini
+    [Unit]
+    Description= Pulseaudio Daemon
+    After=rtkit-daemon.service systemd-udevd.service dbus.service
+
+    [Service]
+    Type=simple
+    ExecStart=/usr/bin/pulseaudio --system --disallow-exit --disallow-module-loading --log-target=journal
+    Restart=always
+    RestartSec=10
+      
+    [Install]
+    WantedBy=multi-user.target
+    ```
+* Enable and run the service
+    ```
+    sudo systemctl enable pulseaudio.service
+    sudo systemctl start pulseaudio.service
+    ```
+
+2. Set up WebRTC program 
+* `sudo nano /etc/systemd/system/webrtc.service`, config sample:
+    ```ini
+    [Unit]
+    Description= the webrtc service need signaling server first
+    After=systemd-networkd.service farmer-api.service
+
+    [Service]
+    Type=simple
+    User=pi
+    Group=pi
+    WorkingDirectory=/home/pi/IoT/RaspberryPi_WebRTC
+    EnvironmentFile=/home/pi/IoT/RaspberryPi_WebRTC/prog.conf
+    ExecStartPre=/bin/sleep 10
+    ExecStart=/home/pi/IoT/RaspberryPi_WebRTC/main $SignalingUrl
+    Restart=always
+    RestartSec=10
+      
+    [Install]
+    WantedBy=multi-user.target
+    ```
+* Enable and run the service
+    ```
+    sudo systemctl enable webrtc.service
+    sudo systemctl start webrtc.service
+    ```
 
 # Build the [native WebRTC](https://webrtc.github.io/webrtc-org/native-code/development/) lib (`libwebrtc.a`)
 
