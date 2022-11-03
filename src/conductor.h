@@ -1,15 +1,7 @@
-/*
- *  Copyright 2012 The WebRTC Project Authors. All rights reserved.
- *
- *  Use of this source code is governed by a BSD-style license
- *  that can be found in the LICENSE file in the root of the source
- *  tree. An additional intellectual property rights grant can be found
- *  in the file PATENTS.  All contributing project authors may
- *  be found in the AUTHORS file in the root of the source tree.
- */
-
 #ifndef CONDUCTOR_H_
 #define CONDUCTOR_H_
+
+#include "args.h"
 
 #include <deque>
 #include <iostream>
@@ -33,7 +25,7 @@ public:
 
     SetSessionDescription(OnSuccessFunc on_success, OnFailureFunc on_failure)
         : on_success_(std::move(on_success)),
-          on_failure_(std::move(on_failure)){}
+          on_failure_(std::move(on_failure)) {}
 
     static SetSessionDescription *Create(OnSuccessFunc on_success, OnFailureFunc on_failure)
     {
@@ -45,7 +37,8 @@ protected:
     {
         std::cout << "=> Set OnSuccess: " << std::endl;
         auto f = std::move(on_success_);
-        if (f) {
+        if (f)
+        {
             f();
         }
     }
@@ -53,7 +46,8 @@ protected:
     {
         std::cout << "=> Set OnFailure: " << error.message() << std::endl;
         auto f = std::move(on_failure_);
-        if (f) {
+        if (f)
+        {
             f(error);
         }
     }
@@ -70,7 +64,7 @@ public:
 
     CreateSessionDescription(OnSuccessFunc on_success, OnFailureFunc on_failure)
         : on_success_(std::move(on_success)),
-          on_failure_(std::move(on_failure)){}
+          on_failure_(std::move(on_failure)) {}
 
     static CreateSessionDescription *Create(OnSuccessFunc on_success, OnFailureFunc on_failure)
     {
@@ -82,7 +76,8 @@ protected:
     {
         std::cout << "=> Set OnSuccess: " << std::endl;
         auto f = std::move(on_success_);
-        if (f) {
+        if (f)
+        {
             f(desc);
         }
     }
@@ -90,7 +85,8 @@ protected:
     {
         std::cout << "=> Set OnFailure: " << error.message() << std::endl;
         auto f = std::move(on_failure_);
-        if (f) {
+        if (f)
+        {
             f(error);
         }
     }
@@ -105,8 +101,9 @@ public:
     std::mutex mtx;
     bool is_ready_for_streaming = false;
     std::condition_variable cond_var;
+    Args args;
 
-    Conductor();
+    Conductor(Args args);
     ~Conductor();
     typedef std::function<void()> OnSetSuccessFunc;
     typedef std::function<void(webrtc::RTCError)> OnFailureFunc;
@@ -119,8 +116,8 @@ public:
     OnSetSuccessFunc complete_signaling;
 
     void SetOfferSDP(const std::string sdp,
-                              OnSetSuccessFunc on_success,
-                              OnFailureFunc on_failure);
+                     OnSetSuccessFunc on_success,
+                     OnFailureFunc on_failure);
     void AddIceCandidate(std::string sdp_mid, int sdp_mline_index, std::string candidate);
     void CreateAnswer(OnCreateSuccessFunc on_success, OnFailureFunc on_failure);
     void SendData(const std::string msg);
@@ -134,7 +131,7 @@ protected:
     void OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState new_state) override;
     void OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> channel) override;
     void OnStandardizedIceConnectionChange(
-      webrtc::PeerConnectionInterface::IceConnectionState new_state) override;
+        webrtc::PeerConnectionInterface::IceConnectionState new_state) override;
     void OnIceGatheringChange(
         webrtc::PeerConnectionInterface::IceGatheringState new_state) override;
     void OnIceCandidate(const webrtc::IceCandidateInterface *candidate) override;

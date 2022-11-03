@@ -15,7 +15,7 @@
 #include <rtc_base/ssl_adapter.h>
 #include <rtc_base/thread.h>
 
-Conductor::Conductor()
+Conductor::Conductor(Args args) : args(args)
 {
     std::cout << "=> Conductor: init" << std::endl;
     if (InitializePeerConnection())
@@ -23,7 +23,7 @@ Conductor::Conductor()
         std::cout << "=> InitializePeerConnection: success!" << std::endl;
     }
 
-     if (InitializeTracks())
+    if (InitializeTracks())
     {
         std::cout << "=> InitializeTracks: success!" << std::endl;
     }
@@ -35,8 +35,11 @@ bool Conductor::InitializeTracks()
     audio_track_ = peer_connection_factory_->CreateAudioTrack(
         "my_audio_label", options.get());
 
-    auto video_track_source = V4L2Capture::Create("/dev/video0");
-    (*video_track_source).SetFps(30).SetFormat(640, 480).StartCapture();
+    auto video_track_source = V4L2Capture::Create(args.device);
+    (*video_track_source)
+        .SetFps(args.fps)
+        .SetFormat(args.width, args.height)
+        .StartCapture();
 
     rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> video_source =
         webrtc::VideoTrackSourceProxy::Create(
@@ -44,14 +47,16 @@ bool Conductor::InitializeTracks()
     video_track_ =
         peer_connection_factory_->CreateVideoTrack("my_video_label", video_source.get());
 
-    if(video_track_ != nullptr){
+    if (video_track_ != nullptr)
+    {
         std::cout << "video_track_ != nullptr" << std::endl;
     }
 
-    if(audio_track_ != nullptr){
+    if (audio_track_ != nullptr)
+    {
         std::cout << "audio_track_ != nullptr" << std::endl;
     }
-    
+
     return video_track_ != nullptr && audio_track_ != nullptr;
 }
 
@@ -88,7 +93,7 @@ bool Conductor::CreatePeerConnection()
     webrtc::PeerConnectionInterface::RTCConfiguration config;
     config.sdp_semantics = webrtc::SdpSemantics::kUnifiedPlan;
     webrtc::PeerConnectionInterface::IceServer server;
-    server.uri = "stun:stun.l.google.com:19302";
+    server.uri = args.stun_url;
     config.servers.push_back(server);
 
     webrtc::PeerConnectionDependencies dependencies(this);

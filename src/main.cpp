@@ -4,25 +4,23 @@
 #include <chrono>
 #include <ctime>
 
+#include "args.h"
 #include "conductor.h"
-#include "config.h"
+#include "parser.h"
 #include "signal.h"
 
 int main(int argc, char *argv[])
 {
-    SignalingConfig config;
-    if (argc > 1)
-    {
-        config.signaling_url = argv[1];
-    }
+    Args args;
+    Parser::ParseArgs(argc, argv, args);
 
-    std::shared_ptr<Conductor> conductor = std::make_shared<Conductor>();
+    std::shared_ptr<Conductor> conductor = std::make_shared<Conductor>(args);
 
     while (true) {
         conductor->CreatePeerConnection();
 
-        std::cout << "=> main: start signalr!" << std::endl;
-        SignalServer signalr(config.signaling_url, conductor);
+        std::cout << "=> main: start signalr! url: " << args.signaling_url << std::endl;
+        SignalServer signalr(args.signaling_url, conductor);
         signalr.JoinAsServer();
 
         std::cout << "=> main: wait for ready streaming!" << std::endl;
