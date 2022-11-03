@@ -18,12 +18,13 @@ WEBRTC_HEADER_PATH=-I/usr/local/include/webrtc \
 WEBRTC_LINK_LIB=-lX11 -ldl
 WEBRTC_STATIC_LIB=/usr/local/lib/libwebrtc.a
 
-
 SIGNALR_LIB_PATH=-L/usr/local/lib
 SIGNALR_HEADER_PATH=-I/usr/local/include
 SIGNALR_LIB=-lmicrosoft-signalr -lcpprest -lssl -lcrypto
 
-.PHONY: all signal.o conductor.o main v4l2_capture.o test_v4l2_capture
+BPO_LINK_LIB=-lboost_program_options
+
+.PHONY: all signal.o conductor.o parser.o main v4l2_capture.o test_v4l2_capture
 
 all: main
 
@@ -42,8 +43,12 @@ signal.o:
 conductor.o: v4l2_capture.o
 	$(CC) $(CFLAGS) $(WEBRTC_HEADER_PATH) -c ./src/conductor.cpp
 
-main: conductor.o signal.o
-	$(CC) $(CFLAGS) $(WEBRTC_HEADER_PATH) $(SIGNALR_LIB_PATH) $(SIGNALR_HEADER_PATH) $(SIGNALR_LIB) ./src/main.cpp *.o -o main ${WEBRTC_STATIC_LIB} ${WEBRTC_LINK_LIB}
+parser.o:
+	$(CC) $(CFLAGS) -c ./src/parser.cpp
+
+main: conductor.o signal.o parser.o
+	$(CC) $(CFLAGS) $(WEBRTC_HEADER_PATH) $(SIGNALR_LIB_PATH) $(SIGNALR_HEADER_PATH) ./src/main.cpp *.o -o main \
+    ${WEBRTC_STATIC_LIB} ${WEBRTC_LINK_LIB} $(SIGNALR_LIB) ${BPO_LINK_LIB}
 
 clean: 
 	rm -f main signal *.o

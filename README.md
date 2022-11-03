@@ -23,6 +23,12 @@ Step of using signalr as the webrtc signaling server
 <hr>
 
 # How to use
+
+Compile `libwebrtc.a` and `microsoft-signalr.so`, then install the needed packages befor run makefile
+```bash
+sudo apt install libboost-program-options-dev
+```
+
 ## Compile and run
 ```bash
 make -j
@@ -69,9 +75,8 @@ make -j
     User=pi
     Group=pi
     WorkingDirectory=/home/pi/IoT/RaspberryPi_WebRTC
-    EnvironmentFile=/home/pi/IoT/RaspberryPi_WebRTC/prog.conf
     ExecStartPre=/bin/sleep 10
-    ExecStart=/home/pi/IoT/RaspberryPi_WebRTC/main $SignalingUrl
+    ExecStart=/home/pi/IoT/RaspberryPi_WebRTC/main --fps=15 --width=1280 --height=720 --signaling_url=http://localhost:6080/SignalingServer
     Restart=always
     RestartSec=10
       
