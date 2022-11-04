@@ -2,14 +2,14 @@
 
 Step of using signalr as the webrtc signaling server
 
-1. build the native webrtc on Ubuntu 20.04 64bit
-2. build the SignalR-Client with boringssl
-3. create .net signalr server hub
-4. use signalr-client to exchange ice/sdp information with webrtc.lib.
-5. `ioctl` receive camera frames and send them via `AdaptedVideoTrackSource` in webrtc.lib 
+1. Build the native webrtc on Ubuntu 20.04 64bit
+2. Build the SignalR-Client with boringssl
+3. Create .net [signalr server hub](https://github.com/TzuHuanTai/FarmerAPI/blob/master/FarmerAPI/Hubs/SignalingServer.cs)
+4. Use signalr-client to exchange ice/sdp information with webrtc.lib.
+5. Receive camera frames via `ioctl` and send its to `AdaptedVideoTrackSource` in webrtc.lib 
 
 ## Environment
-* RaspberryPi 3B
+* RaspberryPi 3B + Raspberry Pi Camera v1.3
 * RaspberryPi OS 64bit
 * [clang 12+](https://github.com/llvm/llvm-project/releases)
 * `boringssl` replace `openssl`
@@ -18,6 +18,13 @@ Step of using signalr as the webrtc signaling server
 * Latency is about 0.2 seconds delay.
 * Temperatures up to 60~65°C.
 * CPU is ~60% at 1280x720 30fps.
+
+| Resolution | FPS | CPU  |  Latency  | Temperature |
+| :--------: | :-: | :--: | :-------: | :---------: |
+|  1280x720  |  30 | ~60% | 200~250ms |   60~65°C   |
+|   640x480  |  60 | ~60% | 190~220ms |             |
+|   320x240  |  60 | ~30% | 120~140ms |             |
+
 ![latency](./doc/latency.jpg)
 
 <hr>
