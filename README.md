@@ -79,10 +79,7 @@ make -j
 
     [Service]
     Type=simple
-    User=pi
-    Group=pi
     WorkingDirectory=/home/pi/IoT/RaspberryPi_WebRTC
-    ExecStartPre=/bin/sleep 10
     ExecStart=/home/pi/IoT/RaspberryPi_WebRTC/main --fps=15 --width=1280 --height=720 --signaling_url=http://localhost:6080/SignalingServer
     Restart=always
     RestartSec=10

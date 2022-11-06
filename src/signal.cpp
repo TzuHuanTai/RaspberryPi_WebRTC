@@ -14,7 +14,7 @@ SignalServer::SignalServer(std::string url, std::shared_ptr<Conductor> conductor
 {
 }
 
-SignalServer &SignalServer::ListenClientId()
+void SignalServer::ListenClientId()
 {
     Subscribe(
         topics.connected_client,
@@ -32,10 +32,9 @@ SignalServer &SignalServer::ListenClientId()
             ready = true;
             cond_var.notify_all();
         });
-    return *this;
 }
 
-SignalServer &SignalServer::ListenOfferSdp()
+void SignalServer::ListenOfferSdp()
 {
     Subscribe(
         topics.offer_sdp,
@@ -69,10 +68,9 @@ SignalServer &SignalServer::ListenOfferSdp()
                 },
                 nullptr);
         });
-    return *this;
 }
 
-SignalServer &SignalServer::ListenOfferIce()
+void SignalServer::ListenOfferIce()
 {
     Subscribe(
         topics.offer_ice,
@@ -106,10 +104,9 @@ SignalServer &SignalServer::ListenOfferIce()
             // bug: Failed to apply the received candidate. connect but without datachannel!?
             // conductor_->AddIceCandidate(sdp_mid, sdp_mline_index, candidate);
         });
-    return *this;
 }
 
-SignalServer &SignalServer::SetAnswerSdp()
+void SignalServer::SetAnswerSdp()
 {
     conductor_->invoke_answer_sdp = [this](std::string sdp)
     {
@@ -126,10 +123,9 @@ SignalServer &SignalServer::SetAnswerSdp()
         std::vector<signalr::value> args{client_id_, sdp_message};
         SendMessage(topics.answer_sdp, args);
     };
-    return *this;
 }
 
-SignalServer &SignalServer::SetAnswerIce()
+void SignalServer::SetAnswerIce()
 {
     conductor_->invoke_answer_ice = [this](std::string sdp_mid, int sdp_mline_index, std::string candidate)
     {
@@ -147,10 +143,9 @@ SignalServer &SignalServer::SetAnswerIce()
         std::vector<signalr::value> args{client_id_, ice_message};
         SendMessage(topics.answer_ice, args);
     };
-    return *this;
 }
 
-SignalServer &SignalServer::SetDisconnect()
+SignalServer &SignalServer::DisconnectWhenCompleted()
 {
     conductor_->complete_signaling = [this](){
         sleep(3);
@@ -159,12 +154,58 @@ SignalServer &SignalServer::SetDisconnect()
     return *this;
 }
 
+SignalServer &SignalServer::WithReconnect()
+{
+    connection_.set_disconnected([this](std::exception_ptr exception){ 
+        try
+        {
+            if (exception)
+            {
+                std::rethrow_exception(exception);
+            }
+
+            std::cout << "[SignalR][WithReconnect]: normal disconnection successfully" << std::endl;
+        }
+        catch (const std::exception& e)
+        {
+            std::cout << "[SignalR][WithReconnect]: exception about " << e.what() << std::endl;
+            sleep(1);
+            Connect();
+        }
+    });
+
+    return *this;
+}
+
 SignalServer &SignalServer::Connect()
 {
-    std::promise<void> start_task;
-    connection_.start([&start_task](std::exception_ptr exception)
-                      { start_task.set_value(); });
-    start_task.get_future().get();
+    while(connection_.get_connection_state() != signalr::connection_state::connected)
+    {
+        std::cout << "[SignalR][Connect] start connecting!" << std::endl;
+        std::promise<void> start_task;
+        connection_.start([&start_task](std::exception_ptr exception){
+            try
+            {
+                if (exception)
+                {
+                    std::rethrow_exception(exception);
+                }
+            }
+            catch (const std::exception& e)
+            {
+                std::cout << "[SignalR][Connect] exception: " << e.what() << std::endl;
+                sleep(1);
+            }
+            start_task.set_value();   
+        });
+
+        start_task.get_future().get();
+    }
+
+    if(connected_func_){
+        connected_func_();
+    }
+    
     return *this;
 };
 
@@ -183,19 +224,27 @@ void SignalServer::Subscribe(std::string event_name, const signalr::hub_connecti
 
 void SignalServer::SendMessage(std::string method, std::vector<signalr::value> args)
 {
-    std::promise<void> send_task;
-    connection_.invoke(method, args,
-                       [&send_task](const signalr::value &value, std::exception_ptr exception)
-                       {
-                           send_task.set_value();
-                       });
-    send_task.get_future().get();
+    if(connection_.get_connection_state() == signalr::connection_state::connected){
+        std::promise<void> send_task;
+        connection_.invoke(method, args,
+                        [&send_task](const signalr::value &value, std::exception_ptr exception)
+                        {
+                            send_task.set_value();
+                        });
+        send_task.get_future().get();
+    }
+    else
+    {
+        std::cout << "[SignalR][SendMessage]: not send msg due to disconnection" << std::endl;
+    }
+    
 };
 
 void SignalServer::JoinAsClient()
 {
-    std::vector<signalr::value> args{};
-    SendMessage(topics.join_as_client, args);
+    // todo
+    // std::vector<signalr::value> args{};
+    // SendMessage(topics.join_as_client, args);
 };
 
 void SignalServer::JoinAsServer()
@@ -206,10 +255,11 @@ void SignalServer::JoinAsServer()
     ListenOfferIce();
     SetAnswerSdp();
     SetAnswerIce();
-    SetDisconnect();
+
+    connected_func_ = [this](){
+        std::vector<signalr::value> args{};
+        SendMessage(topics.join_as_server , args);
+    };
 
     Connect();
-
-    std::vector<signalr::value> args{};
-    SendMessage(topics.join_as_server , args);
 };

@@ -21,7 +21,9 @@ int main(int argc, char *argv[])
 
         std::cout << "=> main: start signalr! url: " << args.signaling_url << std::endl;
         SignalServer signalr(args.signaling_url, conductor);
-        signalr.JoinAsServer();
+        signalr.WithReconnect()
+                .DisconnectWhenCompleted()
+                .JoinAsServer();
 
         std::cout << "=> main: wait for ready streaming!" << std::endl;
         std::unique_lock<std::mutex> lock(conductor->mtx);
@@ -30,11 +32,11 @@ int main(int argc, char *argv[])
         auto start = std::chrono::system_clock::now();
         std::time_t end_time;
         while (conductor->is_ready_for_streaming) {
-            sleep(1);
             auto end = std::chrono::system_clock::now();
             std::chrono::duration<double> elapsed_seconds = end-start;
             end_time = std::chrono::system_clock::to_time_t(end);
-            std::cout << '\r' << "elapsed time: " << elapsed_seconds.count() << "s" << "\e[K" << std::flush;
+            std::cout << '\r' << "running time: " << elapsed_seconds.count() << "s " << "\e[K" << std::flush;
+            sleep(1);
         }
         
         std::cout << std::ctime(&end_time);
