@@ -33,12 +33,8 @@ public:
     };
 
     SignalServer &Connect();
-    SignalServer &ListenClientId();
-    SignalServer &ListenOfferSdp();
-    SignalServer &ListenOfferIce();
-    SignalServer &SetAnswerSdp();
-    SignalServer &SetAnswerIce();
-    SignalServer &SetDisconnect();
+    SignalServer &WithReconnect();
+    SignalServer &DisconnectWhenCompleted();
     void Disconnect();
     void Subscribe(std::string event_name, const signalr::hub_connection::method_invoked_handler &handler);
     void JoinAsClient();
@@ -46,9 +42,15 @@ public:
 
 private:
     std::string client_id_;
-    void SendMessage(std::string method, std::vector<signalr::value> args);
     std::shared_ptr<Conductor> conductor_;
     signalr::hub_connection connection_;
+    std::function<void()> connected_func_;
+    void ListenClientId();
+    void ListenOfferSdp();
+    void ListenOfferIce();
+    void SetAnswerSdp();
+    void SetAnswerIce();
+    void SendMessage(std::string method, std::vector<signalr::value> args);
 };
 
 #endif
