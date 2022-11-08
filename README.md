@@ -33,7 +33,7 @@ Step of using signalr as the webrtc signaling server
 
 Compile `libwebrtc.a` and `microsoft-signalr.so`, then install the needed packages befor run makefile
 ```bash
-sudo apt install libboost-program-options-dev
+sudo apt install libboost-program-options-dev libavformat-dev libavcodec-dev libavutil-dev libavdevice-dev libswscale-dev
 ```
 
 ## Compile and run
@@ -45,7 +45,7 @@ make -j
 ## Run as Linux Service
 1. Set up [PulseAudio](https://wiki.archlinux.org/title/PulseAudio)
 *  Modify this line in `/etc/pulse/system.pa`
-    ```
+    ```ini
     load-module module-native-protocol-unix auth-anonymous=1
     ```
 
@@ -65,7 +65,7 @@ make -j
     WantedBy=multi-user.target
     ```
 * Enable and run the service
-    ```
+    ```bash
     sudo systemctl enable pulseaudio.service
     sudo systemctl start pulseaudio.service
     ```
@@ -88,7 +88,7 @@ make -j
     WantedBy=multi-user.target
     ```
 * Enable and run the service
-    ```
+    ```bash
     sudo systemctl enable webrtc.service
     sudo systemctl start webrtc.service
     ```

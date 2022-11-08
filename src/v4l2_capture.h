@@ -1,6 +1,7 @@
 #ifndef V4L2CAPTURER_H_
 #define V4L2CAPTURER_H_
 
+#include "buffer.h"
 #include <modules/video_capture/video_capture.h>
 #include <modules/video_capture/video_capture_defines.h>
 #include <modules/video_capture/video_capture_impl.h>
@@ -9,12 +10,6 @@
 #include <media/base/adapted_video_track_source.h>
 #include <media/base/video_adapter.h>
 
-struct Buffer
-{
-    void *start;
-    uint length;
-};
-
 class V4L2Capture : public rtc::AdaptedVideoTrackSource
 {
 private:
@@ -22,8 +17,6 @@ private:
     int camera_index_;
     std::string device_;
     int buffer_count_ = 4;
-    bool exit_ = false;
-    bool captureStarted_ = false;
     webrtc::Mutex capture_lock_;
 
 protected:
@@ -43,6 +36,7 @@ protected:
     bool CaptureProcess();
 
 public:
+    bool captureStarted = false;
     V4L2Capture(std::string device);
     ~V4L2Capture();
 

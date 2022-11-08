@@ -56,7 +56,7 @@ V4L2Capture::~V4L2Capture()
 
     delete[] buffers_;
 
-    exit_ = true;
+    captureStarted = false;
 
     // turn off stream
     enum v4l2_buf_type type;
@@ -118,7 +118,7 @@ V4L2Capture &V4L2Capture::SetFormat(uint width, uint height)
     fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     fmt.fmt.pix.width = width;
     fmt.fmt.pix.height = height;
-    fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_MJPEG;
+    fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_MJPEG; //V4L2_PIX_FMT_H264
     fmt.fmt.pix.sizeimage = 0;
     printf("  Width: %d\n"
            "  Height: %d\n",
@@ -270,7 +270,7 @@ void V4L2Capture::StartCapture()
         perror("Start Capture");
     }
 
-    captureStarted_ = true;
+    captureStarted = true;
     std::cout << "StartCapture: complete!" << std::endl;
 }
 
@@ -281,6 +281,8 @@ void V4L2Capture::CaptureThread()
     while (capture_func_())
     {
     }
+
+    captureStarted = false;
 }
 
 bool V4L2Capture::CaptureProcess()
@@ -294,7 +296,7 @@ bool V4L2Capture::CaptureProcess()
     int res = select(fd_ + 1, &fds, NULL, NULL, &tv);
     {
         webrtc::MutexLock lock(&capture_lock_);
-        if (exit_)
+        if (!captureStarted)
         {
             return false;
         }
@@ -303,7 +305,7 @@ bool V4L2Capture::CaptureProcess()
             return true;
         }
 
-        if (captureStarted_)
+        if (captureStarted)
         {
             struct v4l2_buffer buf = {0};
             buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;

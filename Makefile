@@ -23,8 +23,9 @@ SIGNALR_HEADER_PATH=-I/usr/local/include
 SIGNALR_LIB=-lmicrosoft-signalr -lcpprest -lssl -lcrypto
 
 BPO_LINK_LIB=-lboost_program_options
+FFMPEG_LINK_LIBS=-lavformat -lavcodec -lavutil -lswscale -lavdevice
 
-.PHONY: all signal.o conductor.o parser.o main v4l2_capture.o test_v4l2_capture
+.PHONY: all signal.o conductor.o parser.o v4l2_capture.o main recorder.o test_recorder
 
 all: main
 
@@ -32,10 +33,10 @@ v4l2_capture.o:
 	$(CC) $(CFLAGS) ${WEBRTC_HEADER_PATH} -c ./src/v4l2_capture.cpp
 
 test_v4l2_capture: v4l2_capture.o
-	$(CC) $(CFLAGS) ${WEBRTC_HEADER_PATH} ./test/test_v4l2_capture.cpp v4l2_capture.o -o test_v4l2_capture  ${WEBRTC_STATIC_LIB} ${WEBRTC_LINK_LIB}
+	$(CC) $(CFLAGS) ${WEBRTC_HEADER_PATH} ./test/test_v4l2_capture.cpp v4l2_capture.o -o test_v4l2_capture ${WEBRTC_STATIC_LIB} ${WEBRTC_LINK_LIB}
 
 signal:
-	$(CC) $(CFLAGS) $(SIGNALR_LIB_PATH) $(SIGNALR_HEADER_PATH) ${WEBRTC_HEADER_PATH} $(SIGNALR_LIB) ./src/signal.cpp -o signal
+	$(CC) $(CFLAGS) $(SIGNALR_HEADER_PATH) ${WEBRTC_HEADER_PATH} $(SIGNALR_LIB_PATH) ./src/signal.cpp -o signal $(SIGNALR_LIB)
 
 signal.o:
 	$(CC) $(CFLAGS) $(SIGNALR_HEADER_PATH) ${WEBRTC_HEADER_PATH} -c ./src/signal.cpp
@@ -45,6 +46,12 @@ conductor.o: v4l2_capture.o
 
 parser.o:
 	$(CC) $(CFLAGS) -c ./src/parser.cpp
+
+recorder.o:
+	$(CC) $(CFLAGS) -c ./src/recorder.cpp
+
+test_recorder: v4l2_capture.o recorder.o
+	$(CC) $(CFLAGS) ${WEBRTC_HEADER_PATH} ./test/test_recorder.cpp recorder.o v4l2_capture.o -o test_recorder ${FFMPEG_LINK_LIBS} ${WEBRTC_STATIC_LIB} ${WEBRTC_LINK_LIB}
 
 main: conductor.o signal.o parser.o
 	$(CC) $(CFLAGS) $(WEBRTC_HEADER_PATH) $(SIGNALR_LIB_PATH) $(SIGNALR_HEADER_PATH) ./src/main.cpp *.o -o main \
