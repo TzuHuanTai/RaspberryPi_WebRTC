@@ -1,10 +1,12 @@
 *.o
 *.tmp
 *.jpg
+*.mp4
 
 # executable
 main
 signal
 test_v4l2_capture
+test_recorder
 
 !/doc/*.jpg
