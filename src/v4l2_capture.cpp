@@ -1,4 +1,5 @@
 #include "v4l2_capture.h"
+#include "encoder/raw_buffer.h"
 
 // Linux
 #include <errno.h>
@@ -30,7 +31,11 @@ rtc::scoped_refptr<V4L2Capture> V4L2Capture::Create(std::string device)
     return capture;
 }
 
-V4L2Capture::V4L2Capture(std::string device) : device_(device)
+V4L2Capture::V4L2Capture(std::string device)
+    : device_(device),
+      buffer_count_(4),
+      use_i420_src_(false),
+      use_raw_buffer_(false)
 {
     webrtc::VideoCaptureModule::DeviceInfo *device_info = webrtc::VideoCaptureFactory::CreateDeviceInfo();
     camera_index_ = GetCameraIndex(device_info);
@@ -110,16 +115,37 @@ int V4L2Capture::GetCameraIndex(webrtc::VideoCaptureModule::DeviceInfo *device_i
     return -1;
 }
 
-V4L2Capture &V4L2Capture::SetFormat(uint width, uint height)
+V4L2Capture &V4L2Capture::UseRawBuffer(bool use_raw_buffer)
+{
+    use_raw_buffer_ = use_raw_buffer;
+    return *this;
+}
+
+V4L2Capture &V4L2Capture::SetFormat(uint width, uint height, bool use_i420_src)
 {
     width_ = width;
     height_ = height;
+    use_i420_src_ = use_i420_src;
     struct v4l2_format fmt = {0};
     fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     fmt.fmt.pix.width = width;
     fmt.fmt.pix.height = height;
-    fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_MJPEG; //V4L2_PIX_FMT_H264
     fmt.fmt.pix.sizeimage = 0;
+
+    if (use_i420_src)
+    {
+        std::cout << "Use yuv420(i420) format source in v4l2" << std::endl;
+        fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_YUV420;
+        capture_viedo_type_ = webrtc::VideoType::kI420;
+    }
+    else
+    {
+        std::cout << "Use mjpeg format source in v4l2" << std::endl;
+        fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_MJPEG;
+        capture_viedo_type_ = webrtc::VideoType::kMJPEG;
+        // decoder_ = std::make_shared<V4l2m2mDecoder>(width_, height_);
+    }
+
     printf("  Width: %d\n"
            "  Height: %d\n",
            width, height);
@@ -182,9 +208,6 @@ bool V4L2Capture::AllocateBuffer()
 
         buffers_[i].start = mmap(NULL, buf.length, PROT_READ | PROT_WRITE, MAP_SHARED, fd_, buf.m.offset);
         buffers_[i].length = buf.length;
-        printf("Index: %d\n", i);
-        printf("Length: %u\nAddress: %p\n", buffers_[i].length, buffers_[i].start);
-        printf("Image Length: %d\n", buf.bytesused);
 
         if (MAP_FAILED == buffers_[i].start)
         {
@@ -228,7 +251,8 @@ Buffer V4L2Capture::CaptureImage()
     }
 
     struct Buffer buffer = {.start = buffers_[buf.index].start,
-                            .length = buf.bytesused};
+                            .length = buf.bytesused,
+                            .flags = buf.flags};
 
     if (ioctl(fd_, VIDIOC_QBUF, &buf) < 0)
     {
@@ -287,61 +311,46 @@ void V4L2Capture::CaptureThread()
 
 bool V4L2Capture::CaptureProcess()
 {
-    fd_set fds;
-    FD_ZERO(&fds);
-    FD_SET(fd_, &fds);
-    struct timeval tv = {0};
-    tv.tv_sec = 1;
-    tv.tv_usec = 0;
-    int res = select(fd_ + 1, &fds, NULL, NULL, &tv);
+    webrtc::MutexLock lock(&capture_lock_);
+    if (!captureStarted)
     {
-        webrtc::MutexLock lock(&capture_lock_);
-        if (!captureStarted)
-        {
-            return false;
-        }
-        else if (res == 0)
-        {
-            return true;
-        }
+        return false;
+    }
 
-        if (captureStarted)
-        {
-            struct v4l2_buffer buf = {0};
-            buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-            buf.memory = V4L2_MEMORY_MMAP;
+    if (captureStarted)
+    {
+        Buffer buffer = CaptureImage();
 
-            while (ioctl(fd_, VIDIOC_DQBUF, &buf) < 0)
-            {
-                perror("Retrieving Frame");
-            }
-
-            OnFrameCaptured((uint8_t *)buffers_[buf.index].start, buf.bytesused);
-
-            if (ioctl(fd_, VIDIOC_QBUF, &buf) < 0)
-            {
-                perror("Queue buffer");
-            }
-        }
+        OnFrameCaptured(buffer);
     }
     usleep(0);
     return true;
 }
 
-void V4L2Capture::OnFrameCaptured(uint8_t *data, uint32_t bytesused)
+void V4L2Capture::OnFrameCaptured(Buffer buffer)
 {
     rtc::scoped_refptr<webrtc::VideoFrameBuffer> dst_buffer = nullptr;
+    rtc::TimestampAligner timestamp_aligner_;
+    const int64_t timestamp_us = rtc::TimeMicros();
+    const int64_t translated_timestamp_us =
+        timestamp_aligner_.TranslateTimestamp(timestamp_us, rtc::TimeMicros());
 
-    rtc::scoped_refptr<webrtc::I420Buffer> i420_buffer(
-        webrtc::I420Buffer::Create(width_, height_));
+    int adapted_width, adapted_height, crop_width, crop_height, crop_x, crop_y;
+    if (!AdaptFrame(width_, height_, timestamp_us, &adapted_width, &adapted_height,
+                    &crop_width, &crop_height, &crop_x, &crop_y))
+    {
+        return;
+    }
+
+    rtc::scoped_refptr<webrtc::I420Buffer> i420_buffer(webrtc::I420Buffer::Create(width_, height_));
     i420_buffer->InitializeData();
-    if (libyuv::ConvertToI420(
-            data, bytesused, i420_buffer.get()->MutableDataY(),
-            i420_buffer.get()->StrideY(), i420_buffer.get()->MutableDataU(),
-            i420_buffer.get()->StrideU(), i420_buffer.get()->MutableDataV(),
-            i420_buffer.get()->StrideV(), 0, 0, width_, height_,
-            width_, height_, libyuv::kRotate0,
-            ConvertVideoType(capture_viedo_type_)) < 0)
+
+    if (libyuv::ConvertToI420((uint8_t *)buffer.start, buffer.length,
+                              i420_buffer.get()->MutableDataY(), i420_buffer.get()->StrideY(),
+                              i420_buffer.get()->MutableDataU(), i420_buffer.get()->StrideU(),
+                              i420_buffer.get()->MutableDataV(), i420_buffer.get()->StrideV(),
+                              0, 0, width_, height_, width_, height_, libyuv::kRotate0,
+                              ConvertVideoType(capture_viedo_type_)) < 0)
     {
         RTC_LOG(LS_ERROR) << "ConvertToI420 Failed";
     }
@@ -350,53 +359,36 @@ void V4L2Capture::OnFrameCaptured(uint8_t *data, uint32_t bytesused)
         dst_buffer = i420_buffer;
     }
 
-    if (dst_buffer)
+    if (use_raw_buffer_)
     {
-        webrtc::VideoFrame frame = webrtc::VideoFrame::Builder()
-                                       .set_video_frame_buffer(dst_buffer)
-                                       .set_timestamp_rtp(0)
-                                       .set_timestamp_ms(rtc::TimeMillis())
-                                       .set_timestamp_us(rtc::TimeMicros())
-                                       .set_rotation(webrtc::kVideoRotation_0)
-                                       .build();
+        // Buffer i420_buffer = buffer;
+        // if(decoder_ != nullptr && capture_viedo_type_ == webrtc::VideoType::kMJPEG){
+        //     i420_buffer = decoder_->V4l2m2mDecode((uint8_t *)buffer.start, buffer.length);
+        // }
+        int i420_size = (width_ * height_) +
+                        ((width_ + 1) / 2) * ((height_ + 1) / 2) * 2;
+        rtc::scoped_refptr<RawBuffer> raw_buffer(
+            RawBuffer::Create(width_, height_, i420_size));
+        std::memcpy(raw_buffer->MutableData(),
+                    i420_buffer.get()->DataY(),
+                    i420_size);
+        // raw_buffer->SetFlags(i420_buffer.flags);
 
-        rtc::TimestampAligner timestamp_aligner_;
-        const int64_t timestamp_us = frame.timestamp_us();
-        const int64_t translated_timestamp_us =
-            timestamp_aligner_.TranslateTimestamp(timestamp_us, rtc::TimeMicros());
-
-        int adapted_width;
-        int adapted_height;
-        int crop_width;
-        int crop_height;
-        int crop_x;
-        int crop_y;
-        if (!AdaptFrame(frame.width(), frame.height(), timestamp_us, &adapted_width,
-                        &adapted_height, &crop_width, &crop_height, &crop_x,
-                        &crop_y))
-        {
-            return;
-        }
-
-        rtc::scoped_refptr<webrtc::VideoFrameBuffer> buffer =
-            frame.video_frame_buffer();
-
-        if (adapted_width != frame.width() || adapted_height != frame.height())
-        {
-            // Video adapter has requested a down-scale. Allocate a new buffer and
-            // return scaled version.
-            rtc::scoped_refptr<webrtc::I420Buffer> i420_buffer =
-                webrtc::I420Buffer::Create(adapted_width, adapted_height);
-            i420_buffer->ScaleFrom(*buffer->ToI420());
-            buffer = i420_buffer;
-        }
-
-        OnFrame(webrtc::VideoFrame::Builder()
-                    .set_video_frame_buffer(buffer)
-                    .set_rotation(frame.rotation())
-                    .set_timestamp_us(translated_timestamp_us)
-                    .build());
+        dst_buffer = raw_buffer;
     }
+    else if (adapted_width != width_ || adapted_height != height_)
+    {
+        rtc::scoped_refptr<webrtc::I420Buffer> i420_buffer =
+            webrtc::I420Buffer::Create(adapted_width, adapted_height);
+        i420_buffer->ScaleFrom(*dst_buffer->ToI420());
+        dst_buffer = i420_buffer;
+    }
+
+    OnFrame(webrtc::VideoFrame::Builder()
+                .set_video_frame_buffer(dst_buffer)
+                .set_rotation(webrtc::kVideoRotation_0)
+                .set_timestamp_us(translated_timestamp_us)
+                .build());
 }
 
 webrtc::MediaSourceInterface::SourceState V4L2Capture::state() const

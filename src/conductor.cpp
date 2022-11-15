@@ -1,5 +1,6 @@
 #include "conductor.h"
 #include "v4l2_capture.h"
+#include "customized_video_encoder_factory.h"
 
 #include <api/audio_codecs/builtin_audio_decoder_factory.h>
 #include <api/audio_codecs/builtin_audio_encoder_factory.h>
@@ -18,27 +19,28 @@
 Conductor::Conductor(Args args) : args(args)
 {
     std::cout << "=> Conductor: init" << std::endl;
-    if (InitializePeerConnection())
+    if (!InitializePeerConnection())
     {
-        std::cout << "=> InitializePeerConnection: success!" << std::endl;
+        std::cout << "=> InitializePeerConnection: failed!" << std::endl;
     }
 
-    if (InitializeTracks())
+    if (!InitializeTracks())
     {
-        std::cout << "=> InitializeTracks: success!" << std::endl;
+        std::cout << "=> InitializeTracks: failed!" << std::endl;
     }
 }
 
 bool Conductor::InitializeTracks()
 {
     auto options = peer_connection_factory_->CreateAudioSource(cricket::AudioOptions());
-    audio_track_ = peer_connection_factory_->CreateAudioTrack(
-        "my_audio_label", options.get());
+    audio_track_ =
+        peer_connection_factory_->CreateAudioTrack("my_audio_label", options.get());
 
     auto video_track_source = V4L2Capture::Create(args.device);
     (*video_track_source)
+        .UseRawBuffer(args.use_h264_hw_encoder)
         .SetFps(args.fps)
-        .SetFormat(args.width, args.height)
+        .SetFormat(args.width, args.height, args.use_i420_src)
         .StartCapture();
 
     rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> video_source =
@@ -46,16 +48,6 @@ bool Conductor::InitializeTracks()
             signaling_thread_.get(), worker_thread_.get(), video_track_source);
     video_track_ =
         peer_connection_factory_->CreateVideoTrack("my_video_label", video_source.get());
-
-    if (video_track_ != nullptr)
-    {
-        std::cout << "video_track_ != nullptr" << std::endl;
-    }
-
-    if (audio_track_ != nullptr)
-    {
-        std::cout << "audio_track_ != nullptr" << std::endl;
-    }
 
     return video_track_ != nullptr && audio_track_ != nullptr;
 }
@@ -125,10 +117,13 @@ bool Conductor::InitializePeerConnection()
         std::cout << "=> signaling thread start: success!" << std::endl;
     }
 
+    std::unique_ptr<webrtc::VideoEncoderFactory> VideoEncoderFactory = args.use_h264_hw_encoder ?
+        CreateCustomizedVideoEncoderFactory() : webrtc::CreateBuiltinVideoEncoderFactory();
+
     peer_connection_factory_ = webrtc::CreatePeerConnectionFactory(
         network_thread_.get(), worker_thread_.get(), signaling_thread_.get(), nullptr,
         webrtc::CreateBuiltinAudioEncoderFactory(), webrtc::CreateBuiltinAudioDecoderFactory(),
-        webrtc::CreateBuiltinVideoEncoderFactory(), webrtc::CreateBuiltinVideoDecoderFactory(),
+        std::move(VideoEncoderFactory), webrtc::CreateBuiltinVideoDecoderFactory(),
         nullptr, nullptr);
 
     if (!peer_connection_factory_)
