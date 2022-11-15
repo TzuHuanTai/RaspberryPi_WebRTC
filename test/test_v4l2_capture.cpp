@@ -1,4 +1,4 @@
-#include "../src/v4l2_capture.h"
+#include "v4l2_capture.h"
 
 #include <fcntl.h>
 #include <unistd.h>
@@ -33,7 +33,7 @@ int main(int argc, char *argv[])
         return false;
     };
 
-    (*capture).SetFormat(1920,1080)
+    (*capture).SetFormat(1920, 1080, false)
         .SetFps(30)
         .SetCaptureFunc(test)
         .StartCapture();

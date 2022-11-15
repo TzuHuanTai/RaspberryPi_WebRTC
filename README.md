@@ -19,11 +19,17 @@ Step of using signalr as the webrtc signaling server
 * Temperatures up to 60~65°C.
 * CPU is ~60% at 1280x720 30fps.
 
-| Resolution | FPS | CPU  |  Latency  | Temperature |
-| :--------: | :-: | :--: | :-------: | :---------: |
-|  1280x720  |  30 | ~60% | 200~250ms |   60~65°C   |
-|   640x480  |  60 | ~60% | 190~220ms |             |
-|   320x240  |  60 | ~30% | 120~140ms |             |
+| Codec | Source format | Resolution | FPS | CPU  |  Latency  |  Temperature |
+| :---: | :-----------: | :--------: | :-: | :--: | :-------: | :---------: |
+|  VP8  |     MJPEG     |  1280x720  |  30 | ~60% | 200~250ms |   60~65°C   |
+|  VP8  |     MJPEG     |   640x480  |  60 | ~60% | 190~220ms |             |
+|  VP8  |     MJPEG     |   320x240  |  60 | ~30% | 120~140ms |             |
+|  H264 |     MJPEG     |  1280x720  |  30 | ~25% | 390~530ms |             |
+|  H264 |     MJPEG     |   640x480  |  30 | ~20% | 190~200ms |             |
+|  H264 |     MJPEG     |   320x240  |  60 | ~20% |<b>70~130ms|             |
+|  H264 |    YUV420     |  1280x720  |  15 | ~20% | 300~350ms |             |
+|  H264 |    YUV420     |   640x480  |  15 | ~20% | 200~220ms |             |
+|  H264 |    YUV420     |   320x240  |  30 | ~15% | 190~200ms |             |
 
 ![latency](./doc/latency.jpg)
 
@@ -34,6 +40,7 @@ Step of using signalr as the webrtc signaling server
 Compile `libwebrtc.a` and `microsoft-signalr.so`, then install the needed packages befor run makefile
 ```bash
 sudo apt install libboost-program-options-dev libavformat-dev libavcodec-dev libavutil-dev libavdevice-dev libswscale-dev
+# v4l2-ctl -d /dev/video11 --set-ctrl=video_bitrate_mode=1,repeat_sequence_header=1,video_bitrate=1500000,h264_minimum_qp_value=2,h264_maximum_qp_value=31,h264_i_frame_period=12,h264_level=9,h264_profile=0
 ```
 
 ## Compile and run
@@ -80,7 +87,7 @@ make -j
     [Service]
     Type=simple
     WorkingDirectory=/home/pi/IoT/RaspberryPi_WebRTC
-    ExecStart=/home/pi/IoT/RaspberryPi_WebRTC/main --fps=15 --width=1280 --height=720 --signaling_url=http://localhost:6080/SignalingServer
+    ExecStart=/home/pi/IoT/RaspberryPi_WebRTC/main --fps=30 --width=960 --height=720 --signaling_url=http://localhost:6080/SignalingServer --use_h264_hw_encoder=true --use_i420_src=false
     Restart=always
     RestartSec=10
       

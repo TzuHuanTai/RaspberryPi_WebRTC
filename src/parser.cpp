@@ -14,7 +14,9 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args)
     ("width", bpo::value<uint32_t>()->default_value(args.width), "Set ioctl frame width")
     ("height", bpo::value<uint32_t>()->default_value(args.height), "Set ioctl frame height")
     ("stun_url", bpo::value<std::string>()->default_value(args.stun_url), "Stun server, ex: stun:xxx.xxx.xxx")
-    ("signaling_url", bpo::value<std::string>()->default_value(args.signaling_url), "Signaling server url, ref: Repository > FarmerAPI > Hubs > SignalingServer");
+    ("signaling_url", bpo::value<std::string>()->default_value(args.signaling_url), "Signaling server url, ref: Repository > FarmerAPI > Hubs > SignalingServer")
+    ("use_i420_src", bpo::value<bool>()->default_value(args.use_i420_src), "Read raw yuv420p source V4L2_PIX_FMT_YUV420 while capturing, if the camera is supported")
+    ("use_h264_hw_encoder", bpo::value<bool>()->default_value(args.use_h264_hw_encoder), "Use h264 v4l2 memory-to-memory encoder");
 
     bpo::variables_map vm;
     bpo::store(bpo::parse_command_line(argc, argv, opts), vm);
@@ -58,5 +60,15 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args)
     else if (vm.count("signaling_url"))
     {
         args.signaling_url = vm["signaling_url"].as<std::string>();
+    }
+
+    if (vm.count("use_i420_src"))
+    {
+        args.use_i420_src = vm["use_i420_src"].as<bool>();
+    }
+
+    if (vm.count("use_h264_hw_encoder"))
+    {
+        args.use_h264_hw_encoder = vm["use_h264_hw_encoder"].as<bool>();
     }
 }

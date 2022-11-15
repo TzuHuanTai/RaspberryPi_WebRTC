@@ -7,7 +7,7 @@
 #include "args.h"
 #include "conductor.h"
 #include "parser.h"
-#include "signal.h"
+#include "signal_server.h"
 
 int main(int argc, char *argv[])
 {

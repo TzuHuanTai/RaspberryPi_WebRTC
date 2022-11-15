@@ -5,7 +5,9 @@
 
 # executable
 main
-signal
+
+# test executable
+test_v4l2m2m_encoder
 test_v4l2_capture
 test_recorder
 

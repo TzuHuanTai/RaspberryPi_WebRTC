@@ -1,7 +1,9 @@
 #ifndef V4L2CAPTURER_H_
 #define V4L2CAPTURER_H_
 
-#include "buffer.h"
+#include "v4l2_utils.h"
+#include "decoder/v4l2m2m_decoder.h"
+
 #include <modules/video_capture/video_capture.h>
 #include <modules/video_capture/video_capture_defines.h>
 #include <modules/video_capture/video_capture_impl.h>
@@ -17,6 +19,9 @@ private:
     int camera_index_;
     std::string device_;
     int buffer_count_ = 4;
+    bool use_i420_src_;
+    bool use_raw_buffer_;
+    std::shared_ptr<V4l2m2mDecoder> decoder_;
     webrtc::Mutex capture_lock_;
 
 protected:
@@ -24,7 +29,7 @@ protected:
     uint height_;
 
     Buffer *buffers_;
-    webrtc::VideoType capture_viedo_type_ = webrtc::VideoType::kMJPEG;
+    webrtc::VideoType capture_viedo_type_;
     rtc::scoped_refptr<webrtc::VideoFrameBuffer> rtc_buffer;
     rtc::PlatformThread capture_thread_;
     std::function<bool()> capture_func_;
@@ -44,10 +49,11 @@ public:
     bool remote() const override;
     bool is_screencast() const override;
     absl::optional<bool> needs_denoising() const override;
-    void OnFrameCaptured(uint8_t *data, uint32_t bytesused);
+    void OnFrameCaptured(Buffer buffer);
 
     static rtc::scoped_refptr<V4L2Capture> Create(std::string device);
-    V4L2Capture &SetFormat(uint width = 1920, uint height = 1080);
+    V4L2Capture &UseRawBuffer(bool use_raw_buffer);
+    V4L2Capture &SetFormat(uint width, uint height, bool use_i420_src = false);
     V4L2Capture &SetFps(uint fps = 30);
     V4L2Capture &SetCaptureFunc(std::function<bool()> capture_func);
     void StartCapture();

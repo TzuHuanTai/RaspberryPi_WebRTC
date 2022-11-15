@@ -2,9 +2,10 @@
 #define RECODER_H_
 
 #include "args.h"
-#include "buffer.h"
+#include "v4l2_utils.h"
 
 #include "string"
+#include <memory>
 
 extern "C"
 {
@@ -13,7 +14,7 @@ extern "C"
 #include <libswscale/swscale.h>
 }
 
-class Recorder
+class Recorder : public std::enable_shared_from_this<Recorder>
 {
 public:
     int width;
