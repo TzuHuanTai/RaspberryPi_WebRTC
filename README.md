@@ -1,4 +1,6 @@
 ﻿# RaspberryPi_WebRTC
+ 
+Use v4l2_m2m hardware encoder with WebRTC.
 
 Step of using signalr as the webrtc signaling server
 
@@ -6,7 +8,7 @@ Step of using signalr as the webrtc signaling server
 2. Build the SignalR-Client with boringssl
 3. Create .net [signalr server hub](https://github.com/TzuHuanTai/FarmerAPI/blob/master/FarmerAPI/Hubs/SignalingServer.cs)
 4. Use signalr-client to exchange ice/sdp information with webrtc.lib.
-5. Receive camera frames via `ioctl` and send its to `AdaptedVideoTrackSource` in webrtc.lib 
+5. Receive camera frames via `ioctl` and send its to `AdaptedVideoTrackSource`, then `VideoEncoder` encode the frame and callback finish encoding.
 
 ## Environment
 * RaspberryPi 3B + Raspberry Pi Camera v1.3
