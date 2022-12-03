@@ -39,7 +39,8 @@ private:
     int32_t height_;
     webrtc::VideoCodec codec_;
     uint32_t framerate_;
-    uint32_t target_bitrate_bps_;
+    uint32_t bitrate_bps_;
+    int key_frame_interval_;
     Buffer output_;
     Buffer capture_;
 
