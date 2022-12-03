@@ -16,8 +16,9 @@
 const char *ENCODER_FILE = "/dev/video11";
 
 V4l2m2mEncoder::V4l2m2mEncoder()
-    : callback_(nullptr),
-      framerate_(30) {}
+    : framerate_(30),
+      key_frame_interval_(12),
+      callback_(nullptr) {}
 
 V4l2m2mEncoder::~V4l2m2mEncoder()
 {
@@ -34,10 +35,16 @@ int32_t V4l2m2mEncoder::InitEncode(
     codec_ = *codec_settings;
     width_ = codec_settings->width;
     height_ = codec_settings->height;
-    target_bitrate_bps_ = codec_settings->startBitrate * 1000;
+    bitrate_bps_ = codec_settings->startBitrate * 1000;
+    if (codec_settings->codecType == webrtc::kVideoCodecH264)
+    {
+        key_frame_interval_ = codec_settings->H264().keyFrameInterval;
+    }
     std::cout << "[V4l2m2mEncoder]: width, " << width_ << std::endl;
     std::cout << "[V4l2m2mEncoder]: height, " << height_ << std::endl;
-    std::cout << "[V4l2m2mEncoder]: target_bitrate_bps, " << target_bitrate_bps_ << std::endl;
+    std::cout << "[V4l2m2mEncoder]: framerate, " << framerate_ << std::endl;
+    std::cout << "[V4l2m2mEncoder]: bitrate_bps, " << bitrate_bps_ << std::endl;
+    std::cout << "[V4l2m2mEncoder]: key_frame_interval, " << key_frame_interval_ << std::endl;
 
     encoded_image_.timing_.flags = webrtc::VideoSendTiming::TimingFrameFlags::kInvalid;
     encoded_image_.content_type_ = webrtc::VideoContentType::UNSPECIFIED;
@@ -120,30 +127,31 @@ int32_t V4l2m2mEncoder::Encode(
 void V4l2m2mEncoder::SetRates(const RateControlParameters &parameters)
 {
     if (parameters.bitrate.get_sum_bps() <= 0 || parameters.framerate_fps <= 0)
+    {
         return;
+    }
 
-    /*
-        Raspberry hw encoder performance will decline
-    */
-    // if (target_bitrate_bps_ != parameters.bitrate.get_sum_bps())
-    // {
-    //     target_bitrate_bps_ = parameters.bitrate.get_sum_bps();
-    //     if (V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_BITRATE, target_bitrate_bps_))
-    //     {
-    //         printf("Encoder set bitrate: %d bps\n", target_bitrate_bps_);
-    //     }
-    // }
+    bitrate_adjuster_->SetTargetBitrateBps(parameters.bitrate.get_sum_bps());
+    uint32_t adjusted_bitrate_bps_ = bitrate_adjuster_->GetAdjustedBitrateBps();
 
-    // if (framerate_ != parameters.framerate_fps)
-    // {
-    //     framerate_ = parameters.framerate_fps;
-    //     if (V4l2Util::SetFps(fd_, output_.type, framerate_))
-    //     {
-    //         printf("Encoder set output fps: %d\n", framerate_);
-    //     }
-    // }
+    if (bitrate_bps_ != adjusted_bitrate_bps_)
+    {
+        bitrate_bps_ = adjusted_bitrate_bps_;
+        if (!V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_BITRATE, bitrate_bps_))
+        {
+            printf("Encoder failed set bitrate: %d bps\n", bitrate_bps_);
+        }
+    }
 
-    bitrate_adjuster_->SetTargetBitrateBps(target_bitrate_bps_);
+    if (framerate_ != parameters.framerate_fps)
+    {
+        framerate_ = parameters.framerate_fps;
+        if (!V4l2Util::SetFps(fd_, output_.type, framerate_))
+        {
+            printf("Encoder failed set output fps: %d\n", framerate_);
+        }
+    }
+
     return;
 }
 
@@ -175,13 +183,12 @@ int32_t V4l2m2mEncoder::V4l2m2mConfigure(int width, int height, int fps)
     }
 
     /* set ext ctrls */
-    V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_BITRATE_MODE, V4L2_MPEG_VIDEO_BITRATE_MODE_CBR);
+    V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_BITRATE_MODE, V4L2_MPEG_VIDEO_BITRATE_MODE_VBR);
     V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_HEADER_MODE, V4L2_MPEG_VIDEO_HEADER_MODE_JOINED_WITH_1ST_FRAME);
-    std::cout << "V4l2m2m set const bitrate: " << width * height * fps / 10 << std::endl;
     V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_BITRATE, width * height * fps / 10);
     V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_H264_PROFILE, V4L2_MPEG_VIDEO_H264_PROFILE_BASELINE);
     V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_H264_LEVEL, V4L2_MPEG_VIDEO_H264_LEVEL_3_1);
-    V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_H264_I_PERIOD, 12);
+    V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_H264_I_PERIOD, key_frame_interval_);
 
     if (!V4l2Util::SetFormat(fd_, &output_, V4L2_PIX_FMT_YUV420))
     {
