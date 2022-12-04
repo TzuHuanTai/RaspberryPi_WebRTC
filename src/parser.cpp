@@ -13,6 +13,7 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args)
     ("fps", bpo::value<uint32_t>()->default_value(args.fps), "Set ioctl frame rate")
     ("width", bpo::value<uint32_t>()->default_value(args.width), "Set ioctl frame width")
     ("height", bpo::value<uint32_t>()->default_value(args.height), "Set ioctl frame height")
+    ("rotation_angle", bpo::value<uint32_t>()->default_value(args.rotation_angle), "Set the rotation angle of the frame")
     ("device", bpo::value<std::string>()->default_value(args.device), "Set the specific camera file, default is /dev/video0")
     ("stun_url", bpo::value<std::string>()->default_value(args.stun_url), "Stun server, ex: stun:xxx.xxx.xxx")
     ("signaling_url", bpo::value<std::string>()->default_value(args.signaling_url), "Signaling server url, ref: Repository > FarmerAPI > Hubs > SignalingServer")
@@ -41,6 +42,11 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args)
     if (vm.count("height"))
     {
         args.height = vm["height"].as<uint32_t>();
+    }
+
+    if (vm.count("rotation_angle"))
+    {
+        args.rotation_angle = vm["rotation_angle"].as<uint32_t>();
     }
     
     if (vm.count("device"))

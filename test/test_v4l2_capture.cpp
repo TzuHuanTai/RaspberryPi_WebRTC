@@ -33,8 +33,9 @@ int main(int argc, char *argv[])
         return false;
     };
 
-    (*capture).SetFormat(1920, 1080, false)
+    (*capture).SetFormat(720, 1280, false)
         .SetFps(30)
+        .SetRotation(90)
         .SetCaptureFunc(test)
         .StartCapture();
 }

@@ -34,6 +34,7 @@ rtc::scoped_refptr<V4L2Capture> V4L2Capture::Create(std::string device)
 V4L2Capture::V4L2Capture(std::string device)
     : device_(device),
       buffer_count_(4),
+      rotation_angle_(0),
       use_i420_src_(false),
       use_raw_buffer_(false)
 {
@@ -170,6 +171,22 @@ V4L2Capture &V4L2Capture::SetFps(uint fps)
         perror("ioctl Setting Fps");
         exit(0);
     }
+    return *this;
+}
+
+V4L2Capture &V4L2Capture::SetRotation(uint angle)
+{
+    struct v4l2_control ctrls = {0};
+    ctrls.id = V4L2_CID_ROTATE;
+    ctrls.value = angle;
+    printf("  Rotation: %d\n", angle);
+    if (ioctl(fd_, VIDIOC_S_CTRL, &ctrls) < 0)
+    {
+        perror("ioctl Setting Rotation");
+        return *this;
+    }
+    
+    rotation_angle_ = angle;
     return *this;
 }
 

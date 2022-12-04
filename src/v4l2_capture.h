@@ -19,6 +19,7 @@ private:
     int camera_index_;
     std::string device_;
     int buffer_count_ = 4;
+    uint rotation_angle_;
     bool use_i420_src_;
     bool use_raw_buffer_;
     std::shared_ptr<V4l2m2mDecoder> decoder_;
@@ -55,6 +56,7 @@ public:
     V4L2Capture &UseRawBuffer(bool use_raw_buffer);
     V4L2Capture &SetFormat(uint width, uint height, bool use_i420_src = false);
     V4L2Capture &SetFps(uint fps = 30);
+    V4L2Capture &SetRotation(uint angle);
     V4L2Capture &SetCaptureFunc(std::function<bool()> capture_func);
     void StartCapture();
     Buffer CaptureImage();

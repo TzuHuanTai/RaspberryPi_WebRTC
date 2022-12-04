@@ -8,6 +8,7 @@ struct Args
   uint32_t fps = 30;
   uint32_t width = 640;
   uint32_t height = 480;
+  uint32_t rotation_angle = 0;
   bool use_i420_src = false;
   bool use_h264_hw_encoder = false;
   std::string device = "/dev/video0";
