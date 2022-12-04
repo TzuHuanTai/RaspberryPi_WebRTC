@@ -13,6 +13,7 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args)
     ("fps", bpo::value<uint32_t>()->default_value(args.fps), "Set ioctl frame rate")
     ("width", bpo::value<uint32_t>()->default_value(args.width), "Set ioctl frame width")
     ("height", bpo::value<uint32_t>()->default_value(args.height), "Set ioctl frame height")
+    ("device", bpo::value<std::string>()->default_value(args.device), "Set the specific camera file, default is /dev/video0")
     ("stun_url", bpo::value<std::string>()->default_value(args.stun_url), "Stun server, ex: stun:xxx.xxx.xxx")
     ("signaling_url", bpo::value<std::string>()->default_value(args.signaling_url), "Signaling server url, ref: Repository > FarmerAPI > Hubs > SignalingServer")
     ("use_i420_src", bpo::value<bool>()->default_value(args.use_i420_src), "Read raw yuv420p source V4L2_PIX_FMT_YUV420 while capturing, if the camera is supported")
@@ -42,6 +43,11 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args)
         args.height = vm["height"].as<uint32_t>();
     }
     
+    if (vm.count("device"))
+    {
+        args.device = vm["device"].as<std::string>();
+    }
+
     if (!vm["stun_url"].empty() && (vm["stun_url"].as<std::string>()).substr(0, 4) != "stun")
     {
         std::cout << "Stun url should not be empty and start with \"stun:\"" << std::endl;
