@@ -10,6 +10,9 @@ Step of using signalr as the webrtc signaling server
 4. Use signalr-client to exchange ice/sdp information with webrtc.lib.
 5. Receive camera frames via `ioctl` and send its to `AdaptedVideoTrackSource`, then `VideoEncoder` encode the frame and callback finish encoding.
 
+## Architecture
+![architecture](./doc/architecture.png)
+
 ## Environment
 * RaspberryPi 3B + Raspberry Pi Camera v1.3
 * RaspberryPi OS 64bit
