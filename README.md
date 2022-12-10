@@ -4,8 +4,8 @@ Use v4l2_m2m hardware encoder with WebRTC.
 
 Step of using signalr as the webrtc signaling server
 
-1. Build the native webrtc on Ubuntu 20.04 64bit
-2. Build the SignalR-Client with boringssl
+1. [Build the native webrtc](#build-the-native-webrtc-lib-libwebrtca) on Ubuntu 20.04 64bit
+2. [Build the SignalR-Client](#build-the-signalr-client-cpp-lib-microsoft-signalrso) with boringssl
 3. Create .net [signalr server hub](https://github.com/TzuHuanTai/FarmerAPI/blob/master/FarmerAPI/Hubs/SignalingServer.cs)
 4. Use signalr-client to exchange ice/sdp information with webrtc.lib.
 5. Receive camera frames via `ioctl` and send its to `AdaptedVideoTrackSource`, then `VideoEncoder` encode the frame and callback finish encoding.
