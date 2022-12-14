@@ -118,8 +118,11 @@ bool Conductor::InitializePeerConnection()
         std::cout << "=> signaling thread start: success!" << std::endl;
     }
 
-    std::unique_ptr<webrtc::VideoEncoderFactory> VideoEncoderFactory = args.use_h264_hw_encoder ?
-        CreateCustomizedVideoEncoderFactory() : webrtc::CreateBuiltinVideoEncoderFactory();
+    data_channel_subject_ = std::make_shared<DataChannelSubject>();
+
+    std::unique_ptr<webrtc::VideoEncoderFactory> VideoEncoderFactory =
+        args.use_h264_hw_encoder ? CreateCustomizedVideoEncoderFactory(data_channel_subject_)
+                                 : webrtc::CreateBuiltinVideoEncoderFactory();
 
     peer_connection_factory_ = webrtc::CreatePeerConnectionFactory(
         network_thread_.get(), worker_thread_.get(), signaling_thread_.get(), nullptr,
@@ -146,20 +149,8 @@ void Conductor::OnSignalingChange(webrtc::PeerConnectionInterface::SignalingStat
 
 void Conductor::OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> channel)
 {
-    channel_ = channel;
-    std::cout << "=> OnDataChannel: connected to " << channel->label() << ", " << channel->state() << std::endl;
-}
-
-void Conductor::SendData(const std::string msg)
-{
-    if (!channel_ || channel_->state() != webrtc::DataChannelInterface::kOpen)
-    {
-        std::cout << "=> channel: != kopen " << std::endl;
-        return;
-    }
-    webrtc::DataBuffer data(msg);
-    channel_->Send(data);
-    std::cout << "=> SendData: \"" << msg << "\" was sent to " << channel_->label() << std::endl;
+    data_channel_subject_->SetDataChannel(channel);
+    std::cout << "=> OnDataChannel: connected to '" << channel->label() << "'" << std::endl;
 }
 
 void Conductor::OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionState new_state)
@@ -179,6 +170,7 @@ void Conductor::OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnecti
     else if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kDisconnected)
     {
         peer_connection_->Close();
+        data_channel_subject_->UnSubscribe();
     }
     else if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kClosed)
     {

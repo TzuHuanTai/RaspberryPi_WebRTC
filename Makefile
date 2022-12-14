@@ -26,7 +26,7 @@ SIGNALR_LIB=-lmicrosoft-signalr -lcpprest -lssl -lcrypto
 BPO_LINK_LIB=-lboost_program_options
 FFMPEG_LINK_LIBS=-lavformat -lavcodec -lavutil -lswscale -lavdevice
 
-.PHONY: all v4l2_capture.o v4l2m2m_encoder.o v4l2_utils.o recorder.o
+.PHONY: all v4l2m2m_encoder.o conductor.o data_channel.o
 
 all: main
 
@@ -40,7 +40,10 @@ test_v4l2_capture: v4l2_capture.o
 signal_server.o:
 	$(CC) $(CFLAGS) $(SIGNALR_HEADER_PATH) ${WEBRTC_HEADER_PATH} -c ./src/signal_server.cpp
 
-conductor.o: v4l2_capture.o
+data_channel_subject.o:
+	$(CC) $(CFLAGS) $(WEBRTC_HEADER_PATH) -c ./src/data_channel_subject.cpp
+
+conductor.o: v4l2_capture.o data_channel_subject.o
 	$(CC) $(CFLAGS) $(WEBRTC_HEADER_PATH) -c ./src/conductor.cpp
 
 raw_buffer.o:
