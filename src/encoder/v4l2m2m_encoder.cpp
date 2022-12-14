@@ -15,10 +15,11 @@
 
 const char *ENCODER_FILE = "/dev/video11";
 
-V4l2m2mEncoder::V4l2m2mEncoder()
+V4l2m2mEncoder::V4l2m2mEncoder(std::shared_ptr<Observable> observer)
     : framerate_(30),
       key_frame_interval_(12),
-      callback_(nullptr) {}
+      callback_(nullptr),
+      observer_(observer) {}
 
 V4l2m2mEncoder::~V4l2m2mEncoder()
 {
@@ -50,6 +51,12 @@ int32_t V4l2m2mEncoder::InitEncode(
     encoded_image_.content_type_ = webrtc::VideoContentType::UNSPECIFIED;
 
     V4l2m2mConfigure(width_, height_, framerate_);
+
+    if (observer_)
+    {
+        auto fp = std::bind(&V4l2m2mEncoder::OnMessage, this, std::placeholders::_1);
+        observer_->Subscribe(fp);
+    }
 
     return WEBRTC_VIDEO_CODEC_OK;
 }
@@ -163,6 +170,11 @@ webrtc::VideoEncoder::EncoderInfo V4l2m2mEncoder::GetEncoderInfo() const
     return info;
 }
 
+void V4l2m2mEncoder::OnMessage(char *message)
+{
+    std::cout << "[V4l2m2mEncoder]: received msg => " << message << std::endl;
+}
+
 int32_t V4l2m2mEncoder::V4l2m2mConfigure(int width, int height, int fps)
 {
     fd_ = V4l2Util::OpenDevice(ENCODER_FILE);
@@ -185,6 +197,7 @@ int32_t V4l2m2mEncoder::V4l2m2mConfigure(int width, int height, int fps)
     /* set ext ctrls */
     V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_BITRATE_MODE, V4L2_MPEG_VIDEO_BITRATE_MODE_VBR);
     V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_HEADER_MODE, V4L2_MPEG_VIDEO_HEADER_MODE_JOINED_WITH_1ST_FRAME);
+    V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_REPEAT_SEQ_HEADER, true);
     V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_BITRATE, width * height * fps / 10);
     V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_H264_PROFILE, V4L2_MPEG_VIDEO_H264_PROFILE_BASELINE);
     V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_H264_LEVEL, V4L2_MPEG_VIDEO_H264_LEVEL_3_1);

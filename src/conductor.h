@@ -2,20 +2,16 @@
 #define CONDUCTOR_H_
 
 #include "args.h"
+#include "data_channel_subject.h"
 
-#include <deque>
 #include <iostream>
-#include <map>
 #include <memory>
 #include <string>
-#include <vector>
 #include <functional>
 #include <mutex>
 #include <condition_variable>
 
 #include <api/peer_connection_interface.h>
-#include <examples/peerconnection/client/main_wnd.h>
-#include <examples/peerconnection/client/peer_connection_client.h>
 
 class SetSessionDescription : public webrtc::SetSessionDescriptionObserver
 {
@@ -120,7 +116,6 @@ public:
                      OnFailureFunc on_failure);
     void AddIceCandidate(std::string sdp_mid, int sdp_mline_index, std::string candidate);
     void CreateAnswer(OnCreateSuccessFunc on_success, OnFailureFunc on_failure);
-    void SendData(const std::string msg);
     bool CreatePeerConnection();
 
 protected:
@@ -137,10 +132,7 @@ protected:
     void OnIceCandidate(const webrtc::IceCandidateInterface *candidate) override;
     void OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionState new_state) override;
 
-protected:
-    // Send a message to the remote peer.
-    // void SendMessage(const std::string& json_object);
-
+private:
     std::unique_ptr<rtc::Thread> network_thread_;
     std::unique_ptr<rtc::Thread> worker_thread_;
     std::unique_ptr<rtc::Thread> signaling_thread_;
@@ -149,8 +141,9 @@ protected:
     rtc::scoped_refptr<webrtc::AudioTrackInterface> audio_track_;
     rtc::scoped_refptr<webrtc::VideoTrackInterface> video_track_;
     rtc::scoped_refptr<webrtc::RtpSenderInterface> video_sender_;
-    rtc::scoped_refptr<webrtc::DataChannelInterface> channel_;
-    std::deque<std::string *> pending_messages_;
+
+    std::shared_ptr<Observable> observer_;
+    std::shared_ptr<DataChannelSubject> data_channel_subject_;
 };
 
 #endif // CONDUCTOR_H_

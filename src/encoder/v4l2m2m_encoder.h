@@ -2,6 +2,7 @@
 #define V4L2M2M_ENCODER_H_
 
 #include "v4l2_utils.h"
+#include "data_channel_subject.h"
 
 // Linux
 #include <linux/videodev2.h>
@@ -15,7 +16,7 @@
 class V4l2m2mEncoder : public webrtc::VideoEncoder
 {
 public:
-    explicit V4l2m2mEncoder();
+    explicit V4l2m2mEncoder(std::shared_ptr<Observable> observer = nullptr);
     ~V4l2m2mEncoder() override;
 
     int32_t InitEncode(const webrtc::VideoCodec *codec_settings,
@@ -29,6 +30,7 @@ public:
     void SetRates(const RateControlParameters &parameters) override;
     webrtc::VideoEncoder::EncoderInfo GetEncoderInfo() const override;
 
+    void OnMessage(char *message);
     int32_t V4l2m2mConfigure(int width, int height, int fps);
     Buffer V4l2m2mEncode(const uint8_t *byte, uint32_t length);
     void V4l2m2mRelease();
@@ -47,6 +49,7 @@ private:
     webrtc::EncodedImage encoded_image_;
     webrtc::EncodedImageCallback *callback_;
     std::unique_ptr<webrtc::BitrateAdjuster> bitrate_adjuster_;
+    std::shared_ptr<Observable> observer_;
 };
 
 #endif // V4L2M2M_ENCODER_H_
