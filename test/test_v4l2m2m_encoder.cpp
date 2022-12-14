@@ -5,7 +5,6 @@
 
 #include <fcntl.h>
 #include <unistd.h>
-#include <iostream>
 #include <string>
 #include <mutex>
 #include <condition_variable>
@@ -14,7 +13,8 @@ int main(int argc, char *argv[])
 {
     std::mutex mtx;
     std::condition_variable cond_var;
-    bool isFinished = false;
+    bool is_finished = false;
+    bool wait_first_keyframe = false;
     int images_nb = 0;
     int record_sec = 10;
     Args args{.fps = 30,
@@ -39,7 +39,15 @@ int main(int argc, char *argv[])
         printf("V4l2Capture get %d buffer: %p with %d length\n",
                images_nb, &(encoded_buffer.start), encoded_buffer.length);
 
-        recorder.Write(encoded_buffer);
+        if (encoded_buffer.flags & V4L2_BUF_FLAG_KEYFRAME)
+        {
+            wait_first_keyframe = true;
+        }
+
+        if (wait_first_keyframe)
+        {
+            recorder.Write(encoded_buffer);
+        }
 
         if (images_nb++ < args.fps * record_sec)
         {
@@ -47,7 +55,7 @@ int main(int argc, char *argv[])
         }
         else
         {
-            isFinished = true;
+            is_finished = true;
             cond_var.notify_all();
             return false;
         }
@@ -60,7 +68,7 @@ int main(int argc, char *argv[])
 
     std::unique_lock<std::mutex> lock(mtx);
     cond_var.wait(lock, [&]
-                  { return isFinished; });
+                  { return is_finished; });
 
     return 0;
 }
