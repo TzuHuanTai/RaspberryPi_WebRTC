@@ -15,22 +15,23 @@ class ISubject;
 class Observable
 {
 public:
-    Observable() {};
-    ~Observable() {};
-    typedef std::function<void(char*)> OnMessageFunc;
+    Observable(){};
+    ~Observable(){};
+    typedef std::function<void(char *)> OnMessageFunc;
 
-    void Subscribe(OnMessageFunc func){
+    void Subscribe(OnMessageFunc func)
+    {
         subscribed_func_ = func;
     }
-    
+
     OnMessageFunc subscribed_func_;
 };
 
-class ISubject 
+class ISubject
 {
 public:
-    virtual ~ISubject() {};
-    virtual void Next(char* message) = 0;
+    virtual ~ISubject(){};
+    virtual void Next(char *message) = 0;
     virtual std::shared_ptr<Observable> AsObservable() = 0;
     virtual void UnSubscribe() = 0;
 
@@ -41,19 +42,19 @@ class DataChannelSubject : public webrtc::DataChannelObserver,
                            public ISubject
 {
 public:
-    DataChannelSubject() {};
+    DataChannelSubject(){};
     ~DataChannelSubject();
 
     // webrtc::DataChannelObserver
     void OnStateChange() override;
-    void OnMessage(const webrtc::DataBuffer& buffer) override;
+    void OnMessage(const webrtc::DataBuffer &buffer) override;
 
     // ISubject
-    void Next(char* message) override;
+    void Next(char *message) override;
     std::shared_ptr<Observable> AsObservable() override;
     void UnSubscribe() override;
 
-    void Send(char* data, size_t length);
+    void Send(char *data, size_t length);
     void SetDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> data_channel);
 
 private:

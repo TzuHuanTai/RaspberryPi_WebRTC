@@ -3,6 +3,10 @@
 
 #include "v4l2_utils.h"
 #include "data_channel_subject.h"
+#include "recorder.h"
+
+#include <mutex>
+#include <memory>
 
 // Linux
 #include <linux/videodev2.h>
@@ -16,7 +20,7 @@
 class V4l2m2mEncoder : public webrtc::VideoEncoder
 {
 public:
-    explicit V4l2m2mEncoder(std::shared_ptr<Observable> observer = nullptr);
+    explicit V4l2m2mEncoder();
     ~V4l2m2mEncoder() override;
 
     int32_t InitEncode(const webrtc::VideoCodec *codec_settings,
@@ -30,22 +34,31 @@ public:
     void SetRates(const RateControlParameters &parameters) override;
     webrtc::VideoEncoder::EncoderInfo GetEncoderInfo() const override;
 
-    void OnMessage(char *message);
+    void SetRecordObserver(std::shared_ptr<Observable> observer,
+                           std::string saving_path);
+
     int32_t V4l2m2mConfigure(int width, int height, int fps);
     Buffer V4l2m2mEncode(const uint8_t *byte, uint32_t length);
     void V4l2m2mRelease();
 
 private:
+    std::string name_;
     int fd_;
-    int32_t width_;
-    int32_t height_;
-    webrtc::VideoCodec codec_;
-    uint32_t framerate_;
-    uint32_t bitrate_bps_;
+    int width_;
+    int height_;
+    int framerate_;
+    int bitrate_bps_;
     int key_frame_interval_;
     Buffer output_;
     Buffer capture_;
+    std::mutex recording_mtx_;
+    Recorder *recorder_;
+    RecorderConfig recoder_config_;
 
+    void RecorderWrite(Buffer encoded_buffer);
+    void OnMessage(char *message);
+
+    webrtc::VideoCodec codec_;
     webrtc::EncodedImage encoded_image_;
     webrtc::EncodedImageCallback *callback_;
     std::unique_ptr<webrtc::BitrateAdjuster> bitrate_adjuster_;

@@ -68,7 +68,7 @@ v4l2_utils.o:
 v4l2m2m_decoder.o: v4l2_utils.o
 	$(CC) $(CFLAGS) ${WEBRTC_HEADER_PATH} -c ./src/decoder/v4l2m2m_decoder.cpp
 
-v4l2m2m_encoder.o: v4l2_utils.o
+v4l2m2m_encoder.o: v4l2_utils.o recorder.o
 	$(CC) $(CFLAGS) ${WEBRTC_HEADER_PATH} -c ./src/encoder/v4l2m2m_encoder.cpp
 
 test_v4l2m2m_encoder: v4l2m2m_encoder.o recorder.o raw_buffer.o v4l2_capture.o
@@ -78,7 +78,7 @@ test_v4l2m2m_encoder: v4l2m2m_encoder.o recorder.o raw_buffer.o v4l2_capture.o
 
 main: conductor.o signal_server.o parser.o customized_video_encoder_factory.o
 	$(CC) $(CFLAGS) $(WEBRTC_HEADER_PATH) $(SIGNALR_LIB_PATH) $(SIGNALR_HEADER_PATH) ./src/main.cpp *.o \
-	-o main ${WEBRTC_STATIC_LIB} ${WEBRTC_LINK_LIB} $(SIGNALR_LIB) ${BPO_LINK_LIB}
+	-o main ${WEBRTC_STATIC_LIB} ${WEBRTC_LINK_LIB} $(SIGNALR_LIB) ${BPO_LINK_LIB} ${FFMPEG_LINK_LIBS}
 
 clean: 
 	rm -f *.o

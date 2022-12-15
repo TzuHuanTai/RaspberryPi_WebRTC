@@ -5,9 +5,9 @@
 #include <media/base/codec.h>
 
 std::unique_ptr<webrtc::VideoEncoderFactory> CreateCustomizedVideoEncoderFactory(
-    std::shared_ptr<DataChannelSubject> data_channel_subject)
+    Args args, std::shared_ptr<DataChannelSubject> data_channel_subject)
 {
-    return std::make_unique<CustomizedVideoEncoderFactory>(data_channel_subject);
+    return std::make_unique<CustomizedVideoEncoderFactory>(args, data_channel_subject);
 }
 
 std::vector<webrtc::SdpVideoFormat>
@@ -26,10 +26,8 @@ std::unique_ptr<webrtc::VideoEncoder>
 CustomizedVideoEncoderFactory::CreateVideoEncoder(const webrtc::SdpVideoFormat &format)
 {
     auto observer = data_channel_subject_->AsObservable();
+    auto encoder = std::make_unique<V4l2m2mEncoder>();
+    encoder->SetRecordObserver(observer, args_.file_path);
 
-    // if (format.name == cricket::kH264CodecName)
-    // {
-    // return std::unique_ptr<webrtc::VideoEncoder>(absl::make_unique<RawBufferEncoder>(format));
-    return std::unique_ptr<webrtc::VideoEncoder>(std::make_unique<V4l2m2mEncoder>(observer));
-    // }
+    return std::unique_ptr<webrtc::VideoEncoder>(std::move(encoder));
 }
