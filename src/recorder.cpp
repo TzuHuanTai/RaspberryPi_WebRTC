@@ -3,14 +3,17 @@
 #include <iostream>
 #include <sstream>
 
-Recorder::Recorder(Args args) : width(args.width),
-                                height(args.height),
-                                base_path(args.file_path),
-                                encoder_name(args.packet_type),
-                                frame_rate({.num = (int)args.fps, .den = 1}),
-                                video_frame_count_(0)
+Recorder::Recorder(RecorderConfig config)
+    : width(config.width),
+      height(config.height),
+      base_path(config.saving_path),
+      extension(config.container),
+      encoder_name(config.encoder_name),
+      frame_rate({.num = (int)config.fps, .den = 1}),
+      video_frame_count_(0),
+      wait_first_keyframe_(false)
 {
-    CreateFormatContext(args.container.c_str());
+    Initialize();
 }
 
 std::string Recorder::PrefixZero(int src, int digits)
@@ -40,15 +43,17 @@ std::string Recorder::GenerateFilename()
     return filename;
 }
 
-void Recorder::CreateFormatContext(const char *extension)
+bool Recorder::Initialize()
 {
     filename = GenerateFilename() + "." + extension;
     full_path = base_path + '/' + filename;
 
-    if (avformat_alloc_output_context2(&fmt_ctx_, nullptr, extension, full_path.c_str()) < 0)
+    if (avformat_alloc_output_context2(&fmt_ctx_, nullptr,
+                                       extension.c_str(),
+                                       full_path.c_str()) < 0)
     {
         fprintf(stderr, "Could not alloc output context");
-        exit(1);
+        return false;
     }
 
     AddVideoStream();
@@ -58,7 +63,7 @@ void Recorder::CreateFormatContext(const char *extension)
         if (avio_open(&fmt_ctx_->pb, full_path.c_str(), AVIO_FLAG_WRITE) < 0)
         {
             fprintf(stderr, "Could not open '%s'\n", full_path.c_str());
-            exit(1);
+            return false;
         }
     }
 
@@ -67,8 +72,10 @@ void Recorder::CreateFormatContext(const char *extension)
     if (avformat_write_header(fmt_ctx_, nullptr) < 0)
     {
         fprintf(stderr, "Error occurred when opening output file\n");
-        exit(1);
+        return false;
     }
+
+    return true;
 }
 
 void Recorder::AddVideoStream()
@@ -89,8 +96,18 @@ void Recorder::AddVideoStream()
     avcodec_parameters_from_context(video_st_->codecpar, video_encoder_);
 }
 
-void Recorder::Write(Buffer buffer)
+bool Recorder::Write(Buffer buffer)
 {
+    if (!wait_first_keyframe_ && (buffer.flags & V4L2_BUF_FLAG_KEYFRAME))
+    {
+        wait_first_keyframe_ = true;
+    }
+
+    if (!wait_first_keyframe_)
+    {
+        return false;
+    }
+
     AVPacket pkt;
     av_init_packet(&pkt);
     pkt.data = static_cast<uint8_t *>(buffer.start);
@@ -102,18 +119,24 @@ void Recorder::Write(Buffer buffer)
     if (av_interleaved_write_frame(fmt_ctx_, &pkt) < 0)
     {
         std::cout << "av_interleaved_write_frame: error" << std::endl;
+        return false;
     }
+
+    return true;
 }
 
 void Recorder::Finish()
 {
-    av_write_trailer(fmt_ctx_);
-    avio_closep(&fmt_ctx_->pb);
-    avformat_free_context(fmt_ctx_);
+    if (fmt_ctx_)
+    {
+        av_write_trailer(fmt_ctx_);
+        avio_closep(&fmt_ctx_->pb);
+        avformat_free_context(fmt_ctx_);
+        std::cout << "[Recorder]: finished" << std::endl;
+    }
 }
 
 Recorder::~Recorder()
 {
-    std::cout << "~Recorder" << std::endl;
     Finish();
 }

@@ -121,7 +121,7 @@ bool Conductor::InitializePeerConnection()
     data_channel_subject_ = std::make_shared<DataChannelSubject>();
 
     std::unique_ptr<webrtc::VideoEncoderFactory> VideoEncoderFactory =
-        args.use_h264_hw_encoder ? CreateCustomizedVideoEncoderFactory(data_channel_subject_)
+        args.use_h264_hw_encoder ? CreateCustomizedVideoEncoderFactory(args, data_channel_subject_)
                                  : webrtc::CreateBuiltinVideoEncoderFactory();
 
     peer_connection_factory_ = webrtc::CreatePeerConnectionFactory(

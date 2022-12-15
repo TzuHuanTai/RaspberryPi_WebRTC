@@ -6,8 +6,8 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <unistd.h>
+#include <future>
 
-#include <memory>
 #include <iostream>
 #include <cstring>
 #include <cstdio>
@@ -15,11 +15,12 @@
 
 const char *ENCODER_FILE = "/dev/video11";
 
-V4l2m2mEncoder::V4l2m2mEncoder(std::shared_ptr<Observable> observer)
-    : framerate_(30),
+V4l2m2mEncoder::V4l2m2mEncoder()
+    : name_("h264_v4l2m2m"),
+      framerate_(30),
       key_frame_interval_(12),
-      callback_(nullptr),
-      observer_(observer) {}
+      recorder_(nullptr),
+      callback_(nullptr) {}
 
 V4l2m2mEncoder::~V4l2m2mEncoder()
 {
@@ -37,10 +38,6 @@ int32_t V4l2m2mEncoder::InitEncode(
     width_ = codec_settings->width;
     height_ = codec_settings->height;
     bitrate_bps_ = codec_settings->startBitrate * 1000;
-    if (codec_settings->codecType == webrtc::kVideoCodecH264)
-    {
-        key_frame_interval_ = codec_settings->H264().keyFrameInterval;
-    }
     std::cout << "[V4l2m2mEncoder]: width, " << width_ << std::endl;
     std::cout << "[V4l2m2mEncoder]: height, " << height_ << std::endl;
     std::cout << "[V4l2m2mEncoder]: framerate, " << framerate_ << std::endl;
@@ -51,12 +48,6 @@ int32_t V4l2m2mEncoder::InitEncode(
     encoded_image_.content_type_ = webrtc::VideoContentType::UNSPECIFIED;
 
     V4l2m2mConfigure(width_, height_, framerate_);
-
-    if (observer_)
-    {
-        auto fp = std::bind(&V4l2m2mEncoder::OnMessage, this, std::placeholders::_1);
-        observer_->Subscribe(fp);
-    }
 
     return WEBRTC_VIDEO_CODEC_OK;
 }
@@ -119,6 +110,9 @@ int32_t V4l2m2mEncoder::Encode(
         encoded_image_._frameType = webrtc::VideoFrameType::kVideoFrameKey;
     }
 
+    auto write = std::async(std::launch::async,
+                            &V4l2m2mEncoder::RecorderWrite, this, encoded_buffer);
+
     auto result = callback_->OnEncodedImage(encoded_image_, &codec_specific);
     if (result.error != webrtc::EncodedImageCallback::Result::OK)
     {
@@ -166,13 +160,52 @@ webrtc::VideoEncoder::EncoderInfo V4l2m2mEncoder::GetEncoderInfo() const
 {
     EncoderInfo info;
     info.supports_native_handle = true;
-    info.implementation_name = "H264 V4L2m2m";
+    info.implementation_name = name_;
     return info;
 }
 
 void V4l2m2mEncoder::OnMessage(char *message)
 {
+    std::lock_guard<std::mutex> lock(recording_mtx_);
     std::cout << "[V4l2m2mEncoder]: received msg => " << message << std::endl;
+
+    // TODO: parse incoming message into object
+    if (strcmp(message, "1") == 0 && !recorder_)
+    {
+        recorder_ = new Recorder(recoder_config_);
+        return;
+    }
+    else if (strcmp(message, "0") == 0 && recorder_)
+    {
+        delete recorder_;
+        recorder_ = nullptr;
+    }
+}
+
+void V4l2m2mEncoder::SetRecordObserver(std::shared_ptr<Observable> observer,
+                                       std::string saving_path)
+{
+    observer_ = observer;
+
+    recoder_config_ = (RecorderConfig){
+        .fps = framerate_,
+        .width = width_,
+        .height = height_,
+        .saving_path = saving_path,
+        .container = "mp4",
+        .encoder_name = name_};
+
+    observer_->Subscribe([&](char *message)
+                         { OnMessage(message); });
+}
+
+void V4l2m2mEncoder::RecorderWrite(Buffer encoded_buffer)
+{
+    std::lock_guard<std::mutex> lock(recording_mtx_);
+    if (recorder_)
+    {
+        recorder_->Write(encoded_buffer);
+    }
 }
 
 int32_t V4l2m2mEncoder::V4l2m2mConfigure(int width, int height, int fps)
@@ -289,6 +322,11 @@ Buffer V4l2m2mEncoder::V4l2m2mEncode(const uint8_t *byte, uint32_t length)
 
 void V4l2m2mEncoder::V4l2m2mRelease()
 {
+    if (recorder_)
+    {
+        delete recorder_;
+    }
+
     munmap(output_.start, output_.length);
     munmap(capture_.start, capture_.length);
 
