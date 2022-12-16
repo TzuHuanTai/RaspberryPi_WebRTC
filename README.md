@@ -46,13 +46,12 @@ Step of using signalr as the webrtc signaling server
 Compile `libwebrtc.a` and `microsoft-signalr.so`, then install the needed packages befor run makefile
 ```bash
 sudo apt install libboost-program-options-dev libavformat-dev libavcodec-dev libavutil-dev libavdevice-dev libswscale-dev
-# v4l2-ctl -d /dev/video11 --set-ctrl=video_bitrate_mode=1,repeat_sequence_header=1,video_bitrate=1500000,h264_minimum_qp_value=2,h264_maximum_qp_value=31,h264_i_frame_period=12,h264_level=9,h264_profile=0
 ```
 
 ## Compile and run
 ```bash
 make -j
-./main http://localhost:6080/SignalingServer
+./main --device=/dev/video0 --fps=30 --width=1280 --height=720 --signaling_url=http://localhost:6080/SignalingServer --use_h264_hw_encoder=true --use_i420_src=false --file_path=/home/pi/video/
 ```
 
 ## Run as Linux Service
@@ -93,7 +92,7 @@ make -j
     [Service]
     Type=simple
     WorkingDirectory=/home/pi/IoT/RaspberryPi_WebRTC
-    ExecStart=/home/pi/IoT/RaspberryPi_WebRTC/main --fps=30 --width=1280 --height=720 --signaling_url=http://localhost:6080/SignalingServer --use_h264_hw_encoder=true --use_i420_src=false
+    ExecStart=/home/pi/IoT/RaspberryPi_WebRTC/main --fps=30 --width=1280 --height=720 --signaling_url=http://localhost:6080/SignalingServer --use_h264_hw_encoder=true --use_i420_src=false --file_path=/home/pi/video/
     Restart=always
     RestartSec=10
       
