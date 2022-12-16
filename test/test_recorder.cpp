@@ -19,12 +19,15 @@ int main(int argc, char *argv[])
     Args args{.fps = 15,
               .width = 1280,
               .height = 720,
-              .use_i420_src = false,
-              .container = "mp4",
-              .packet_type = "mjpeg"};
-
+              .use_i420_src = false};
     auto capture = V4L2Capture::Create(args.device);
-    Recorder recorder(args);
+
+    RecorderConfig config{.fps = args.fps,
+                          .width = args.width,
+                          .height = args.height,
+                          .container = "mp4",
+                          .encoder_name = "mjpeg"};
+    Recorder recorder(config);
 
     auto test = [&]() -> bool
     {
