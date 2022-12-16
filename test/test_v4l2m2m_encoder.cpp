@@ -21,13 +21,18 @@ int main(int argc, char *argv[])
               .width = 640,
               .height = 480,
               .use_i420_src = true,
-              .use_h264_hw_encoder = true,
-              .packet_type = "h264_v4l2m2m"};
-
+              .use_h264_hw_encoder = true};
     auto capture = V4L2Capture::Create(args.device);
+
     V4l2m2mEncoder encoder;
     encoder.V4l2m2mConfigure(args.width, args.height, args.fps);
-    Recorder recorder(args);
+
+    RecorderConfig config{.fps = args.fps,
+                          .width = args.width,
+                          .height = args.height,
+                          .container = "mp4",
+                          .encoder_name = "h264_v4l2m2m"};
+    Recorder recorder(config);
 
     auto test = [&]() -> bool
     {
