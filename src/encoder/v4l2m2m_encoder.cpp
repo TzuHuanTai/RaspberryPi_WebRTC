@@ -31,13 +31,12 @@ int32_t V4l2m2mEncoder::InitEncode(
     const webrtc::VideoCodec *codec_settings,
     const VideoEncoder::Settings &settings)
 {
-    bitrate_adjuster_.reset(new webrtc::BitrateAdjuster(.5, .95));
+    bitrate_adjuster_.reset(new webrtc::BitrateAdjuster(1, 1));
 
     std::cout << "[V4l2m2mEncoder]: InitEncode" << std::endl;
     codec_ = *codec_settings;
     width_ = codec_settings->width;
     height_ = codec_settings->height;
-    bitrate_bps_ = codec_settings->startBitrate * 1000;
     std::cout << "[V4l2m2mEncoder]: width, " << width_ << std::endl;
     std::cout << "[V4l2m2mEncoder]: height, " << height_ << std::endl;
     std::cout << "[V4l2m2mEncoder]: framerate, " << framerate_ << std::endl;
@@ -221,6 +220,7 @@ int32_t V4l2m2mEncoder::V4l2m2mConfigure(int width, int height, int fps)
     output_.width = capture_.width = width;
     output_.height = capture_.height = height;
     framerate_ = fps;
+    bitrate_bps_ = width * height * fps / 10;
 
     if (!V4l2Util::InitBuffer(fd_, &output_, &capture_))
     {
@@ -228,10 +228,11 @@ int32_t V4l2m2mEncoder::V4l2m2mConfigure(int width, int height, int fps)
     }
 
     /* set ext ctrls */
+    // MODE_CBR will cause performance issue in high resolution?!
     V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_BITRATE_MODE, V4L2_MPEG_VIDEO_BITRATE_MODE_VBR);
     V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_HEADER_MODE, V4L2_MPEG_VIDEO_HEADER_MODE_JOINED_WITH_1ST_FRAME);
     V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_REPEAT_SEQ_HEADER, true);
-    V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_BITRATE, width * height * fps / 10);
+    V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_BITRATE, bitrate_bps_);
     V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_H264_PROFILE, V4L2_MPEG_VIDEO_H264_PROFILE_BASELINE);
     V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_H264_LEVEL, V4L2_MPEG_VIDEO_H264_LEVEL_3_1);
     V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_H264_I_PERIOD, key_frame_interval_);
