@@ -60,6 +60,12 @@ int32_t V4l2m2mEncoder::RegisterEncodeCompleteCallback(
 
 int32_t V4l2m2mEncoder::Release()
 {
+    if (recorder_)
+    {
+        delete recorder_;
+        recorder_ = nullptr;
+    }
+
     return WEBRTC_VIDEO_CODEC_OK;
 }
 
@@ -109,8 +115,7 @@ int32_t V4l2m2mEncoder::Encode(
         encoded_image_._frameType = webrtc::VideoFrameType::kVideoFrameKey;
     }
 
-    auto write = std::async(std::launch::async,
-                            &V4l2m2mEncoder::RecorderWrite, this, encoded_buffer);
+    WriteFile(encoded_buffer);
 
     auto result = callback_->OnEncodedImage(encoded_image_, &codec_specific);
     if (result.error != webrtc::EncodedImageCallback::Result::OK)
@@ -163,26 +168,23 @@ webrtc::VideoEncoder::EncoderInfo V4l2m2mEncoder::GetEncoderInfo() const
     return info;
 }
 
-void V4l2m2mEncoder::OnMessage(char *message)
+void V4l2m2mEncoder::EnableRecorder(bool onoff)
 {
     std::lock_guard<std::mutex> lock(recording_mtx_);
-    std::cout << "[V4l2m2mEncoder]: received msg => " << message << std::endl;
 
-    // TODO: parse incoming message into object
-    if (strcmp(message, "1") == 0 && !recorder_)
+    if (onoff && !recorder_)
     {
         recorder_ = new Recorder(recoder_config_);
-        return;
     }
-    else if (strcmp(message, "0") == 0 && recorder_)
+    else if (!onoff && recorder_)
     {
         delete recorder_;
         recorder_ = nullptr;
     }
 }
 
-void V4l2m2mEncoder::SetRecordObserver(std::shared_ptr<Observable> observer,
-                                       std::string saving_path)
+void V4l2m2mEncoder::RegisterRecordingObserver(std::shared_ptr<Observable> observer,
+                                               std::string saving_path)
 {
     observer_ = observer;
 
@@ -194,16 +196,26 @@ void V4l2m2mEncoder::SetRecordObserver(std::shared_ptr<Observable> observer,
         .container = "mp4",
         .encoder_name = name_};
 
-    observer_->Subscribe([&](char *message)
-                         { OnMessage(message); });
+    // TODO: parse incoming message into object to control recoder
+    observer_->Subscribe(
+        [&](char *message)
+        {
+            std::cout << "[V4l2m2mEncoder]: received msg => " << message << std::endl;
+            if (strcmp(message, "1") == 0)
+            {
+                EnableRecorder(true);
+                return;
+            }
+            EnableRecorder(false);
+        });
 }
 
-void V4l2m2mEncoder::RecorderWrite(Buffer encoded_buffer)
+void V4l2m2mEncoder::WriteFile(Buffer encoded_buffer)
 {
     std::lock_guard<std::mutex> lock(recording_mtx_);
-    if (recorder_)
+    if (recorder_ && encoded_buffer.length > 0)
     {
-        recorder_->Write(encoded_buffer);
+        recorder_->PushBuffer(encoded_buffer);
     }
 }
 

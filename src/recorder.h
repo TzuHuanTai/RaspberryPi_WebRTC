@@ -4,6 +4,8 @@
 #include "v4l2_utils.h"
 
 #include "string"
+#include <future>
+#include <queue>
 #include <memory>
 
 extern "C"
@@ -38,11 +40,14 @@ public:
     Recorder(RecorderConfig config);
     ~Recorder();
 
-    bool Initialize();
-    bool Write(Buffer buffer);
-    void Finish();
+    void PushBuffer(Buffer buffer);
 
 private:
+    bool is_recording_;
+    int buffer_limit_num_;
+    std::queue<Buffer> buffer_queue_;
+    std::future<void> consumer_;
+
     int video_frame_count_;
     bool wait_first_keyframe_;
     AVFormatContext *fmt_ctx_;
@@ -52,7 +57,12 @@ private:
     std::string PrefixZero(int stc, int digits);
     std::string GenerateFilename();
 
+    bool Initialize();
     void AddVideoStream();
+    void ConsumeBuffer();
+    void AsyncWriteFileBackground();
+    bool Write(Buffer buffer);
+    void Finish();
 };
 
 #endif // RECODER_H_

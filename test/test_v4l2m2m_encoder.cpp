@@ -51,7 +51,7 @@ int main(int argc, char *argv[])
 
         if (wait_first_keyframe)
         {
-            recorder.Write(encoded_buffer);
+            recorder.PushBuffer(encoded_buffer);
         }
 
         if (images_nb++ < args.fps * record_sec)

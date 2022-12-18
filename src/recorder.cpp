@@ -1,7 +1,10 @@
 #include "recorder.h"
 
+#include <chrono>
+#include <thread>
 #include <iostream>
 #include <sstream>
+#include <unistd.h>
 
 Recorder::Recorder(RecorderConfig config)
     : width(config.width),
@@ -10,10 +13,12 @@ Recorder::Recorder(RecorderConfig config)
       extension(config.container),
       encoder_name(config.encoder_name),
       frame_rate({.num = (int)config.fps, .den = 1}),
+      buffer_limit_num_(config.fps * 10),
       video_frame_count_(0),
       wait_first_keyframe_(false)
 {
     Initialize();
+    AsyncWriteFileBackground();
 }
 
 std::string Recorder::PrefixZero(int src, int digits)
@@ -96,6 +101,39 @@ void Recorder::AddVideoStream()
     avcodec_parameters_from_context(video_st_->codecpar, video_encoder_);
 }
 
+void Recorder::PushBuffer(Buffer buffer)
+{
+    if (buffer_queue_.size() < buffer_limit_num_)
+    {
+        Buffer buf = {
+            .start = malloc(buffer.length),
+            .length = buffer.length,
+            .flags = buffer.flags};
+        memcpy(buf.start, buffer.start, buffer.length);
+
+        buffer_queue_.push(buf);
+    }
+}
+
+void Recorder::ConsumeBuffer()
+{
+    while (is_recording_)
+    {
+        while (!buffer_queue_.empty())
+        {
+            Write(buffer_queue_.front());
+            buffer_queue_.pop();
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+}
+
+void Recorder::AsyncWriteFileBackground()
+{
+    is_recording_ = true;
+    consumer_ = std::async(std::launch::async, &Recorder::ConsumeBuffer, this);
+}
+
 bool Recorder::Write(Buffer buffer)
 {
     if (!wait_first_keyframe_ && (buffer.flags & V4L2_BUF_FLAG_KEYFRAME))
@@ -127,6 +165,10 @@ bool Recorder::Write(Buffer buffer)
 
 void Recorder::Finish()
 {
+    is_recording_ = false;
+
+    consumer_.wait();
+
     if (fmt_ctx_)
     {
         av_write_trailer(fmt_ctx_);

@@ -33,7 +33,7 @@ int main(int argc, char *argv[])
     {
         std::unique_lock<std::mutex> lock(mtx);
         Buffer buffer = capture->CaptureImage();
-        recorder.Write(buffer);
+        recorder.PushBuffer(buffer);
 
         std::cout << '\r' << "Receive packet num: " << images_nb << "\e[K" << std::flush;
 
