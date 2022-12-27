@@ -17,15 +17,14 @@ const char *ENCODER_FILE = "/dev/video11";
 
 V4l2m2mEncoder::V4l2m2mEncoder()
     : name_("h264_v4l2m2m"),
+      adapted_width_(0),
+      adapted_height_(0),
       framerate_(30),
       key_frame_interval_(12),
       recorder_(nullptr),
       callback_(nullptr) {}
 
-V4l2m2mEncoder::~V4l2m2mEncoder()
-{
-    V4l2m2mRelease();
-}
+V4l2m2mEncoder::~V4l2m2mEncoder() {}
 
 int32_t V4l2m2mEncoder::InitEncode(
     const webrtc::VideoCodec *codec_settings,
@@ -60,11 +59,15 @@ int32_t V4l2m2mEncoder::RegisterEncodeCompleteCallback(
 
 int32_t V4l2m2mEncoder::Release()
 {
+    std::lock_guard<std::mutex> lock(mtx_);
+
     if (recorder_)
     {
         delete recorder_;
         recorder_ = nullptr;
     }
+
+    V4l2m2mRelease();
 
     return WEBRTC_VIDEO_CODEC_OK;
 }
@@ -73,6 +76,8 @@ int32_t V4l2m2mEncoder::Encode(
     const webrtc::VideoFrame &frame,
     const std::vector<webrtc::VideoFrameType> *frame_types)
 {
+    std::lock_guard<std::mutex> lock(mtx_);
+
     rtc::scoped_refptr<webrtc::VideoFrameBuffer> frame_buffer =
         frame.video_frame_buffer();
 
@@ -87,8 +92,16 @@ int32_t V4l2m2mEncoder::Encode(
     }
 
     RawBuffer *raw_buffer = static_cast<RawBuffer *>(frame_buffer.get());
-    width_ = raw_buffer->width();
-    height_ = raw_buffer->height();
+    adapted_width_ = raw_buffer->width();
+    adapted_height_ = raw_buffer->height();
+
+    if (adapted_width_ != width_ || adapted_height_ != height_)
+    {
+        V4l2m2mRelease();
+        V4l2m2mConfigure(adapted_width_, adapted_height_, framerate_);
+        width_ = adapted_width_;
+        height_ = adapted_height_;
+    }
 
     Buffer encoded_buffer =
         V4l2m2mEncode(raw_buffer->Data(), raw_buffer->Size());
@@ -131,7 +144,9 @@ int32_t V4l2m2mEncoder::Encode(
 
 void V4l2m2mEncoder::SetRates(const RateControlParameters &parameters)
 {
-    if (parameters.bitrate.get_sum_bps() <= 0 || parameters.framerate_fps <= 0)
+    std::lock_guard<std::mutex> lock(mtx_);
+
+    if (parameters.bitrate.get_sum_bps() <= 0 || parameters.framerate_fps <= 0 || fd_ < 0)
     {
         return;
     }
@@ -335,18 +350,14 @@ Buffer V4l2m2mEncoder::V4l2m2mEncode(const uint8_t *byte, uint32_t length)
 
 void V4l2m2mEncoder::V4l2m2mRelease()
 {
-    if (recorder_)
-    {
-        delete recorder_;
-    }
-
-    munmap(output_.start, output_.length);
-    munmap(capture_.start, capture_.length);
-
     // turn off stream
     V4l2Util::SwitchStream(fd_, &output_, false);
     V4l2Util::SwitchStream(fd_, &capture_, false);
 
+    munmap(output_.start, output_.length);
+    munmap(capture_.start, capture_.length);
+
     V4l2Util::CloseDevice(fd_);
     printf("[V4l2m2mEncoder]: fd(%d) is released\n", fd_);
+    fd_ = -1;
 }

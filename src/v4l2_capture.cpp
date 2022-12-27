@@ -376,29 +376,24 @@ void V4L2Capture::OnFrameCaptured(Buffer buffer)
         dst_buffer = i420_buffer;
     }
 
+    if (adapted_width != width_ || adapted_height != height_)
+    {
+        i420_buffer = webrtc::I420Buffer::Create(adapted_width, adapted_height);
+        i420_buffer->ScaleFrom(*dst_buffer->ToI420());
+        dst_buffer = i420_buffer;
+    }
+
     if (use_raw_buffer_)
     {
-        // Buffer i420_buffer = buffer;
-        // if(decoder_ != nullptr && capture_viedo_type_ == webrtc::VideoType::kMJPEG){
-        //     i420_buffer = decoder_->V4l2m2mDecode((uint8_t *)buffer.start, buffer.length);
-        // }
-        int i420_size = (width_ * height_) +
-                        ((width_ + 1) / 2) * ((height_ + 1) / 2) * 2;
+        int i420_size = (adapted_width * adapted_height) +
+                        ((adapted_width + 1) / 2) * ((adapted_height + 1) / 2) * 2;
         rtc::scoped_refptr<RawBuffer> raw_buffer(
-            RawBuffer::Create(width_, height_, i420_size));
+            RawBuffer::Create(adapted_width, adapted_height, i420_size));
         std::memcpy(raw_buffer->MutableData(),
                     i420_buffer.get()->DataY(),
                     i420_size);
-        // raw_buffer->SetFlags(i420_buffer.flags);
 
         dst_buffer = raw_buffer;
-    }
-    else if (adapted_width != width_ || adapted_height != height_)
-    {
-        rtc::scoped_refptr<webrtc::I420Buffer> i420_buffer =
-            webrtc::I420Buffer::Create(adapted_width, adapted_height);
-        i420_buffer->ScaleFrom(*dst_buffer->ToI420());
-        dst_buffer = i420_buffer;
     }
 
     OnFrame(webrtc::VideoFrame::Builder()
