@@ -39,7 +39,7 @@ std::string V4l2Util::FourccToString(uint32_t fourcc)
 
 int V4l2Util::OpenDevice(const char *file)
 {
-    int fd = open(file, O_RDWR);
+    int fd = open(file, O_RDWR | O_NONBLOCK);
     if (fd < 0)
     {
         perror("Open v4l2m2m encoder failed");

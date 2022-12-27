@@ -103,8 +103,12 @@ int32_t V4l2m2mEncoder::Encode(
         height_ = adapted_height_;
     }
 
-    Buffer encoded_buffer =
-        V4l2m2mEncode(raw_buffer->Data(), raw_buffer->Size());
+    Buffer encoded_buffer = { 0 };
+    if (!V4l2m2mEncode(raw_buffer->Data(), raw_buffer->Size(), encoded_buffer))
+    {
+        return WEBRTC_VIDEO_CODEC_ERROR;
+    }
+
     auto encoded_image_buffer =
         webrtc::EncodedImageBuffer::Create((uint8_t *)encoded_buffer.start, encoded_buffer.length);
 
@@ -306,7 +310,7 @@ int32_t V4l2m2mEncoder::V4l2m2mConfigure(int width, int height, int fps)
     return 1;
 }
 
-Buffer V4l2m2mEncoder::V4l2m2mEncode(const uint8_t *byte, uint32_t length)
+bool V4l2m2mEncoder::V4l2m2mEncode(const uint8_t *byte, uint32_t length, Buffer &buffer)
 {
     struct v4l2_buffer buf = {0};
     struct v4l2_plane out_planes = {0};
@@ -319,6 +323,7 @@ Buffer V4l2m2mEncoder::V4l2m2mEncode(const uint8_t *byte, uint32_t length)
     if (ioctl(fd_, VIDIOC_DQBUF, &buf) < 0)
     {
         perror("[V4l2m2mEncoder] ioctl dequeue output");
+        return false;
     }
 
     memcpy((uint8_t *)output_.start, byte, length);
@@ -327,6 +332,7 @@ Buffer V4l2m2mEncoder::V4l2m2mEncode(const uint8_t *byte, uint32_t length)
     if (ioctl(fd_, VIDIOC_QBUF, &output_.inner) < 0)
     {
         perror("[V4l2m2mEncoder] ioctl equeue output");
+        return false;
     }
 
     // Dequeue the capture buffer, write out the encoded frame and queue it back.
@@ -334,18 +340,20 @@ Buffer V4l2m2mEncoder::V4l2m2mEncode(const uint8_t *byte, uint32_t length)
     if (ioctl(fd_, VIDIOC_DQBUF, &buf) < 0)
     {
         perror("[V4l2m2mEncoder] ioctl equeue capture");
+        return false;
     }
 
-    struct Buffer buffer = {.start = capture_.start,
-                            .length = buf.m.planes[0].bytesused,
-                            .flags = buf.flags};
+    buffer.start = capture_.start;
+    buffer.length = buf.m.planes[0].bytesused;
+    buffer.flags = buf.flags;
 
     if (ioctl(fd_, VIDIOC_QBUF, &capture_.inner) < 0)
     {
         perror("[V4l2m2mEncoder] ioctl queue capture");
+        return false;
     }
 
-    return buffer;
+    return true;
 }
 
 void V4l2m2mEncoder::V4l2m2mRelease()
