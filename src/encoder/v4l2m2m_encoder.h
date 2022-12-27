@@ -46,11 +46,14 @@ private:
     int fd_;
     int width_;
     int height_;
+    int adapted_width_;
+    int adapted_height_;
     int framerate_;
     int bitrate_bps_;
     int key_frame_interval_;
     Buffer output_;
     Buffer capture_;
+    std::mutex mtx_;
     std::mutex recording_mtx_;
     Recorder *recorder_;
     RecorderConfig recoder_config_;
