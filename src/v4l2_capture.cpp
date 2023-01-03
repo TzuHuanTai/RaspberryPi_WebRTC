@@ -1,5 +1,4 @@
 #include "v4l2_capture.h"
-#include "encoder/raw_buffer.h"
 
 // Linux
 #include <errno.h>
@@ -35,8 +34,7 @@ V4L2Capture::V4L2Capture(std::string device)
     : device_(device),
       buffer_count_(4),
       rotation_angle_(0),
-      use_i420_src_(false),
-      use_raw_buffer_(false)
+      use_i420_src_(false)
 {
     webrtc::VideoCaptureModule::DeviceInfo *device_info = webrtc::VideoCaptureFactory::CreateDeviceInfo();
     camera_index_ = GetCameraIndex(device_info);
@@ -114,12 +112,6 @@ int V4L2Capture::GetCameraIndex(webrtc::VideoCaptureModule::DeviceInfo *device_i
         }
     }
     return -1;
-}
-
-V4L2Capture &V4L2Capture::UseRawBuffer(bool use_raw_buffer)
-{
-    use_raw_buffer_ = use_raw_buffer;
-    return *this;
 }
 
 V4L2Capture &V4L2Capture::SetFormat(uint width, uint height, bool use_i420_src)
@@ -381,19 +373,6 @@ void V4L2Capture::OnFrameCaptured(Buffer buffer)
         i420_buffer = webrtc::I420Buffer::Create(adapted_width, adapted_height);
         i420_buffer->ScaleFrom(*dst_buffer->ToI420());
         dst_buffer = i420_buffer;
-    }
-
-    if (use_raw_buffer_)
-    {
-        int i420_size = (adapted_width * adapted_height) +
-                        ((adapted_width + 1) / 2) * ((adapted_height + 1) / 2) * 2;
-        rtc::scoped_refptr<RawBuffer> raw_buffer(
-            RawBuffer::Create(adapted_width, adapted_height, i420_size));
-        std::memcpy(raw_buffer->MutableData(),
-                    i420_buffer.get()->DataY(),
-                    i420_size);
-
-        dst_buffer = raw_buffer;
     }
 
     OnFrame(webrtc::VideoFrame::Builder()

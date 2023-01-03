@@ -10,7 +10,6 @@ struct Args
   int height = 480;
   int rotation_angle = 0;
   bool use_i420_src = false;
-  bool use_h264_hw_encoder = false;
   std::string device = "/dev/video0";
   std::string stun_url = "stun:stun.l.google.com:19302";
   std::string signaling_url = "http://localhost:5000/SignalingServer";

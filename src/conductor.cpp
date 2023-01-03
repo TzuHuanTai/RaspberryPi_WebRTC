@@ -38,7 +38,6 @@ bool Conductor::InitializeTracks()
 
     auto video_track_source = V4L2Capture::Create(args.device);
     (*video_track_source)
-        // .UseRawBuffer(args.use_h264_hw_encoder)
         .SetFps(args.fps)
         .SetRotation(args.rotation_angle)
         .SetFormat(args.width, args.height, args.use_i420_src)

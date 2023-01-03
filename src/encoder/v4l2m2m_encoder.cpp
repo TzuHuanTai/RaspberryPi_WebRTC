@@ -1,5 +1,4 @@
 #include "encoder/v4l2m2m_encoder.h"
-#include "encoder/raw_buffer.h"
 
 #include <sys/ioctl.h>
 #include <errno.h>
@@ -81,19 +80,14 @@ int32_t V4l2m2mEncoder::Encode(
     rtc::scoped_refptr<webrtc::VideoFrameBuffer> frame_buffer =
         frame.video_frame_buffer();
 
-    if (frame_buffer->type() != webrtc::VideoFrameBuffer::Type::kNative)
-    {
-        return WEBRTC_VIDEO_CODEC_ERROR;
-    }
-
     if (codec_.codecType != webrtc::kVideoCodecH264)
     {
         return WEBRTC_VIDEO_CODEC_ERROR;
     }
 
-    RawBuffer *raw_buffer = static_cast<RawBuffer *>(frame_buffer.get());
-    adapted_width_ = raw_buffer->width();
-    adapted_height_ = raw_buffer->height();
+    auto i420_buffer = frame_buffer->GetI420();
+    adapted_width_ = i420_buffer->width();
+    adapted_height_ = i420_buffer->height();
 
     if (adapted_width_ != width_ || adapted_height_ != height_)
     {
@@ -104,7 +98,9 @@ int32_t V4l2m2mEncoder::Encode(
     }
 
     Buffer encoded_buffer = { 0 };
-    if (!V4l2m2mEncode(raw_buffer->Data(), raw_buffer->Size(), encoded_buffer))
+    int i420_buffer_size = (width_ * height_) +
+                    ((width_ + 1) / 2) * ((height_ + 1) / 2) * 2;
+    if (!V4l2m2mEncode(i420_buffer->DataY(), i420_buffer_size, encoded_buffer))
     {
         return WEBRTC_VIDEO_CODEC_ERROR;
     }
@@ -141,7 +137,7 @@ int32_t V4l2m2mEncoder::Encode(
         return WEBRTC_VIDEO_CODEC_ERROR;
     }
 
-    bitrate_adjuster_->Update(raw_buffer->Size());
+    bitrate_adjuster_->Update(encoded_buffer.length);
 
     return WEBRTC_VIDEO_CODEC_OK;
 }

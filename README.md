@@ -51,7 +51,7 @@ sudo apt install libboost-program-options-dev libavformat-dev libavcodec-dev lib
 ## Compile and run
 ```bash
 make -j
-./main --device=/dev/video0 --fps=30 --width=1280 --height=720 --signaling_url=http://localhost:6080/SignalingServer --use_h264_hw_encoder=true --use_i420_src=false --file_path=/home/pi/video/
+./main --device=/dev/video0 --fps=30 --width=1280 --height=720 --signaling_url=http://localhost:6080/SignalingServer --use_i420_src=false --file_path=/home/pi/video/
 ```
 
 ## Run as Linux Service
@@ -92,7 +92,7 @@ make -j
     [Service]
     Type=simple
     WorkingDirectory=/home/pi/IoT/RaspberryPi_WebRTC
-    ExecStart=/home/pi/IoT/RaspberryPi_WebRTC/main --fps=30 --width=1280 --height=720 --signaling_url=http://localhost:6080/SignalingServer --use_h264_hw_encoder=true --use_i420_src=false --file_path=/home/pi/video/
+    ExecStart=/home/pi/IoT/RaspberryPi_WebRTC/main --fps=30 --width=1280 --height=720 --signaling_url=http://localhost:6080/SignalingServer --use_i420_src=false --file_path=/home/pi/video/
     Restart=always
     RestartSec=10
       
