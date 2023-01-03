@@ -7,6 +7,8 @@
 #include <api/video_codecs/sdp_video_format.h>
 #include <api/video_codecs/video_encoder.h>
 #include <api/video_codecs/video_encoder_factory.h>
+#include "media/engine/encoder_simulcast_proxy.h"
+#include "media/engine/internal_encoder_factory.h"
 
 #include <memory>
 #include <vector>
@@ -20,7 +22,8 @@ public:
     CustomizedVideoEncoderFactory(Args args, 
         std::shared_ptr<DataChannelSubject> data_channel_subject)
         : args_(args),
-          data_channel_subject_(data_channel_subject){};
+          data_channel_subject_(data_channel_subject),
+          internal_encoder_factory_(new webrtc::InternalEncoderFactory()){};
     ~CustomizedVideoEncoderFactory(){};
 
     std::vector<webrtc::SdpVideoFormat> GetSupportedFormats() const override;
@@ -31,6 +34,7 @@ public:
 private:
     Args args_;
     std::shared_ptr<DataChannelSubject> data_channel_subject_;
+    const std::unique_ptr<VideoEncoderFactory> internal_encoder_factory_;
 };
 
 #endif // CUSTOMIZED_VIDEO_ENCODER_FACTORY_H_

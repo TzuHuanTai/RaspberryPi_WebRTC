@@ -38,7 +38,7 @@ bool Conductor::InitializeTracks()
 
     auto video_track_source = V4L2Capture::Create(args.device);
     (*video_track_source)
-        .UseRawBuffer(args.use_h264_hw_encoder)
+        // .UseRawBuffer(args.use_h264_hw_encoder)
         .SetFps(args.fps)
         .SetRotation(args.rotation_angle)
         .SetFormat(args.width, args.height, args.use_i420_src)
@@ -120,14 +120,11 @@ bool Conductor::InitializePeerConnection()
 
     data_channel_subject_ = std::make_shared<DataChannelSubject>();
 
-    std::unique_ptr<webrtc::VideoEncoderFactory> VideoEncoderFactory =
-        args.use_h264_hw_encoder ? CreateCustomizedVideoEncoderFactory(args, data_channel_subject_)
-                                 : webrtc::CreateBuiltinVideoEncoderFactory();
-
     peer_connection_factory_ = webrtc::CreatePeerConnectionFactory(
         network_thread_.get(), worker_thread_.get(), signaling_thread_.get(), nullptr,
         webrtc::CreateBuiltinAudioEncoderFactory(), webrtc::CreateBuiltinAudioDecoderFactory(),
-        std::move(VideoEncoderFactory), webrtc::CreateBuiltinVideoDecoderFactory(),
+        CreateCustomizedVideoEncoderFactory(args, data_channel_subject_), 
+        webrtc::CreateBuiltinVideoDecoderFactory(),
         nullptr, nullptr);
 
     if (!peer_connection_factory_)
