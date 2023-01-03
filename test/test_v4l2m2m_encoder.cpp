@@ -20,8 +20,7 @@ int main(int argc, char *argv[])
     Args args{.fps = 30,
               .width = 640,
               .height = 480,
-              .use_i420_src = true,
-              .use_h264_hw_encoder = true};
+              .use_i420_src = true};
     auto capture = V4L2Capture::Create(args.device);
 
     V4l2m2mEncoder encoder;

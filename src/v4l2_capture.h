@@ -21,7 +21,6 @@ private:
     int buffer_count_ = 4;
     uint rotation_angle_;
     bool use_i420_src_;
-    bool use_raw_buffer_;
     std::shared_ptr<V4l2m2mDecoder> decoder_;
     webrtc::Mutex capture_lock_;
 
@@ -53,7 +52,6 @@ public:
     void OnFrameCaptured(Buffer buffer);
 
     static rtc::scoped_refptr<V4L2Capture> Create(std::string device);
-    V4L2Capture &UseRawBuffer(bool use_raw_buffer);
     V4L2Capture &SetFormat(uint width, uint height, bool use_i420_src = false);
     V4L2Capture &SetFps(uint fps = 30);
     V4L2Capture &SetRotation(uint angle);
