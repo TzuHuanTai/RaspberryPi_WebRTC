@@ -2,6 +2,16 @@
 *.tmp
 *.jpg
 *.mp4
+*.a
+
+# cmake
+CMakeFiles
+CMakeCache.txt
+*.cmake
+Makefile
+
+# folder
+build
 
 # executable
 main
