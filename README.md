@@ -43,15 +43,18 @@ Step of using signalr as the webrtc signaling server
 
 # How to use
 
-Compile `libwebrtc.a` and `microsoft-signalr.so`, then install the needed packages befor run makefile
+Compile `libwebrtc.a` and `microsoft-signalr.so` in advance, then install the needed packages befor run makefile
 ```bash
 sudo apt install libboost-program-options-dev libavformat-dev libavcodec-dev libavutil-dev libavdevice-dev libswscale-dev
 ```
 
 ## Compile and run
 ```bash
+mkdir build
+cd ./build
+cmake .. -DCMAKE_CXX_COMPILER=/usr/bin/clang++
 make -j
-./main --device=/dev/video0 --fps=30 --width=1280 --height=720 --signaling_url=http://localhost:6080/SignalingServer --use_i420_src=false --file_path=/home/pi/video/
+./pi_webrtc --device=/dev/video0 --fps=30 --width=1280 --height=720 --signaling_url=http://localhost:6080/SignalingServer --use_i420_src=false --file_path=/home/pi/video/
 ```
 
 ## Run as Linux Service
@@ -91,8 +94,8 @@ make -j
 
     [Service]
     Type=simple
-    WorkingDirectory=/home/pi/IoT/RaspberryPi_WebRTC
-    ExecStart=/home/pi/IoT/RaspberryPi_WebRTC/main --fps=30 --width=1280 --height=720 --signaling_url=http://localhost:6080/SignalingServer --use_i420_src=false --file_path=/home/pi/video/
+    WorkingDirectory=/home/pi/IoT/RaspberryPi_WebRTC/build
+    ExecStart=/home/pi/IoT/RaspberryPi_WebRTC/build/pi_webrtc --fps=30 --width=1280 --height=720 --signaling_url=http://localhost:6080/SignalingServer --use_i420_src=false --file_path=/home/pi/video/
     Restart=always
     RestartSec=10
       
