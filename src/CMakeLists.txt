@@ -18,6 +18,7 @@ target_sources(${PROJECT_NAME}
     parser.cpp
     signal_server.cpp
     v4l2_capture.cpp
+    h264_capture.cpp
 )
 
 target_link_libraries(${PROJECT_NAME} encoder)

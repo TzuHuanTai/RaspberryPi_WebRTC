@@ -1,5 +1,6 @@
 #include "conductor.h"
 #include "v4l2_capture.h"
+#include "h264_capture.h"
 #include "customized_video_encoder_factory.h"
 
 #include <api/audio_codecs/builtin_audio_decoder_factory.h>
@@ -44,7 +45,7 @@ bool Conductor::InitializeTracks()
     audio_track_ =
         peer_connection_factory_->CreateAudioTrack("my_audio_label", options.get());
 
-    auto video_track_source = V4L2Capture::Create(args.device);
+    auto video_track_source = H264Capture::Create(args.device);
     (*video_track_source)
         .SetFps(args.fps)
         .SetRotation(args.rotation_angle)

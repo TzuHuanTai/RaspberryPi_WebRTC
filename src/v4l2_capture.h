@@ -15,18 +15,18 @@
 class V4L2Capture : public rtc::AdaptedVideoTrackSource
 {
 private:
-    int fd_;
     int camera_index_;
     std::string device_;
     int buffer_count_ = 4;
     uint rotation_angle_;
-    bool use_i420_src_;
     std::shared_ptr<V4l2m2mDecoder> decoder_;
     webrtc::Mutex capture_lock_;
 
 protected:
+    int fd_;
     uint width_;
     uint height_;
+    bool use_i420_src_;
 
     Buffer *buffers_;
     webrtc::VideoType capture_viedo_type_;
@@ -49,10 +49,10 @@ public:
     bool remote() const override;
     bool is_screencast() const override;
     absl::optional<bool> needs_denoising() const override;
-    void OnFrameCaptured(Buffer buffer);
+    virtual void OnFrameCaptured(Buffer buffer);
 
     static rtc::scoped_refptr<V4L2Capture> Create(std::string device);
-    V4L2Capture &SetFormat(uint width, uint height, bool use_i420_src = false);
+    virtual V4L2Capture &SetFormat(uint width, uint height, bool use_i420_src = false);
     V4L2Capture &SetFps(uint fps = 30);
     V4L2Capture &SetRotation(uint angle);
     V4L2Capture &SetCaptureFunc(std::function<bool()> capture_func);
