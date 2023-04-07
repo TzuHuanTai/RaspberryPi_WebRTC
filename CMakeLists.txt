@@ -37,8 +37,7 @@ add_subdirectory(src)
 if(BUILD_TEST STREQUAL "recorder")
     add_executable(recorder test/test_recorder.cpp)
     target_link_libraries(recorder
-        src
-        encoder
+        capture
         common
     )
     target_link_libraries(recorder
@@ -50,7 +49,7 @@ if(BUILD_TEST STREQUAL "recorder")
 elseif(BUILD_TEST STREQUAL "v4l2_capture")
     add_executable(v4l2_capture test/test_v4l2_capture.cpp)
     target_link_libraries(v4l2_capture
-        src
+        capture
         common
     )
     target_link_libraries(v4l2_capture
