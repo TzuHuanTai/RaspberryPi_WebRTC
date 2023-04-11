@@ -1,4 +1,5 @@
-#include "v4l2_capture.h"
+#include "v4l2_track_source.h"
+#include "encoder/raw_buffer.h"
 
 // Linux
 #include <errno.h>
@@ -32,46 +33,25 @@ rtc::scoped_refptr<V4L2TrackSource> V4L2TrackSource::Create(
 
 V4L2TrackSource::V4L2TrackSource(
     std::shared_ptr<V4L2Capture> capture)
-    : fps_(capture->fps_),
+    : capture_(capture),
+      fps_(capture->fps_),
       width_(capture->width_),
       height_(capture->height_),
-      capture_video_type_(capture->capture_video_type_)
-{ 
-    // switch(video_type)
-    // {
-    // case "i420":
-    //     capture_video_type_ = webrtc::VideoType::kI420;
-    //     break;
-    // case "mjpeg":
-    //     capture_video_type_ = webrtc::VideoType::kMJPEG;
-    //     break;
-    // case "h264":
-    //     capture_video_type_ = webrtc::VideoType::kUnknown;
-    //     break;
-    // default:
-    //     capture_video_type_ = webrtc::VideoType::kUnknown;
-    //     break;
-    // }
-}
+      capture_video_type_(capture->capture_video_type_) { }
 
 V4L2TrackSource::~V4L2TrackSource()
 {
+    capture_started = false;
+    printf("~V4L2TrackSource is running.\n");
     webrtc::MutexLock lock(&capture_lock_);
     if (!capture_thread_.empty())
     {
         capture_thread_.Finalize();
     }
-
-    capture_started = false;
+    printf("~V4L2TrackSource is closed.");
 }
 
-V4L2Capture &V4L2Capture::SetCaptureFunc(std::function<bool()> capture_func)
-{
-    capture_func_ = std::move(capture_func);
-    return *this;
-}
-
-void V4L2Capture::StartTrack()
+void V4L2TrackSource::StartTrack()
 {
     webrtc::MutexLock lock(&capture_lock_);
 
@@ -94,34 +74,39 @@ void V4L2Capture::StartTrack()
     capture_started = true;
 }
 
-void V4L2Capture::TrackThread(/*todo: pass shared buffer & fps*/)
+void V4L2TrackSource::TrackThread(/*todo: pass shared buffer & fps*/)
 {
-    std::cout << "TrackThread: start" << std::endl;
-
-    while (capture_started)
-    {
-    }
-
-    capture_started = false;
+    std::cout << "[TrackThread]: start" << std::endl;
+    frame_nums_ = 0;
+    start_time_ = std::chrono::steady_clock::now();
+    while (capture_func_()) { }
+    std::cout << "[TrackThread]: end" << std::endl;
 }
 
-bool V4L2Capture::TrackProcess()
+bool V4L2TrackSource::TrackProcess()
 {
     webrtc::MutexLock lock(&capture_lock_);
+
+    elasped_time_ = std::chrono::steady_clock::now() - start_time_;
+    elasped_milli_time_ = std::chrono::duration_cast<std::chrono::milliseconds>(elasped_time_);
+
     if (!capture_started)
     {
         return false;
     }
 
-    if (capture_started)
+    if (frame_nums_ * 1000 / fps_ < elasped_milli_time_.count())
     {
-        OnFrameCaptured(*(capture->shared_buffers_));
+        OnFrameCaptured();
+        frame_nums_++;
     }
+    
     usleep(0);
+    
     return true;
 }
 
-void V4L2Capture::OnFrameCaptured(Buffer buffer)
+void V4L2TrackSource::OnFrameCaptured()
 {
     rtc::scoped_refptr<webrtc::VideoFrameBuffer> dst_buffer = nullptr;
     rtc::TimestampAligner timestamp_aligner_;
@@ -133,8 +118,14 @@ void V4L2Capture::OnFrameCaptured(Buffer buffer)
     if (!AdaptFrame(width_, height_, timestamp_us, &adapted_width, &adapted_height,
                     &crop_width, &crop_height, &crop_x, &crop_y))
     {
+        usleep(0);
         return;
     }
+
+    Buffer buffer = capture_->GetImage();
+    // printf("Dequeue buffer index: %d\n"
+    //        "  bytesused: %d\n",
+    //        buffer.start, buffer.length);
 
     if (capture_video_type_ == webrtc::VideoType::kUnknown) {
         rtc::scoped_refptr<RawBuffer> raw_buffer(
@@ -178,22 +169,22 @@ void V4L2Capture::OnFrameCaptured(Buffer buffer)
                 .build());
 }
 
-webrtc::MediaSourceInterface::SourceState V4L2Capture::state() const
+webrtc::MediaSourceInterface::SourceState V4L2TrackSource::state() const
 {
     return SourceState::kLive;
 }
 
-bool V4L2Capture::remote() const
+bool V4L2TrackSource::remote() const
 {
     return false;
 }
 
-bool V4L2Capture::is_screencast() const
+bool V4L2TrackSource::is_screencast() const
 {
     return false;
 }
 
-absl::optional<bool> V4L2Capture::needs_denoising() const
+absl::optional<bool> V4L2TrackSource::needs_denoising() const
 {
     return false;
 }

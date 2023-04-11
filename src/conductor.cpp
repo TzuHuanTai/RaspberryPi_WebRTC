@@ -1,5 +1,7 @@
 #include "conductor.h"
-#include "v4l2_capture.h"
+// #include "capture/v4l2_capture.h"
+// #include "track/v4l2_track_source.h"
+// #include "v4l2_capture.h"
 #include "h264_capture.h"
 #include "customized_video_encoder_factory.h"
 
@@ -45,6 +47,24 @@ bool Conductor::InitializeTracks()
     audio_track_ =
         peer_connection_factory_->CreateAudioTrack("my_audio_label", options.get());
 
+    /* split into capture and track source*/
+    // auto video_caputre_source = V4L2Capture::Create(args.device);
+    // (*video_caputre_source)
+    //     .SetFps(args.fps)
+    //     .SetRotation(args.rotation_angle)
+    //     .SetFormat(args.width, args.height, "mjpeg")
+    //     .StartCapture();
+    // auto video_track_source = V4L2TrackSource::Create(video_caputre_source);
+    // video_track_source->StartTrack();
+
+    /* original v4l2 mjpeg/i420 source */
+    // auto video_track_source = V4L2Capture::Create(args.device);
+    // (*video_track_source)
+    //     .SetFps(args.fps)
+    //     .SetRotation(args.rotation_angle)
+    //     .SetFormat(args.width, args.height, args.use_i420_src)
+    //     .StartCapture();
+    
     auto video_track_source = H264Capture::Create(args.device);
     (*video_track_source)
         .SetFps(args.fps)

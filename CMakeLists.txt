@@ -60,7 +60,7 @@ elseif(BUILD_TEST STREQUAL "v4l2_capture")
 elseif(BUILD_TEST STREQUAL "v4l2m2m_encoder")
     add_executable(v4l2m2m_encoder test/test_v4l2m2m_encoder.cpp)
     target_link_libraries(v4l2m2m_encoder
-        src
+        capture
         encoder
         common
     )
@@ -72,10 +72,12 @@ elseif(BUILD_TEST STREQUAL "v4l2m2m_encoder")
     )
 else()
     add_executable(${PROJECT_NAME} src/main.cpp)
-    target_link_libraries(${PROJECT_NAME} 
+    target_link_libraries(${PROJECT_NAME}
         src
         encoder
         common
+        #[[capture]]
+        #[[track]]
     )
     target_link_libraries(${PROJECT_NAME}
         ${WEBRTC_LINK_LIBS}

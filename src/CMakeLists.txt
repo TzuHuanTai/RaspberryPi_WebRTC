@@ -9,6 +9,7 @@ target_sources(common
 
 add_subdirectory(encoder)
 add_subdirectory(capture)
+add_subdirectory(track)
 
 add_library(${PROJECT_NAME})
 target_sources(${PROJECT_NAME}
@@ -22,4 +23,4 @@ target_sources(${PROJECT_NAME}
     h264_capture.cpp
 )
 
-target_link_libraries(${PROJECT_NAME} encoder capture)
+target_link_libraries(${PROJECT_NAME} encoder capture track)
