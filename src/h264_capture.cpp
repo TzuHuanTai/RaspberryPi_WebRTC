@@ -30,26 +30,33 @@ H264Capture &H264Capture::SetFormat(uint width, uint height, bool use_i420_src)
     width_ = width;
     height_ = height;
     use_i420_src_ = use_i420_src;
-    struct v4l2_format fmt = {0};
-    fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    fmt.fmt.pix.width = width;
-    fmt.fmt.pix.height = height;
-    fmt.fmt.pix.sizeimage = 0;
-
-
-    std::cout << "Use h264 format source in v4l2" << std::endl;
-    fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_H264;
     capture_viedo_type_ = webrtc::VideoType::kUnknown;
 
+    struct Buffer capture = {
+        .name = "h264 capture",
+        .width = width,
+        .height = height,
+        .type = V4L2_BUF_TYPE_VIDEO_CAPTURE
+    };
+
+    std::cout << "Use h264 format source in v4l2" << std::endl;
     printf("  Width: %d\n"
            "  Height: %d\n",
            width, height);
 
-    if (ioctl(fd_, VIDIOC_S_FMT, &fmt) < 0)
+    if (!V4l2Util::SetFormat(fd_, &capture, V4L2_PIX_FMT_H264))
     {
-        perror("ioctl Setting Pixel Format");
-        exit(0);
+        exit(-1);
     }
+
+    V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_BITRATE_MODE, V4L2_MPEG_VIDEO_BITRATE_MODE_VBR);
+    V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_HEADER_MODE, V4L2_MPEG_VIDEO_HEADER_MODE_JOINED_WITH_1ST_FRAME);
+    V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_REPEAT_SEQ_HEADER, true);
+    V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_H264_PROFILE, V4L2_MPEG_VIDEO_H264_PROFILE_BASELINE);
+    V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_H264_LEVEL, V4L2_MPEG_VIDEO_H264_LEVEL_3_1);
+    V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_H264_I_PERIOD, 12);
+    V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_BITRATE, 2000000);
+
     return *this;
 }
 
