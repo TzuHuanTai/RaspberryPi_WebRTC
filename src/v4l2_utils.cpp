@@ -137,7 +137,7 @@ bool V4l2Util::SetExtCtrl(int fd, unsigned int id, signed int value)
 
     if (ioctl(fd, VIDIOC_S_EXT_CTRLS, &ctrls) < 0)
     {
-        printf("Failed to set %d ext ctrls %d", id, value);
+        printf("Failed to set %d ext ctrls %d.\n", id, value);
         return false;
     }
     return true;
