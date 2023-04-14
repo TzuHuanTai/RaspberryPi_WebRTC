@@ -60,6 +60,34 @@ V4L2Capture::~V4L2Capture()
     printf("~V4L2Capture fd: %d is closed.\n", fd_);
 }
 
+void V4L2Capture::Next(Buffer buffer)
+{
+    for (auto observer : observers_)
+    {
+        if (observer->subscribed_func_ != nullptr)
+        {
+            observer->subscribed_func_(buffer);
+        }
+    }
+}
+
+std::shared_ptr<Observable<Buffer>> V4L2Capture::AsObservable()
+{
+    auto observer = std::make_shared<Observable<Buffer>>();
+    observers_.push_back(observer);
+    return observer;
+}
+
+void V4L2Capture::UnSubscribe()
+{
+    auto it = observers_.begin();
+    while (it != observers_.end())
+    {
+        it->reset();
+        it = observers_.erase(it);
+    }
+}
+
 bool V4L2Capture::CheckMatchingDevice(std::string unique_name)
 {
     int fd;
@@ -104,39 +132,39 @@ V4L2Capture &V4L2Capture::SetFormat(uint width, uint height, std::string video_t
 {
     width_ = width;
     height_ = height;
-    struct v4l2_format fmt = {0};
-    fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    fmt.fmt.pix.width = width;
-    fmt.fmt.pix.height = height;
-    fmt.fmt.pix.sizeimage = 0;
+    struct Buffer capture = {
+        .name = "v4l2 capture",
+        .width = width,
+        .height = height,
+        .type = V4L2_BUF_TYPE_VIDEO_CAPTURE
+    };
 
     if (video_type == "i420")
     {
         std::cout << "Use yuv420(i420) format source in v4l2" << std::endl;
-        fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_YUV420;
+        V4l2Util::SetFormat(fd_, &capture, V4L2_PIX_FMT_YUV420);
         capture_video_type_ = webrtc::VideoType::kI420;
+        V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_BITRATE, 10000000);
     }
     else if (video_type == "h264")
     {
         std::cout << "Use h264 format source in v4l2" << std::endl;
-        fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_MJPEG;
+        V4l2Util::SetFormat(fd_, &capture, V4L2_PIX_FMT_H264);
+        V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_BITRATE_MODE, V4L2_MPEG_VIDEO_BITRATE_MODE_VBR);
+        V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_H264_PROFILE, V4L2_MPEG_VIDEO_H264_PROFILE_BASELINE);
+        V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_REPEAT_SEQ_HEADER, true);
+        V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_H264_LEVEL, V4L2_MPEG_VIDEO_H264_LEVEL_3_1);
+        V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_H264_I_PERIOD, 12);
+        V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_BITRATE, 2000000);
         capture_video_type_ = webrtc::VideoType::kUnknown;
     }
     else {
         std::cout << "Use mjpeg format source in v4l2" << std::endl;
-        fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_MJPEG;
+        V4l2Util::SetFormat(fd_, &capture, V4L2_PIX_FMT_MJPEG);
         capture_video_type_ = webrtc::VideoType::kMJPEG;
+        V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_BITRATE, 10000000);
     }
 
-    printf("  Width: %d\n"
-           "  Height: %d\n",
-           width, height);
-
-    if (ioctl(fd_, VIDIOC_S_FMT, &fmt) < 0)
-    {
-        perror("ioctl Setting Pixel Format");
-        exit(0);
-    }
     return *this;
 }
 
@@ -249,7 +277,7 @@ void V4L2Capture::CaptureImage()
         perror("Retrieving Frame");
     }
 
-    shared_buffers_ = {.start = buffers_[buf.index].start,
+    shared_buffer_ = {.start = buffers_[buf.index].start,
                         .length = buf.bytesused,
                         .flags = buf.flags};
 
@@ -257,11 +285,13 @@ void V4L2Capture::CaptureImage()
     {
         perror("Queue buffer");
     }
+
+    Next(shared_buffer_);
 }
 
 Buffer V4L2Capture::GetImage()
 {
-    return shared_buffers_;
+    return shared_buffer_;
 }
 
 void V4L2Capture::StartCapture()

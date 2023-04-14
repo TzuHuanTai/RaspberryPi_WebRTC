@@ -34,79 +34,21 @@ rtc::scoped_refptr<V4L2TrackSource> V4L2TrackSource::Create(
 V4L2TrackSource::V4L2TrackSource(
     std::shared_ptr<V4L2Capture> capture)
     : capture_(capture),
-      fps_(capture->fps_),
       width_(capture->width_),
       height_(capture->height_),
       capture_video_type_(capture->capture_video_type_) { }
 
-V4L2TrackSource::~V4L2TrackSource()
-{
-    capture_started = false;
-    printf("~V4L2TrackSource is running.\n");
-    webrtc::MutexLock lock(&capture_lock_);
-    if (!capture_thread_.empty())
-    {
-        capture_thread_.Finalize();
-    }
-    printf("~V4L2TrackSource is closed.");
-}
+V4L2TrackSource::~V4L2TrackSource() { }
 
 void V4L2TrackSource::StartTrack()
 {
-    webrtc::MutexLock lock(&capture_lock_);
-
-    if (capture_func_ == nullptr)
-    {
-        capture_func_ = [this]() -> bool
-        { return TrackProcess(); };
-    }
-
-    // start capture thread;
-    if (capture_thread_.empty())
-    {
-        capture_thread_ = rtc::PlatformThread::SpawnJoinable(
-            [this]()
-            { this->TrackThread(); },
-            "TrackThread",
-            rtc::ThreadAttributes().SetPriority(rtc::ThreadPriority::kHigh));
-    }
-
-    capture_started = true;
+    auto observer = capture_->AsObservable();
+    observer->Subscribe([&](Buffer buffer) {
+        OnFrameCaptured(buffer);
+    });
 }
 
-void V4L2TrackSource::TrackThread(/*todo: pass shared buffer & fps*/)
-{
-    std::cout << "[TrackThread]: start" << std::endl;
-    frame_nums_ = 0;
-    start_time_ = std::chrono::steady_clock::now();
-    while (capture_func_()) { }
-    std::cout << "[TrackThread]: end" << std::endl;
-}
-
-bool V4L2TrackSource::TrackProcess()
-{
-    webrtc::MutexLock lock(&capture_lock_);
-
-    elasped_time_ = std::chrono::steady_clock::now() - start_time_;
-    elasped_milli_time_ = std::chrono::duration_cast<std::chrono::milliseconds>(elasped_time_);
-
-    if (!capture_started)
-    {
-        return false;
-    }
-
-    if (frame_nums_ * 1000 / fps_ < elasped_milli_time_.count())
-    {
-        OnFrameCaptured();
-        frame_nums_++;
-    }
-    
-    usleep(0);
-    
-    return true;
-}
-
-void V4L2TrackSource::OnFrameCaptured()
+void V4L2TrackSource::OnFrameCaptured(Buffer buffer)
 {
     rtc::scoped_refptr<webrtc::VideoFrameBuffer> dst_buffer = nullptr;
     rtc::TimestampAligner timestamp_aligner_;
@@ -118,14 +60,8 @@ void V4L2TrackSource::OnFrameCaptured()
     if (!AdaptFrame(width_, height_, timestamp_us, &adapted_width, &adapted_height,
                     &crop_width, &crop_height, &crop_x, &crop_y))
     {
-        usleep(0);
         return;
     }
-
-    Buffer buffer = capture_->GetImage();
-    // printf("Dequeue buffer index: %d\n"
-    //        "  bytesused: %d\n",
-    //        buffer.start, buffer.length);
 
     if (capture_video_type_ == webrtc::VideoType::kUnknown) {
         rtc::scoped_refptr<RawBuffer> raw_buffer(

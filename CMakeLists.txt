@@ -76,8 +76,8 @@ else()
         src
         encoder
         common
-        #[[capture]]
-        #[[track]]
+        capture
+        track
     )
     target_link_libraries(${PROJECT_NAME}
         ${WEBRTC_LINK_LIBS}

@@ -36,6 +36,7 @@ Step of using signalr as the webrtc signaling server
 |  H264 |    YUV420     |  1280x720  |  15 | ~20% | 300~350ms |             |
 |  H264 |    YUV420     |   640x480  |  15 | ~20% | 200~220ms |             |
 |  H264 |    YUV420     |   320x240  |  30 | ~15% | 190~200ms |             |
+|  H264 |   **H264**    |  1280x720  |  30 | ~25% | ? ms |             |
 
 ![latency](./doc/latency.jpg)
 
@@ -54,7 +55,7 @@ mkdir build
 cd ./build
 cmake .. -DCMAKE_CXX_COMPILER=/usr/bin/clang++
 make -j
-./pi_webrtc --device=/dev/video0 --fps=30 --width=1280 --height=720 --signaling_url=http://localhost:6080/SignalingServer --use_i420_src=false --file_path=/home/pi/video/
+./pi_webrtc --device=/dev/video0 --fps=30 --width=1280 --height=720 --signaling_url=http://localhost:6080/SignalingServer --v4l2_format=mjpeg --file_path=/home/pi/video/
 ```
 
 ## Run as Linux Service
@@ -95,7 +96,7 @@ make -j
     [Service]
     Type=simple
     WorkingDirectory=/home/pi/IoT/RaspberryPi_WebRTC/build
-    ExecStart=/home/pi/IoT/RaspberryPi_WebRTC/build/pi_webrtc --fps=30 --width=1280 --height=720 --signaling_url=http://localhost:6080/SignalingServer --use_i420_src=false --file_path=/home/pi/video/
+    ExecStart=/home/pi/IoT/RaspberryPi_WebRTC/build/pi_webrtc --fps=30 --width=1280 --height=720 --signaling_url=http://localhost:6080/SignalingServer --v4l2_format=h264 --file_path=/home/pi/video/
     Restart=always
     RestartSec=10
       

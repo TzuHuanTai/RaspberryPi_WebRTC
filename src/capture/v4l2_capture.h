@@ -2,12 +2,13 @@
 #define V4L2_CAPTURER_H_
 
 #include "v4l2_utils.h"
+#include "subject_interface.h"
 
 #include <modules/video_capture/video_capture.h>
 #include <rtc_base/platform_thread.h>
 #include <rtc_base/synchronization/mutex.h>
 
-class V4L2Capture
+class V4L2Capture : public SubjectInterface<Buffer>
 {
 private:
     int fd_;
@@ -18,7 +19,7 @@ private:
     bool capture_started = false;
     mutable webrtc::Mutex capture_lock_;
     Buffer *buffers_;
-    Buffer shared_buffers_;
+    Buffer shared_buffer_;
 
     rtc::PlatformThread capture_thread_;
     std::function<bool()> capture_func_;
@@ -37,6 +38,11 @@ public:
 
     V4L2Capture(std::string device);
     ~V4L2Capture();
+
+    // SubjectInterface
+    void Next(Buffer buffer) override;
+    std::shared_ptr<Observable<Buffer>> AsObservable() override;
+    void UnSubscribe() override;
 
     static std::shared_ptr<V4L2Capture> Create(std::string device);
     virtual V4L2Capture &SetFormat(uint width, uint height, std::string video_type);
