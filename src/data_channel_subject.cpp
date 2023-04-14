@@ -41,9 +41,9 @@ void DataChannelSubject::Next(char *message)
     }
 }
 
-std::shared_ptr<Observable> DataChannelSubject::AsObservable()
+std::shared_ptr<Observable<char *>> DataChannelSubject::AsObservable()
 {
-    auto observer = std::make_shared<Observable>();
+    auto observer = std::make_shared<Observable<char *>>();
     observers_.push_back(observer);
     return observer;
 }

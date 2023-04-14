@@ -198,7 +198,7 @@ void V4l2m2mEncoder::EnableRecorder(bool onoff)
     }
 }
 
-void V4l2m2mEncoder::RegisterRecordingObserver(std::shared_ptr<Observable> observer,
+void V4l2m2mEncoder::RegisterRecordingObserver(std::shared_ptr<Observable<char *>> observer,
                                                std::string saving_path)
 {
     observer_ = observer;
