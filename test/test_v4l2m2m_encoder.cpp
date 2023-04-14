@@ -20,7 +20,7 @@ int main(int argc, char *argv[])
     Args args{.fps = 30,
               .width = 640,
               .height = 480,
-              .use_i420_src = true};
+              .v4l2_format = "i420"};
     auto capture = V4L2Capture::Create(args.device);
 
     V4l2m2mEncoder encoder;
@@ -65,7 +65,7 @@ int main(int argc, char *argv[])
         }
     };
 
-    (*capture).SetFormat(args.width, args.height, args.use_i420_src)
+    (*capture).SetFormat(args.width, args.height, args.v4l2_format)
         .SetFps(args.fps)
         .SetCaptureFunc(test)
         .StartCapture();

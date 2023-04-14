@@ -1,4 +1,5 @@
-#include "v4l2_capture.h"
+#include "capture/v4l2_capture.h"
+#include "args.h"
 
 #include <fcntl.h>
 #include <unistd.h>
@@ -24,18 +25,22 @@ void WriteImage(Buffer buffer, int index)
 int main(int argc, char *argv[])
 {
     int i = 0;
+    int images_nb = 10;
     auto capture = V4L2Capture::Create("/dev/video0");
 
-    auto test = [&capture, &i]() -> bool
+    auto test = [&]() -> bool
     {
-        Buffer buffer = capture->CaptureImage();
-        WriteImage(buffer, ++i);
+        if (i < images_nb){
+            capture->CaptureImage();
+            WriteImage(capture->GetImage(), ++i);
+            return true;
+        }
         return false;
     };
 
-    (*capture).SetFormat(720, 1280, false)
-        .SetFps(30)
-        .SetRotation(90)
+    (*capture).SetFormat(1280, 720, "mjpeg")
+        .SetFps(15)
+        .SetRotation(0)
         .SetCaptureFunc(test)
         .StartCapture();
 }

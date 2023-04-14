@@ -7,6 +7,7 @@
 
 #include <stdint.h>
 #include <string>
+#include <unordered_set>
 
 struct Buffer
 {
@@ -31,6 +32,7 @@ public:
     static int OpenDevice(const char *file);
     static void CloseDevice(int fd);
     static bool InitBuffer(int fd, Buffer *output, Buffer *capture);
+    static std::unordered_set<std::string> GetDeviceSupportedFormats(const char *file);
     static bool SetFps(int fd, uint32_t type, int fps);
     static bool SetFormat(int fd, Buffer *buffer, uint32_t pixel_format);
     static bool SetExtCtrl(int fd, unsigned int id, signed int value);

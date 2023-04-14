@@ -15,7 +15,7 @@
 #include <api/video_codecs/video_encoder.h>
 #include <common_video/include/bitrate_adjuster.h>
 #include <modules/video_coding/codecs/h264/include/h264.h>
-#include "rtc_base/synchronization/mutex.h"
+#include <rtc_base/synchronization/mutex.h>
 
 class V4l2m2mEncoder : public webrtc::VideoEncoder
 {
@@ -34,7 +34,7 @@ public:
     void SetRates(const RateControlParameters &parameters) override;
     webrtc::VideoEncoder::EncoderInfo GetEncoderInfo() const override;
 
-    void RegisterRecordingObserver(std::shared_ptr<Observable> observer,
+    void RegisterRecordingObserver(std::shared_ptr<Observable<char *>> observer,
                                    std::string saving_path);
 
     int32_t V4l2m2mConfigure(int width, int height, int fps);
@@ -65,7 +65,7 @@ private:
     webrtc::EncodedImage encoded_image_;
     webrtc::EncodedImageCallback *callback_;
     std::unique_ptr<webrtc::BitrateAdjuster> bitrate_adjuster_;
-    std::shared_ptr<Observable> observer_;
+    std::shared_ptr<Observable<char *>> observer_;
 };
 
 #endif // V4L2M2M_ENCODER_H_

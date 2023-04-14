@@ -18,7 +18,7 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args)
     ("stun_url", bpo::value<std::string>()->default_value(args.stun_url), "Stun server, ex: stun:xxx.xxx.xxx")
     ("signaling_url", bpo::value<std::string>()->default_value(args.signaling_url), "Signaling server url, ref: Repository > FarmerAPI > Hubs > SignalingServer")
     ("file_path", bpo::value<std::string>()->default_value(args.file_path), "The path to save the recording video files")
-    ("use_i420_src", bpo::value<bool>()->default_value(args.use_i420_src), "Read raw yuv420p source V4L2_PIX_FMT_YUV420 while capturing, if the camera is supported");
+    ("v4l2_format", bpo::value<std::string>()->default_value(args.v4l2_format), "Set v4l2 input format i420/mjpeg/h264 while capturing, if the camera is supported");
 
     bpo::variables_map vm;
     bpo::store(bpo::parse_command_line(argc, argv, opts), vm);
@@ -86,8 +86,8 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args)
         args.file_path = vm["file_path"].as<std::string>();
     }
 
-    if (vm.count("use_i420_src"))
+    if (vm.count("v4l2_format"))
     {
-        args.use_i420_src = vm["use_i420_src"].as<bool>();
+        args.v4l2_format = vm["v4l2_format"].as<std::string>();
     }
 }

@@ -142,7 +142,6 @@ private:
     rtc::scoped_refptr<webrtc::VideoTrackInterface> video_track_;
     rtc::scoped_refptr<webrtc::RtpSenderInterface> video_sender_;
 
-    std::shared_ptr<Observable> observer_;
     std::shared_ptr<DataChannelSubject> data_channel_subject_;
 };
 

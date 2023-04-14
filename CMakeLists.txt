@@ -37,8 +37,7 @@ add_subdirectory(src)
 if(BUILD_TEST STREQUAL "recorder")
     add_executable(recorder test/test_recorder.cpp)
     target_link_libraries(recorder
-        src
-        encoder
+        capture
         common
     )
     target_link_libraries(recorder
@@ -50,7 +49,7 @@ if(BUILD_TEST STREQUAL "recorder")
 elseif(BUILD_TEST STREQUAL "v4l2_capture")
     add_executable(v4l2_capture test/test_v4l2_capture.cpp)
     target_link_libraries(v4l2_capture
-        src
+        capture
         common
     )
     target_link_libraries(v4l2_capture
@@ -61,7 +60,7 @@ elseif(BUILD_TEST STREQUAL "v4l2_capture")
 elseif(BUILD_TEST STREQUAL "v4l2m2m_encoder")
     add_executable(v4l2m2m_encoder test/test_v4l2m2m_encoder.cpp)
     target_link_libraries(v4l2m2m_encoder
-        src
+        capture
         encoder
         common
     )
@@ -73,10 +72,12 @@ elseif(BUILD_TEST STREQUAL "v4l2m2m_encoder")
     )
 else()
     add_executable(${PROJECT_NAME} src/main.cpp)
-    target_link_libraries(${PROJECT_NAME} 
+    target_link_libraries(${PROJECT_NAME}
         src
         encoder
         common
+        capture
+        track
     )
     target_link_libraries(${PROJECT_NAME}
         ${WEBRTC_LINK_LIBS}

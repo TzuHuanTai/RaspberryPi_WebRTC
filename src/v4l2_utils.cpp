@@ -81,6 +81,24 @@ bool V4l2Util::InitBuffer(int fd, Buffer *output, Buffer *capture)
     return true;
 }
 
+std::unordered_set<std::string> V4l2Util::GetDeviceSupportedFormats(const char *file)
+{
+    int fd = V4l2Util::OpenDevice(file);
+    struct v4l2_fmtdesc fmtdesc = {0};
+    fmtdesc.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    std::unordered_set<std::string> formats;
+
+    while (ioctl(fd, VIDIOC_ENUM_FMT, &fmtdesc) == 0)
+    {
+        auto pixel_format = V4l2Util::FourccToString(fmtdesc.pixelformat);
+        formats.insert(pixel_format);
+        fmtdesc.index++;
+    }
+    V4l2Util::CloseDevice(fd);
+
+    return formats;
+}
+
 bool V4l2Util::SetFps(int fd, uint32_t type, int fps)
 {
     struct v4l2_streamparm streamparms = {0};
@@ -137,7 +155,7 @@ bool V4l2Util::SetExtCtrl(int fd, unsigned int id, signed int value)
 
     if (ioctl(fd, VIDIOC_S_EXT_CTRLS, &ctrls) < 0)
     {
-        printf("Failed to set %d ext ctrls %d", id, value);
+        printf("Failed to set %d ext ctrls %d.\n", id, value);
         return false;
     }
     return true;

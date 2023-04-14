@@ -1,5 +1,6 @@
 #include "conductor.h"
-#include "v4l2_capture.h"
+#include "capture/v4l2_capture.h"
+#include "track/v4l2_track_source.h"
 #include "customized_video_encoder_factory.h"
 
 #include <api/audio_codecs/builtin_audio_decoder_factory.h>
@@ -44,12 +45,15 @@ bool Conductor::InitializeTracks()
     audio_track_ =
         peer_connection_factory_->CreateAudioTrack("my_audio_label", options.get());
 
-    auto video_track_source = V4L2Capture::Create(args.device);
-    (*video_track_source)
+    /* split into capture and track source*/
+    auto video_caputre_source = V4L2Capture::Create(args.device);
+    (*video_caputre_source)
         .SetFps(args.fps)
         .SetRotation(args.rotation_angle)
-        .SetFormat(args.width, args.height, args.use_i420_src)
+        .SetFormat(args.width, args.height, args.v4l2_format)
         .StartCapture();
+    auto video_track_source = V4L2TrackSource::Create(video_caputre_source);
+    video_track_source->StartTrack();
 
     rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> video_source =
         webrtc::VideoTrackSourceProxy::Create(
@@ -139,9 +143,10 @@ bool Conductor::InitializePeerConnection()
 
     cricket::MediaEngineDependencies media_dependencies;
     media_dependencies.task_queue_factory = dependencies.task_queue_factory.get();
-    media_dependencies.adm = webrtc::AudioDeviceModule::Create(
-                    webrtc::AudioDeviceModule::kLinuxAlsaAudio, 
-                    dependencies.task_queue_factory.get());
+    /* bug todo: can't release while closing peer */
+    // media_dependencies.adm = webrtc::AudioDeviceModule::Create(
+    //                 webrtc::AudioDeviceModule::kLinuxAlsaAudio, 
+    //                 dependencies.task_queue_factory.get());
     media_dependencies.audio_encoder_factory = webrtc::CreateBuiltinAudioEncoderFactory();
     media_dependencies.audio_decoder_factory = webrtc::CreateBuiltinAudioDecoderFactory();
     media_dependencies.audio_processing = webrtc::AudioProcessingBuilder().Create();
