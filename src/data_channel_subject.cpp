@@ -2,6 +2,8 @@
 
 #include <iostream>
 #include <memory>
+#include <nlohmann/json.hpp>
+using json = nlohmann::json;
 
 DataChannelSubject::~DataChannelSubject()
 {
@@ -32,11 +34,24 @@ void DataChannelSubject::OnMessage(const webrtc::DataBuffer &buffer)
 
 void DataChannelSubject::Next(char *message)
 {
+    json jsonObj = json::parse(message);
+
+    std::string jsonStr = jsonObj.dump();
+    std::cout << "DataChannel Next() => " << jsonStr << std::endl;
+
+    CommandType type = jsonObj["type"];
+    std::string content = jsonObj["message"];
+    observers_ = observers_map_[type];
+    observers_.insert(
+        observers_.end(),
+        observers_map_[CommandType::UNKNOWN].begin(),
+        observers_map_[CommandType::UNKNOWN].end());
+
     for (auto observer : observers_)
     {
         if (observer->subscribed_func_ != nullptr)
         {
-            observer->subscribed_func_(message);
+            observer->subscribed_func_(content.data());
         }
     }
 }
@@ -44,16 +59,22 @@ void DataChannelSubject::Next(char *message)
 std::shared_ptr<Observable<char *>> DataChannelSubject::AsObservable()
 {
     auto observer = std::make_shared<Observable<char *>>();
-    observers_.push_back(observer);
+    observers_map_[CommandType::UNKNOWN].push_back(observer);
+    return observer;
+}
+
+std::shared_ptr<Observable<char *>> DataChannelSubject::AsObservable(CommandType type)
+{
+    auto observer = std::make_shared<Observable<char *>>();
+    observers_map_[type].push_back(observer);
     return observer;
 }
 
 void DataChannelSubject::UnSubscribe()
 {
-    auto it = observers_.begin();
-    while (it != observers_.end())
+    for (auto & [type, observers] : observers_map_)
     {
-        it = observers_.erase(it);
+        observers.clear();
     }
 }
 
