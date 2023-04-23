@@ -216,7 +216,7 @@ void V4l2m2mEncoder::RegisterRecordingObserver(std::shared_ptr<Observable<char *
         [&](char *message)
         {
             std::cout << "[V4l2m2mEncoder]: received msg => " << message << std::endl;
-            if (strcmp(message, "1") == 0)
+            if (strcmp(message, "true") == 0)
             {
                 EnableRecorder(true);
                 return;

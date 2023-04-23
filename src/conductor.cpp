@@ -7,6 +7,7 @@
 #include <api/audio_codecs/builtin_audio_encoder_factory.h>
 #include <api/call/call_factory_interface.h>
 #include <api/create_peerconnection_factory.h>
+#include <api/data_channel_interface.h>
 #include <api/peer_connection_interface.h>
 #include <api/rtc_event_log/rtc_event_log_factory.h>
 #include <api/transport/field_trial_based_config.h>
@@ -100,12 +101,48 @@ bool Conductor::CreatePeerConnection()
     server.uri = args.stun_url;
     config.servers.push_back(server);
 
-    webrtc::PeerConnectionDependencies dependencies(this);
-    peer_connection_ = peer_connection_factory_->CreatePeerConnectionOrError(config, std::move(dependencies)).value();
+    auto result = peer_connection_factory_->CreatePeerConnectionOrError(
+        config, webrtc::PeerConnectionDependencies(this));
 
-    AddTracks();
-
+    if (!result.ok()) {
+        peer_connection_ = nullptr;
+        return false;
+    }
+    else
+    {
+        peer_connection_ = result.MoveValue();
+        CreateDataChannel();
+        AddTracks();
+    }
+  
     return peer_connection_ != nullptr;
+}
+
+void Conductor::CreateDataChannel()
+{
+    struct webrtc::DataChannelInit init;
+    init.ordered = true;
+    init.reliable = true;
+    init.id = 0;
+    auto result = peer_connection_->CreateDataChannelOrError("cmd_channel", &init);
+
+    if (result.ok()) {
+        std::cout << "Succeeds to create data channel" << std::endl;
+        data_channel_subject_->SetDataChannel(result.MoveValue());
+        auto observer = data_channel_subject_->AsObservable(CommandType::CONNECT);
+        observer->Subscribe([&](char *message) {
+            std::cout << "[OnDataChannel]: received msg => " << message << std::endl;
+            if (strcmp(message, "false") == 0)
+            {
+                peer_connection_->Close();
+                data_channel_subject_->UnSubscribe();
+            }
+        });
+    }
+    else
+    {
+        std::cout << "Fails to create data channel" << std::endl;
+    }
 }
 
 bool Conductor::InitializePeerConnection()
@@ -172,12 +209,11 @@ bool Conductor::InitializePeerConnection()
 
 void Conductor::OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState new_state)
 {
-    std::cout << "=> OnSignalingChange: " << new_state << std::endl;
+    std::cout << "=> OnSignalingChange: " << webrtc::PeerConnectionInterface::PeerConnectionInterface::AsString(new_state) << std::endl;
 }
 
 void Conductor::OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> channel)
 {
-    data_channel_subject_->SetDataChannel(channel);
     std::cout << "=> OnDataChannel: connected to '" << channel->label() << "'" << std::endl;
 }
 
@@ -195,7 +231,7 @@ void Conductor::OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnecti
             complete_signaling();
         }
     }
-    else if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kDisconnected)
+    else if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kFailed)
     {
         peer_connection_->Close();
         data_channel_subject_->UnSubscribe();
@@ -208,12 +244,12 @@ void Conductor::OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnecti
 
 void Conductor::OnStandardizedIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState new_state)
 {
-    std::cout << "=> OnIceGatheringChange: " << new_state << std::endl;
+    std::cout << "=> OnIceGatheringChange: " << webrtc::PeerConnectionInterface::PeerConnectionInterface::AsString(new_state) << std::endl;
 }
 
 void Conductor::OnIceGatheringChange(webrtc::PeerConnectionInterface::IceGatheringState new_state)
 {
-    std::cout << "=> OnIceGatheringChange: " << new_state << std::endl;
+    std::cout << "=> OnIceGatheringChange: " << webrtc::PeerConnectionInterface::PeerConnectionInterface::AsString(new_state) << std::endl;
 }
 
 void Conductor::OnIceCandidate(const webrtc::IceCandidateInterface *candidate)

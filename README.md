@@ -36,18 +36,20 @@ Step of using signalr as the webrtc signaling server
 |  H264 |    YUV420     |  1280x720  |  15 | ~20% | 300~350ms |             |
 |  H264 |    YUV420     |   640x480  |  15 | ~20% | 200~220ms |             |
 |  H264 |    YUV420     |   320x240  |  30 | ~15% | 190~200ms |             |
-|  H264 |   **H264**    |  1280x720  |  30 | ~25% | ? ms |             |
+|  H264 |   **H264**    |  1280x720  |  30 | ~25% | ~250ms |             |
 
 ![latency](./doc/latency.jpg)
 
 <hr>
 
 # How to use
-
-Compile `libwebrtc.a` and `microsoft-signalr.so` in advance, then install the needed packages befor run makefile
-```bash
-sudo apt install libboost-program-options-dev libavformat-dev libavcodec-dev libavutil-dev libavdevice-dev libswscale-dev
-```
+## Prepare libs
+ * Compile `libwebrtc.a` and `microsoft-signalr.so` as instructions below
+ * Install the needed packages
+    ```bash
+    sudo apt install libboost-program-options-dev libavformat-dev libavcodec-dev libavutil-dev libavdevice-dev libswscale-dev
+    ```
+* Copy the [nlohmann/json.hpp](https://github.com/nlohmann/json/blob/develop/single_include/nlohmann/json.hpp) to `/usr/local/include` 
 
 ## Compile and run
 ```bash
@@ -179,7 +181,10 @@ cause    *note: In contrast to the release version, debug version cause frames t
 
 # Build the [SignalR-Client-Cpp](https://github.com/aspnet/SignalR-Client-Cpp) lib (`microsoft-signalr.so`)
 ## Preparations
-* `sudo apt-get install build-essential curl git cmake ninja-build golang libpcre3-dev zlib1g-dev`
+* Install some dependent packages
+    ```bash
+    sudo apt-get install build-essential curl git cmake ninja-build golang libpcre3-dev zlib1g-dev
+    ```
 * Install boringssl
     ```bash
     sudo apt-get install libunwind-dev zip unzip tar

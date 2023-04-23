@@ -118,9 +118,10 @@ public:
     void CreateAnswer(OnCreateSuccessFunc on_success, OnFailureFunc on_failure);
     bool CreatePeerConnection();
 
-protected:
+private:
     bool InitializePeerConnection();
     bool InitializeTracks();
+    void CreateDataChannel();
     void AddTracks();
 
     void OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState new_state) override;
@@ -132,7 +133,6 @@ protected:
     void OnIceCandidate(const webrtc::IceCandidateInterface *candidate) override;
     void OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionState new_state) override;
 
-private:
     std::unique_ptr<rtc::Thread> network_thread_;
     std::unique_ptr<rtc::Thread> worker_thread_;
     std::unique_ptr<rtc::Thread> signaling_thread_;

@@ -36,12 +36,10 @@ int main(int argc, char *argv[])
             std::chrono::duration<double> elapsed_seconds = end-start;
             end_time = std::chrono::system_clock::to_time_t(end);
             std::cout << '\r' << "running time: " << elapsed_seconds.count() << "s " << "\e[K" << std::flush;
-            sleep(1);
+            usleep(100000);
         }
         
         std::cout << std::ctime(&end_time);
-
-        sleep(1);
     }
     
     return 0;

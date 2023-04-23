@@ -40,7 +40,7 @@ CustomizedVideoEncoderFactory::CreateVideoEncoder(const webrtc::SdpVideoFormat &
         }
         else
         {
-            auto observer = data_channel_subject_->AsObservable();
+            auto observer = data_channel_subject_->AsObservable(CommandType::RECORD);
             auto encoder = std::make_unique<V4l2m2mEncoder>();
             encoder->RegisterRecordingObserver(observer, args_.file_path);
             return std::unique_ptr<webrtc::VideoEncoder>(std::move(encoder));
