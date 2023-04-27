@@ -153,6 +153,7 @@ void V4l2m2mEncoder::SetRates(const RateControlParameters &parameters)
 
     bitrate_adjuster_->SetTargetBitrateBps(parameters.bitrate.get_sum_bps());
     uint32_t adjusted_bitrate_bps_ = bitrate_adjuster_->GetAdjustedBitrateBps();
+    adjusted_bitrate_bps_ = (adjusted_bitrate_bps_ / 25000 + 1) * 25000;
 
     if (bitrate_bps_ != adjusted_bitrate_bps_)
     {
@@ -247,7 +248,7 @@ int32_t V4l2m2mEncoder::V4l2m2mConfigure(int width, int height, int fps)
     output_.width = capture_.width = width;
     output_.height = capture_.height = height;
     framerate_ = fps;
-    bitrate_bps_ = width * height * fps / 10;
+    bitrate_bps_ = ((width * height * fps / 10) / 25000 + 1) * 25000;;
 
     if (!V4l2Util::InitBuffer(fd_, &output_, &capture_))
     {
