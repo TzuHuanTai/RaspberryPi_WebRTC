@@ -1,6 +1,6 @@
 ﻿# RaspberryPi_WebRTC
  
-Use v4l2_m2m hardware encoder with WebRTC.
+Using v4l2_m2m hardware encoder or raw h264 camera with WebRTC reduces the CPU usage compared to built-in VP8 software encoding.
 
 Step of using signalr as the webrtc signaling server
 
