@@ -280,7 +280,8 @@ int32_t V4l2m2mEncoder::V4l2m2mConfigure(int width, int height, int fps)
         exit(-1);
     }
 
-    if (!V4l2Util::AllocateBuffer(fd_, &output_) || !V4l2Util::AllocateBuffer(fd_, &capture_))
+    if (!V4l2Util::AllocateBuffer(fd_, &output_) 
+        || !V4l2Util::AllocateBuffer(fd_, &capture_))
     {
         exit(-1);
     }
@@ -297,12 +298,9 @@ int32_t V4l2m2mEncoder::V4l2m2mConfigure(int width, int height, int fps)
         return false;
     }
 
+    V4l2Util::StreamOn(fd_, output_.type);
+    V4l2Util::StreamOn(fd_, capture_.type);
     std::cout << "V4l2m2m all prepare done" << std::endl;
-
-    // turn on streaming
-    V4l2Util::SwitchStream(fd_, &output_, true);
-    V4l2Util::SwitchStream(fd_, &capture_, true);
-    std::cout << "V4l2m2m stream on!" << std::endl;
 
     return 1;
 }
@@ -355,9 +353,8 @@ bool V4l2m2mEncoder::V4l2m2mEncode(const uint8_t *byte, uint32_t length, Buffer 
 
 void V4l2m2mEncoder::V4l2m2mRelease()
 {
-    // turn off stream
-    V4l2Util::SwitchStream(fd_, &output_, false);
-    V4l2Util::SwitchStream(fd_, &capture_, false);
+    V4l2Util::StreamOff(fd_, output_.type);
+    V4l2Util::StreamOff(fd_, capture_.type);
 
     munmap(output_.start, output_.length);
     munmap(capture_.start, capture_.length);

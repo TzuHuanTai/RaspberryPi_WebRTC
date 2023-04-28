@@ -1,10 +1,11 @@
 #include "v4l2_utils.h"
 
+#include <errno.h>
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
-
+#include <string.h>
 #include <memory>
 
 bool V4l2Util::IsSinglePlaneVideo(struct v4l2_capability *cap)
@@ -42,8 +43,10 @@ int V4l2Util::OpenDevice(const char *file)
     int fd = open(file, O_RDWR | O_NONBLOCK);
     if (fd < 0)
     {
-        perror("Open v4l2m2m encoder failed");
+        fprintf(stderr, "v4l2 open(%s): %s\n", file, strerror(errno));
+        exit(-1);
     }
+    printf("Open file %s fd(%d) success!\n", file, fd);
     return fd;
 }
 
@@ -52,13 +55,22 @@ void V4l2Util::CloseDevice(int fd)
     close(fd);
 }
 
+bool V4l2Util::QueryCapabilities(int fd, v4l2_capability *cap)
+{
+    if (ioctl(fd, VIDIOC_QUERYCAP, cap) < 0)
+    {
+        fprintf(stderr, "fd(%d) query capabilities: %s\n", fd, strerror(errno));
+        return false;
+    }
+    return true;
+}
+
 bool V4l2Util::InitBuffer(int fd, Buffer *output, Buffer *capture)
 {
-    struct v4l2_capability cap = {{0}};
+    struct v4l2_capability cap = {0};
 
-    if (ioctl(fd, VIDIOC_QUERYCAP, &cap) < 0)
+    if (!V4l2Util::QueryCapabilities(fd, &cap))
     {
-        perror("ioctl capability");
         return false;
     }
 
@@ -107,7 +119,7 @@ bool V4l2Util::SetFps(int fd, uint32_t type, int fps)
     streamparms.parm.capture.timeperframe.denominator = fps;
     if (ioctl(fd, VIDIOC_S_PARM, &streamparms) < 0)
     {
-        perror("ioctl Setting Fps");
+        fprintf(stderr, "Setting fps on fd(%d): %s\n", fd, strerror(errno));
         return false;
     }
     return true;
@@ -122,13 +134,16 @@ bool V4l2Util::SetFormat(int fd, Buffer *buffer, uint32_t pixel_format)
     printf("V4l2m2m %s formats: %s(%dx%d)", buffer->name,
            V4l2Util::FourccToString(fmt.fmt.pix_mp.pixelformat).c_str(),
            fmt.fmt.pix_mp.width, fmt.fmt.pix_mp.height);
+
     fmt.fmt.pix_mp.width = buffer->width;
     fmt.fmt.pix_mp.height = buffer->height;
     fmt.fmt.pix_mp.pixelformat = pixel_format;
 
     if (ioctl(fd, VIDIOC_S_FMT, &fmt) < 0)
     {
-        perror("ioctl set format failed");
+        fprintf(stderr, "fd(%d) set format(%s) : %s\n", 
+        fd, V4l2Util::FourccToString(fmt.fmt.pix_mp.pixelformat).c_str(),
+        strerror(errno));
         return false;
     }
 
@@ -139,9 +154,22 @@ bool V4l2Util::SetFormat(int fd, Buffer *buffer, uint32_t pixel_format)
     return true;
 }
 
+bool V4l2Util::SetCtrl(int fd, unsigned int id, signed int value)
+{
+    struct v4l2_control ctrls = {0};
+    ctrls.id = id;
+    ctrls.value = value;
+    if (ioctl(fd, VIDIOC_S_CTRL, &ctrls) < 0)
+    {
+        fprintf(stderr, "fd(%d) set ctrl(%d): %s\n", fd, id, strerror(errno));
+        return false;
+    }
+    return true;
+}
+
 bool V4l2Util::SetExtCtrl(int fd, unsigned int id, signed int value)
 {
-    struct v4l2_ext_controls ctrls = {{0}};
+    struct v4l2_ext_controls ctrls = {0};
     struct v4l2_ext_control ctrl = {0};
 
     /* set ctrls */
@@ -155,23 +183,27 @@ bool V4l2Util::SetExtCtrl(int fd, unsigned int id, signed int value)
 
     if (ioctl(fd, VIDIOC_S_EXT_CTRLS, &ctrls) < 0)
     {
-        printf("Failed to set %d ext ctrls %d.\n", id, value);
+        fprintf(stderr, "fd(%d) set ext ctrl(%d): %s\n", fd, id, strerror(errno));
         return false;
     }
     return true;
 }
 
-bool V4l2Util::SwitchStream(int fd, Buffer *buffer, bool onoff)
+bool V4l2Util::StreamOn(int fd, v4l2_buf_type type)
 {
-    if (onoff && ioctl(fd, VIDIOC_STREAMON, &buffer->type) < 0)
+    if (ioctl(fd, VIDIOC_STREAMON, &type) < 0)
     {
-        perror("Turn off v4l2m2m encoder capture stream failed");
+        fprintf(stderr, "fd(%d) turn on stream: %s\n", fd, strerror(errno));
         return false;
     }
+    return true;
+}
 
-    if (!onoff && ioctl(fd, VIDIOC_STREAMOFF, &buffer->type) < 0)
+bool V4l2Util::StreamOff(int fd, v4l2_buf_type type)
+{
+    if (ioctl(fd, VIDIOC_STREAMOFF, &type) < 0)
     {
-        perror("Turn off v4l2m2m encoder capture stream failed");
+        fprintf(stderr, "fd(%d) turn off stream: %s\n", fd, strerror(errno));
         return false;
     }
     return true;
@@ -188,7 +220,7 @@ bool V4l2Util::MMap(int fd, struct Buffer *buffer)
 
     if (ioctl(fd, VIDIOC_QUERYBUF, inner) < 0)
     {
-        perror("ioctl Querying Buffer");
+        fprintf(stderr, "fd(%d) query buffer: %s\n", fd, strerror(errno));
         return false;
     }
 

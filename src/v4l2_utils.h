@@ -31,12 +31,15 @@ public:
     
     static int OpenDevice(const char *file);
     static void CloseDevice(int fd);
+    static bool QueryCapabilities(int fd, v4l2_capability *cap);
     static bool InitBuffer(int fd, Buffer *output, Buffer *capture);
     static std::unordered_set<std::string> GetDeviceSupportedFormats(const char *file);
     static bool SetFps(int fd, uint32_t type, int fps);
     static bool SetFormat(int fd, Buffer *buffer, uint32_t pixel_format);
+    static bool SetCtrl(int fd, unsigned int id, signed int value);
     static bool SetExtCtrl(int fd, unsigned int id, signed int value);
-    static bool SwitchStream(int fd, Buffer *buffer, bool onoff);
+    static bool StreamOn(int fd, v4l2_buf_type type);
+    static bool StreamOff(int fd, v4l2_buf_type type);
     static bool MMap(int fd, struct Buffer *buffer);
     static bool AllocateBuffer(int fd, struct Buffer *buffer);
 };

@@ -14,9 +14,8 @@ private:
     int fd_;
     int camera_index_;
     std::string device_;
-    int buffer_count_ = 4;
-    int rotation_angle_;
-    bool capture_started = false;
+    int buffer_count_;
+    bool capture_started;
     mutable webrtc::Mutex capture_lock_;
     Buffer *buffers_;
     Buffer shared_buffer_;
