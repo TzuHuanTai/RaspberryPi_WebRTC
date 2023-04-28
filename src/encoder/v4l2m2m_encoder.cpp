@@ -89,14 +89,6 @@ int32_t V4l2m2mEncoder::Encode(
     adapted_width_ = i420_buffer->width();
     adapted_height_ = i420_buffer->height();
 
-    if (adapted_width_ != width_ || adapted_height_ != height_)
-    {
-        V4l2m2mRelease();
-        V4l2m2mConfigure(adapted_width_, adapted_height_, framerate_);
-        width_ = adapted_width_;
-        height_ = adapted_height_;
-    }
-
     Buffer encoded_buffer = { 0 };
     int i420_buffer_size = (width_ * height_) +
                     ((width_ + 1) / 2) * ((height_ + 1) / 2) * 2;
@@ -153,7 +145,15 @@ void V4l2m2mEncoder::SetRates(const RateControlParameters &parameters)
 
     bitrate_adjuster_->SetTargetBitrateBps(parameters.bitrate.get_sum_bps());
     uint32_t adjusted_bitrate_bps_ = bitrate_adjuster_->GetAdjustedBitrateBps();
-    adjusted_bitrate_bps_ = (adjusted_bitrate_bps_ / 25000 + 1) * 25000;
+
+    if(adjusted_bitrate_bps_ < 300000)
+    {
+        adjusted_bitrate_bps_ = 300000;
+    }
+    else
+    {
+        adjusted_bitrate_bps_ = (adjusted_bitrate_bps_ / 25000) * 25000;
+    }
 
     if (bitrate_bps_ != adjusted_bitrate_bps_)
     {
