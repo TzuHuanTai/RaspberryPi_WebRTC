@@ -180,47 +180,10 @@ V4L2Capture &V4L2Capture::SetCaptureFunc(std::function<bool()> capture_func)
 
 bool V4L2Capture::AllocateBuffer()
 {
-    struct v4l2_requestbuffers req = {0};
-    req.count = buffer_count_;
-    req.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    req.memory = V4L2_MEMORY_MMAP;
-
-    if (ioctl(fd_, VIDIOC_REQBUFS, &req) < 0)
-    {
-        perror("ioctl Requesting Buffer");
-        return false;
-    }
-
     buffers_ = new Buffer[buffer_count_];
-
-    for (int i = 0; i < buffer_count_; i++)
+    if (!V4l2Util::AllocateBuffer(fd_, buffers_, V4L2_BUF_TYPE_VIDEO_CAPTURE, buffer_count_))
     {
-        struct v4l2_buffer buf = {0};
-        buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-        buf.memory = V4L2_MEMORY_MMAP;
-        buf.index = i;
-        if (ioctl(fd_, VIDIOC_QUERYBUF, &buf) < 0)
-        {
-            perror("ioctl Querying Buffer");
-            return false;
-        }
-
-        buffers_[i].start = mmap(NULL, buf.length, PROT_READ | PROT_WRITE, MAP_SHARED, fd_, buf.m.offset);
-        buffers_[i].length = buf.length;
-
-        if (MAP_FAILED == buffers_[i].start)
-        {
-            printf("MAP FAILED: %d\n", i);
-            for (int j = 0; j < i; j++)
-                munmap(buffers_[j].start, buffers_[j].length);
-            return false;
-        }
-
-        if (ioctl(fd_, VIDIOC_QBUF, &buf) < 0)
-        {
-            perror("ioctl Queue Buffer");
-            return false;
-        }
+        exit(-1);
     }
 
     return true;

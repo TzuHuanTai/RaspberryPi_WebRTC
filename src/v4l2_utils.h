@@ -40,8 +40,8 @@ public:
     static bool SetExtCtrl(int fd, unsigned int id, signed int value);
     static bool StreamOn(int fd, v4l2_buf_type type);
     static bool StreamOff(int fd, v4l2_buf_type type);
-    static bool MMap(int fd, struct Buffer *buffer);
-    static bool AllocateBuffer(int fd, struct Buffer *buffer);
+    static bool MMap(int fd, struct Buffer *buffer, int index);
+    static bool AllocateBuffer(int fd, struct Buffer *buffer, v4l2_buf_type type, int buffer_count);
 };
 
 #endif // V4L2_UTILS_

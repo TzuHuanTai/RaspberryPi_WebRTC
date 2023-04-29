@@ -209,13 +209,13 @@ bool V4l2Util::StreamOff(int fd, v4l2_buf_type type)
     return true;
 }
 
-bool V4l2Util::MMap(int fd, struct Buffer *buffer)
+bool V4l2Util::MMap(int fd, struct Buffer *buffer, int index)
 {
     struct v4l2_buffer *inner = &buffer->inner;
     inner->type = buffer->type;
     inner->memory = V4L2_MEMORY_MMAP;
     inner->length = 1;
-    inner->index = 0;
+    inner->index = index;
     inner->m.planes = &buffer->plane;
 
     if (ioctl(fd, VIDIOC_QUERYBUF, inner) < 0)
@@ -224,9 +224,19 @@ bool V4l2Util::MMap(int fd, struct Buffer *buffer)
         return false;
     }
 
-    buffer->length = inner->m.planes[0].length;
-    buffer->start = mmap(NULL, buffer->length,
-                         PROT_READ | PROT_WRITE, MAP_SHARED, fd, inner->m.planes[0].m.mem_offset);
+    if(buffer->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE
+        || buffer->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
+    {
+        buffer->length = inner->m.planes[0].length;
+        buffer->start = mmap(NULL, buffer->length,
+                            PROT_READ | PROT_WRITE, MAP_SHARED, fd, inner->m.planes[0].m.mem_offset);
+    }
+    else if (buffer->type == V4L2_BUF_TYPE_VIDEO_CAPTURE
+        || buffer->type == V4L2_BUF_TYPE_VIDEO_OUTPUT)
+    {
+        buffer->length = inner->length;
+        buffer->start = mmap(NULL, buffer->length, PROT_READ | PROT_WRITE, MAP_SHARED, fd, inner->m.offset);
+    }
 
     if (MAP_FAILED == buffer->start)
     {
@@ -235,26 +245,37 @@ bool V4l2Util::MMap(int fd, struct Buffer *buffer)
         return false;
     }
 
+    if (ioctl(fd, VIDIOC_QBUF, inner) < 0)
+    {
+        fprintf(stderr, "fd(%d) queue buffer: %s\n", fd, strerror(errno));
+        return false;
+    }
+
     printf("V4l2m2m querying %s buffer: %p with %d length\n", buffer->name, &(buffer->start), buffer->length);
 
     return true;
 }
 
-bool V4l2Util::AllocateBuffer(int fd, struct Buffer *buffer)
+bool V4l2Util::AllocateBuffer(int fd, struct Buffer *buffer, v4l2_buf_type type, int buffer_count)
 {
     struct v4l2_requestbuffers req = {0};
-    req.count = 1;
+    req.count = buffer_count;
     req.memory = V4L2_MEMORY_MMAP;
-    req.type = buffer->type;
+    req.type = type;
 
     if (ioctl(fd, VIDIOC_REQBUFS, &req) < 0)
     {
-        perror("ioctl Requesting Buffer");
+        fprintf(stderr, "fd(%d) request buffer: %s\n", fd, strerror(errno));
         return false;
     }
-    if (!MMap(fd, buffer))
+
+    for(int i = 0; i < buffer_count; i++)
     {
-        return false;
+        buffer[i].type = type;
+        if (!MMap(fd, &(buffer[i]), i))
+        {
+            return false;
+        }
     }
 
     return true;

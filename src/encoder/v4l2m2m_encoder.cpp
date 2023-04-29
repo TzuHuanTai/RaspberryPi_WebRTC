@@ -280,23 +280,23 @@ int32_t V4l2m2mEncoder::V4l2m2mConfigure(int width, int height, int fps)
         exit(-1);
     }
 
-    if (!V4l2Util::AllocateBuffer(fd_, &output_) 
-        || !V4l2Util::AllocateBuffer(fd_, &capture_))
+    if (!V4l2Util::AllocateBuffer(fd_, &output_, output_.type, 1) 
+        || !V4l2Util::AllocateBuffer(fd_, &capture_, capture_.type, 1))
     {
         exit(-1);
     }
 
-    if (ioctl(fd_, VIDIOC_QBUF, &output_.inner) < 0)
-    {
-        perror("ioctl Queue output Buffer");
-        return false;
-    }
+    // if (ioctl(fd_, VIDIOC_QBUF, &output_.inner) < 0)
+    // {
+    //     perror("ioctl Queue output Buffer");
+    //     return false;
+    // }
 
-    if (ioctl(fd_, VIDIOC_QBUF, &capture_.inner) < 0)
-    {
-        perror("ioctl Queue capture Buffer");
-        return false;
-    }
+    // if (ioctl(fd_, VIDIOC_QBUF, &capture_.inner) < 0)
+    // {
+    //     perror("ioctl Queue capture Buffer");
+    //     return false;
+    // }
 
     V4l2Util::StreamOn(fd_, output_.type);
     V4l2Util::StreamOn(fd_, capture_.type);
