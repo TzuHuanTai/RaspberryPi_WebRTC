@@ -1,13 +1,9 @@
 #include "v4l2_capture.h"
 
 // Linux
-#include <errno.h>
-#include <fcntl.h>
 #include <linux/videodev2.h>
-#include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/select.h>
-#include <unistd.h>
 
 // WebRTC
 #include <modules/video_capture/video_capture_factory.h>
@@ -47,7 +43,7 @@ V4L2Capture::~V4L2Capture()
 
     V4l2Util::StreamOff(fd_, V4L2_BUF_TYPE_VIDEO_CAPTURE);
 
-    close(fd_);
+    V4l2Util::CloseDevice(fd_);
     printf("~V4L2Capture fd(%d) is closed.\n", fd_);
 }
 
@@ -207,19 +203,13 @@ void V4L2Capture::CaptureImage()
     buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     buf.memory = V4L2_MEMORY_MMAP;
 
-    while (ioctl(fd_, VIDIOC_DQBUF, &buf) < 0)
-    {
-        perror("Retrieving Frame");
-    }
+    V4l2Util::DequeueBuffer(fd_, &buf);
 
     shared_buffer_ = {.start = buffers_[buf.index].start,
                         .length = buf.bytesused,
                         .flags = buf.flags};
 
-    if (ioctl(fd_, VIDIOC_QBUF, &buf) < 0)
-    {
-        perror("Queue buffer");
-    }
+    V4l2Util::QueueBuffer(fd_, &buf);
 
     Next(shared_buffer_);
 }

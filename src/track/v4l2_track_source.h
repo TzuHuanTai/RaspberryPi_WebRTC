@@ -4,15 +4,7 @@
 #include "v4l2_utils.h"
 #include "capture/v4l2_capture.h"
 
-#include <modules/video_capture/video_capture.h>
-#include <modules/video_capture/video_capture_defines.h>
-#include <modules/video_capture/video_capture_impl.h>
-#include <rtc_base/platform_thread.h>
-#include <rtc_base/synchronization/mutex.h>
 #include <media/base/adapted_video_track_source.h>
-#include <media/base/video_adapter.h>
-
-#include <chrono>
 
 class V4L2TrackSource : public rtc::AdaptedVideoTrackSource
 {

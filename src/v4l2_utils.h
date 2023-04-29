@@ -33,6 +33,8 @@ public:
     static void CloseDevice(int fd);
     static bool QueryCapabilities(int fd, v4l2_capability *cap);
     static bool InitBuffer(int fd, Buffer *output, Buffer *capture);
+    static bool DequeueBuffer(int fd, v4l2_buffer *buffer);
+    static bool QueueBuffer(int fd, v4l2_buffer *buffer);
     static std::unordered_set<std::string> GetDeviceSupportedFormats(const char *file);
     static bool SetFps(int fd, uint32_t type, int fps);
     static bool SetFormat(int fd, Buffer *buffer, uint32_t pixel_format);

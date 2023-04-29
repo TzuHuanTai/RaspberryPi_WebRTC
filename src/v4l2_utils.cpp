@@ -6,7 +6,6 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
 #include <string.h>
-#include <memory>
 
 bool V4l2Util::IsSinglePlaneVideo(struct v4l2_capability *cap)
 {
@@ -93,6 +92,26 @@ bool V4l2Util::InitBuffer(int fd, Buffer *output, Buffer *capture)
     return true;
 }
 
+bool V4l2Util::DequeueBuffer(int fd, v4l2_buffer *buffer)
+{
+    if (ioctl(fd, VIDIOC_DQBUF, buffer) < 0)
+    {
+        fprintf(stderr, "fd(%d) dequeue buffer: %s\n", fd, strerror(errno));
+        return false;
+    }
+    return true;
+}
+
+bool V4l2Util::QueueBuffer(int fd, v4l2_buffer *buffer)
+{
+    if (ioctl(fd, VIDIOC_QBUF, buffer) < 0)
+    {
+        fprintf(stderr, "fd(%d) queue buffer: %s\n", fd, strerror(errno));
+        return false;
+    }
+    return true;
+}
+
 std::unordered_set<std::string> V4l2Util::GetDeviceSupportedFormats(const char *file)
 {
     int fd = V4l2Util::OpenDevice(file);
@@ -119,7 +138,7 @@ bool V4l2Util::SetFps(int fd, uint32_t type, int fps)
     streamparms.parm.capture.timeperframe.denominator = fps;
     if (ioctl(fd, VIDIOC_S_PARM, &streamparms) < 0)
     {
-        fprintf(stderr, "Setting fps on fd(%d): %s\n", fd, strerror(errno));
+        fprintf(stderr, "fd(%d) set fps(%d): %s\n", fd, fps, strerror(errno));
         return false;
     }
     return true;

@@ -1,16 +1,8 @@
 #include "encoder/v4l2m2m_encoder.h"
 
-#include <sys/ioctl.h>
-#include <errno.h>
-#include <fcntl.h>
 #include <sys/mman.h>
-#include <unistd.h>
-#include <future>
-
 #include <iostream>
-#include <cstring>
-#include <cstdio>
-#include <stdio.h>
+#include <memory>
 
 const char *ENCODER_FILE = "/dev/video11";
 
@@ -286,18 +278,6 @@ int32_t V4l2m2mEncoder::V4l2m2mConfigure(int width, int height, int fps)
         exit(-1);
     }
 
-    // if (ioctl(fd_, VIDIOC_QBUF, &output_.inner) < 0)
-    // {
-    //     perror("ioctl Queue output Buffer");
-    //     return false;
-    // }
-
-    // if (ioctl(fd_, VIDIOC_QBUF, &capture_.inner) < 0)
-    // {
-    //     perror("ioctl Queue capture Buffer");
-    //     return false;
-    // }
-
     V4l2Util::StreamOn(fd_, output_.type);
     V4l2Util::StreamOn(fd_, capture_.type);
     std::cout << "V4l2m2m all prepare done" << std::endl;
@@ -315,26 +295,23 @@ bool V4l2m2mEncoder::V4l2m2mEncode(const uint8_t *byte, uint32_t length, Buffer 
 
     // Dequeue the output buffer, read the frame and queue it back.
     buf.type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
-    if (ioctl(fd_, VIDIOC_DQBUF, &buf) < 0)
+    if (!V4l2Util::DequeueBuffer(fd_, &buf))
     {
-        perror("[V4l2m2mEncoder] ioctl dequeue output");
         return false;
     }
 
     memcpy((uint8_t *)output_.start, byte, length);
     output_.length = length;
 
-    if (ioctl(fd_, VIDIOC_QBUF, &output_.inner) < 0)
+    if (!V4l2Util::QueueBuffer(fd_, &output_.inner))
     {
-        perror("[V4l2m2mEncoder] ioctl equeue output");
         return false;
     }
 
     // Dequeue the capture buffer, write out the encoded frame and queue it back.
     buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
-    if (ioctl(fd_, VIDIOC_DQBUF, &buf) < 0)
+    if (!V4l2Util::DequeueBuffer(fd_, &buf))
     {
-        perror("[V4l2m2mEncoder] ioctl equeue capture");
         return false;
     }
 
@@ -342,9 +319,8 @@ bool V4l2m2mEncoder::V4l2m2mEncode(const uint8_t *byte, uint32_t length, Buffer 
     buffer.length = buf.m.planes[0].bytesused;
     buffer.flags = buf.flags;
 
-    if (ioctl(fd_, VIDIOC_QBUF, &capture_.inner) < 0)
+    if (!V4l2Util::QueueBuffer(fd_, &capture_.inner))
     {
-        perror("[V4l2m2mEncoder] ioctl queue capture");
         return false;
     }
 
@@ -361,5 +337,4 @@ void V4l2m2mEncoder::V4l2m2mRelease()
 
     V4l2Util::CloseDevice(fd_);
     printf("[V4l2m2mEncoder]: fd(%d) is released\n", fd_);
-    fd_ = -1;
 }
