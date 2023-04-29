@@ -1,29 +1,11 @@
 #include "v4l2_track_source.h"
 #include "encoder/raw_buffer.h"
 
-// Linux
-#include <errno.h>
-#include <fcntl.h>
-#include <linux/videodev2.h>
-#include <sys/ioctl.h>
-#include <sys/mman.h>
-#include <sys/select.h>
-#include <unistd.h>
-
 // WebRTC
-#include <api/scoped_refptr.h>
 #include <api/video/i420_buffer.h>
 #include <api/video/video_frame_buffer.h>
-#include <media/base/video_common.h>
-#include <media/base/video_adapter.h>
-#include <modules/video_capture/video_capture.h>
-#include <modules/video_capture/video_capture_factory.h>
-#include <rtc_base/logging.h>
-#include <rtc_base/ref_counted_object.h>
 #include <rtc_base/timestamp_aligner.h>
 #include <third_party/libyuv/include/libyuv.h>
-
-#include <iostream>
 
 rtc::scoped_refptr<V4L2TrackSource> V4L2TrackSource::Create(
     std::shared_ptr<V4L2Capture> capture)
@@ -83,7 +65,7 @@ void V4L2TrackSource::OnFrameCaptured(Buffer buffer)
                                 0, 0, width_, height_, width_, height_, libyuv::kRotate0,
                                 ConvertVideoType(capture_video_type_)) < 0)
         {
-            RTC_LOG(LS_ERROR) << "ConvertToI420 Failed";
+            // "ConvertToI420 Failed"
         }
         else
         {

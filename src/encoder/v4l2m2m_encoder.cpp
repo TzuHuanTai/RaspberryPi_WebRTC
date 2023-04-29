@@ -1,16 +1,8 @@
 #include "encoder/v4l2m2m_encoder.h"
 
-#include <sys/ioctl.h>
-#include <errno.h>
-#include <fcntl.h>
 #include <sys/mman.h>
-#include <unistd.h>
-#include <future>
-
 #include <iostream>
-#include <cstring>
-#include <cstdio>
-#include <stdio.h>
+#include <memory>
 
 const char *ENCODER_FILE = "/dev/video11";
 
@@ -89,14 +81,6 @@ int32_t V4l2m2mEncoder::Encode(
     adapted_width_ = i420_buffer->width();
     adapted_height_ = i420_buffer->height();
 
-    if (adapted_width_ != width_ || adapted_height_ != height_)
-    {
-        V4l2m2mRelease();
-        V4l2m2mConfigure(adapted_width_, adapted_height_, framerate_);
-        width_ = adapted_width_;
-        height_ = adapted_height_;
-    }
-
     Buffer encoded_buffer = { 0 };
     int i420_buffer_size = (width_ * height_) +
                     ((width_ + 1) / 2) * ((height_ + 1) / 2) * 2;
@@ -153,7 +137,15 @@ void V4l2m2mEncoder::SetRates(const RateControlParameters &parameters)
 
     bitrate_adjuster_->SetTargetBitrateBps(parameters.bitrate.get_sum_bps());
     uint32_t adjusted_bitrate_bps_ = bitrate_adjuster_->GetAdjustedBitrateBps();
-    adjusted_bitrate_bps_ = (adjusted_bitrate_bps_ / 25000 + 1) * 25000;
+
+    if(adjusted_bitrate_bps_ < 300000)
+    {
+        adjusted_bitrate_bps_ = 300000;
+    }
+    else
+    {
+        adjusted_bitrate_bps_ = (adjusted_bitrate_bps_ / 25000) * 25000;
+    }
 
     if (bitrate_bps_ != adjusted_bitrate_bps_)
     {
@@ -280,29 +272,15 @@ int32_t V4l2m2mEncoder::V4l2m2mConfigure(int width, int height, int fps)
         exit(-1);
     }
 
-    if (!V4l2Util::AllocateBuffer(fd_, &output_) || !V4l2Util::AllocateBuffer(fd_, &capture_))
+    if (!V4l2Util::AllocateBuffer(fd_, &output_, output_.type, 1) 
+        || !V4l2Util::AllocateBuffer(fd_, &capture_, capture_.type, 1))
     {
         exit(-1);
     }
 
-    if (ioctl(fd_, VIDIOC_QBUF, &output_.inner) < 0)
-    {
-        perror("ioctl Queue output Buffer");
-        return false;
-    }
-
-    if (ioctl(fd_, VIDIOC_QBUF, &capture_.inner) < 0)
-    {
-        perror("ioctl Queue capture Buffer");
-        return false;
-    }
-
+    V4l2Util::StreamOn(fd_, output_.type);
+    V4l2Util::StreamOn(fd_, capture_.type);
     std::cout << "V4l2m2m all prepare done" << std::endl;
-
-    // turn on streaming
-    V4l2Util::SwitchStream(fd_, &output_, true);
-    V4l2Util::SwitchStream(fd_, &capture_, true);
-    std::cout << "V4l2m2m stream on!" << std::endl;
 
     return 1;
 }
@@ -317,26 +295,23 @@ bool V4l2m2mEncoder::V4l2m2mEncode(const uint8_t *byte, uint32_t length, Buffer 
 
     // Dequeue the output buffer, read the frame and queue it back.
     buf.type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
-    if (ioctl(fd_, VIDIOC_DQBUF, &buf) < 0)
+    if (!V4l2Util::DequeueBuffer(fd_, &buf))
     {
-        perror("[V4l2m2mEncoder] ioctl dequeue output");
         return false;
     }
 
     memcpy((uint8_t *)output_.start, byte, length);
     output_.length = length;
 
-    if (ioctl(fd_, VIDIOC_QBUF, &output_.inner) < 0)
+    if (!V4l2Util::QueueBuffer(fd_, &output_.inner))
     {
-        perror("[V4l2m2mEncoder] ioctl equeue output");
         return false;
     }
 
     // Dequeue the capture buffer, write out the encoded frame and queue it back.
     buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
-    if (ioctl(fd_, VIDIOC_DQBUF, &buf) < 0)
+    if (!V4l2Util::DequeueBuffer(fd_, &buf))
     {
-        perror("[V4l2m2mEncoder] ioctl equeue capture");
         return false;
     }
 
@@ -344,9 +319,8 @@ bool V4l2m2mEncoder::V4l2m2mEncode(const uint8_t *byte, uint32_t length, Buffer 
     buffer.length = buf.m.planes[0].bytesused;
     buffer.flags = buf.flags;
 
-    if (ioctl(fd_, VIDIOC_QBUF, &capture_.inner) < 0)
+    if (!V4l2Util::QueueBuffer(fd_, &capture_.inner))
     {
-        perror("[V4l2m2mEncoder] ioctl queue capture");
         return false;
     }
 
@@ -355,14 +329,12 @@ bool V4l2m2mEncoder::V4l2m2mEncode(const uint8_t *byte, uint32_t length, Buffer 
 
 void V4l2m2mEncoder::V4l2m2mRelease()
 {
-    // turn off stream
-    V4l2Util::SwitchStream(fd_, &output_, false);
-    V4l2Util::SwitchStream(fd_, &capture_, false);
+    V4l2Util::StreamOff(fd_, output_.type);
+    V4l2Util::StreamOff(fd_, capture_.type);
 
     munmap(output_.start, output_.length);
     munmap(capture_.start, capture_.length);
 
     V4l2Util::CloseDevice(fd_);
     printf("[V4l2m2mEncoder]: fd(%d) is released\n", fd_);
-    fd_ = -1;
 }

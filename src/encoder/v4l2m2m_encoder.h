@@ -6,16 +6,11 @@
 #include "recorder.h"
 
 #include <mutex>
-#include <memory>
-
-// Linux
-#include <linux/videodev2.h>
 
 // WebRTC
 #include <api/video_codecs/video_encoder.h>
 #include <common_video/include/bitrate_adjuster.h>
 #include <modules/video_coding/codecs/h264/include/h264.h>
-#include <rtc_base/synchronization/mutex.h>
 
 class V4l2m2mEncoder : public webrtc::VideoEncoder
 {

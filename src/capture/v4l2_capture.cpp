@@ -1,13 +1,9 @@
 #include "v4l2_capture.h"
 
 // Linux
-#include <errno.h>
-#include <fcntl.h>
 #include <linux/videodev2.h>
-#include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/select.h>
-#include <unistd.h>
 
 // WebRTC
 #include <modules/video_capture/video_capture_factory.h>
@@ -22,15 +18,11 @@ std::shared_ptr<V4L2Capture> V4L2Capture::Create(std::string device)
 V4L2Capture::V4L2Capture(std::string device)
     : device_(device),
       buffer_count_(4),
-      rotation_angle_(0)
+      capture_started(false)
 {
     webrtc::VideoCaptureModule::DeviceInfo *device_info = webrtc::VideoCaptureFactory::CreateDeviceInfo();
+    fd_ = V4l2Util::OpenDevice(device_.c_str());
     camera_index_ = GetCameraIndex(device_info);
-    fd_ = open(device_.c_str(), O_RDWR);
-    if (fd_ < 0)
-    {
-        perror("ioctl open");
-    }
 }
 
 V4L2Capture::~V4L2Capture()
@@ -49,15 +41,10 @@ V4L2Capture::~V4L2Capture()
     }
     delete[] buffers_;
 
-    enum v4l2_buf_type type;
-    type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    if (ioctl(fd_, VIDIOC_STREAMOFF, &type) < 0)
-    {
-        perror("VIDIOC_STREAMOFF");
-    }
+    V4l2Util::StreamOff(fd_, V4L2_BUF_TYPE_VIDEO_CAPTURE);
 
-    close(fd_);
-    printf("~V4L2Capture fd: %d is closed.\n", fd_);
+    V4l2Util::CloseDevice(fd_);
+    printf("~V4L2Capture fd(%d) is closed.\n", fd_);
 }
 
 void V4L2Capture::Next(Buffer buffer)
@@ -90,20 +77,12 @@ void V4L2Capture::UnSubscribe()
 
 bool V4L2Capture::CheckMatchingDevice(std::string unique_name)
 {
-    int fd;
-    if ((fd = open(device_.c_str(), O_RDONLY)) != -1)
+    struct v4l2_capability cap;
+    if (V4l2Util::QueryCapabilities(fd_, &cap)
+        && cap.bus_info[0] != 0
+        && strcmp((const char *)cap.bus_info, unique_name.c_str()) == 0)
     {
-        // query device capabilities
-        struct v4l2_capability cap;
-        if (ioctl(fd, VIDIOC_QUERYCAP, &cap) == 0)
-        {
-            if (cap.bus_info[0] != 0 && strcmp((const char *)cap.bus_info, unique_name.c_str()) == 0)
-            {
-                close(fd);
-                return true;
-            }
-        }
-        close(fd);
+        return true;
     }
     return false;
 }
@@ -143,8 +122,8 @@ V4L2Capture &V4L2Capture::SetFormat(uint width, uint height, std::string video_t
     {
         std::cout << "Use yuv420(i420) format source in v4l2" << std::endl;
         V4l2Util::SetFormat(fd_, &capture, V4L2_PIX_FMT_YUV420);
-        capture_video_type_ = webrtc::VideoType::kI420;
         V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_BITRATE, 10000000);
+        capture_video_type_ = webrtc::VideoType::kI420;
     }
     else if (video_type == "h264")
     {
@@ -161,8 +140,8 @@ V4L2Capture &V4L2Capture::SetFormat(uint width, uint height, std::string video_t
     else {
         std::cout << "Use mjpeg format source in v4l2" << std::endl;
         V4l2Util::SetFormat(fd_, &capture, V4L2_PIX_FMT_MJPEG);
-        capture_video_type_ = webrtc::VideoType::kMJPEG;
         V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_BITRATE, 10000000);
+        capture_video_type_ = webrtc::VideoType::kMJPEG;
     }
 
     return *this;
@@ -171,32 +150,21 @@ V4L2Capture &V4L2Capture::SetFormat(uint width, uint height, std::string video_t
 V4L2Capture &V4L2Capture::SetFps(uint fps)
 {
     fps_ = fps;
-    struct v4l2_streamparm streamparms = {0};
-    streamparms.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    streamparms.parm.capture.timeperframe.numerator = 1;
-    streamparms.parm.capture.timeperframe.denominator = fps;
     printf("  Fps: %d\n", fps);
-    if (ioctl(fd_, VIDIOC_S_PARM, &streamparms) < 0)
+
+    if (!V4l2Util::SetFps(fd_, V4L2_BUF_TYPE_VIDEO_CAPTURE, fps))
     {
-        perror("ioctl Setting Fps");
         exit(0);
     }
+
     return *this;
 }
 
 V4L2Capture &V4L2Capture::SetRotation(uint angle)
 {
-    struct v4l2_control ctrls = {0};
-    ctrls.id = V4L2_CID_ROTATE;
-    ctrls.value = angle;
     printf("  Rotation: %d\n", angle);
-    if (ioctl(fd_, VIDIOC_S_CTRL, &ctrls) < 0)
-    {
-        perror("ioctl Setting Rotation");
-        return *this;
-    }
-    
-    rotation_angle_ = angle;
+    V4l2Util::SetCtrl(fd_, V4L2_CID_ROTATE, angle);
+
     return *this;
 }
 
@@ -208,47 +176,10 @@ V4L2Capture &V4L2Capture::SetCaptureFunc(std::function<bool()> capture_func)
 
 bool V4L2Capture::AllocateBuffer()
 {
-    struct v4l2_requestbuffers req = {0};
-    req.count = buffer_count_;
-    req.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    req.memory = V4L2_MEMORY_MMAP;
-
-    if (ioctl(fd_, VIDIOC_REQBUFS, &req) < 0)
-    {
-        perror("ioctl Requesting Buffer");
-        return false;
-    }
-
     buffers_ = new Buffer[buffer_count_];
-
-    for (int i = 0; i < buffer_count_; i++)
+    if (!V4l2Util::AllocateBuffer(fd_, buffers_, V4L2_BUF_TYPE_VIDEO_CAPTURE, buffer_count_))
     {
-        struct v4l2_buffer buf = {0};
-        buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-        buf.memory = V4L2_MEMORY_MMAP;
-        buf.index = i;
-        if (ioctl(fd_, VIDIOC_QUERYBUF, &buf) < 0)
-        {
-            perror("ioctl Querying Buffer");
-            return false;
-        }
-
-        buffers_[i].start = mmap(NULL, buf.length, PROT_READ | PROT_WRITE, MAP_SHARED, fd_, buf.m.offset);
-        buffers_[i].length = buf.length;
-
-        if (MAP_FAILED == buffers_[i].start)
-        {
-            printf("MAP FAILED: %d\n", i);
-            for (int j = 0; j < i; j++)
-                munmap(buffers_[j].start, buffers_[j].length);
-            return false;
-        }
-
-        if (ioctl(fd_, VIDIOC_QBUF, &buf) < 0)
-        {
-            perror("ioctl Queue Buffer");
-            return false;
-        }
+        exit(-1);
     }
 
     return true;
@@ -272,19 +203,13 @@ void V4L2Capture::CaptureImage()
     buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     buf.memory = V4L2_MEMORY_MMAP;
 
-    while (ioctl(fd_, VIDIOC_DQBUF, &buf) < 0)
-    {
-        perror("Retrieving Frame");
-    }
+    V4l2Util::DequeueBuffer(fd_, &buf);
 
     shared_buffer_ = {.start = buffers_[buf.index].start,
                         .length = buf.bytesused,
                         .flags = buf.flags};
 
-    if (ioctl(fd_, VIDIOC_QBUF, &buf) < 0)
-    {
-        perror("Queue buffer");
-    }
+    V4l2Util::QueueBuffer(fd_, &buf);
 
     Next(shared_buffer_);
 }
@@ -298,10 +223,12 @@ void V4L2Capture::StartCapture()
 {
     webrtc::MutexLock lock(&capture_lock_);
 
-    if (AllocateBuffer() == false)
+    if (!AllocateBuffer())
     {
         exit(0);
     }
+
+    V4l2Util::StreamOn(fd_, V4L2_BUF_TYPE_VIDEO_CAPTURE);
 
     if (capture_func_ == nullptr)
     {
@@ -317,13 +244,6 @@ void V4L2Capture::StartCapture()
             { this->CaptureThread(); },
             "CaptureThread",
             rtc::ThreadAttributes().SetPriority(rtc::ThreadPriority::kHigh));
-    }
-
-    // start camera stream
-    v4l2_buf_type type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    if (ioctl(fd_, VIDIOC_STREAMON, &type) < 0)
-    {
-        perror("Start Capture");
     }
 
     capture_started = true;
