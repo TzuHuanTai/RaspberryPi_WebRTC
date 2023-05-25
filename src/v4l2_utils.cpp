@@ -39,7 +39,7 @@ std::string V4l2Util::FourccToString(uint32_t fourcc)
 
 int V4l2Util::OpenDevice(const char *file)
 {
-    int fd = open(file, O_RDWR | O_NONBLOCK);
+    int fd = open(file, O_RDWR);
     if (fd < 0)
     {
         fprintf(stderr, "v4l2 open(%s): %s\n", file, strerror(errno));
@@ -64,7 +64,7 @@ bool V4l2Util::QueryCapabilities(int fd, v4l2_capability *cap)
     return true;
 }
 
-bool V4l2Util::InitBuffer(int fd, Buffer *output, Buffer *capture)
+bool V4l2Util::InitBuffer(int fd, BufferGroup *output, BufferGroup *capture)
 {
     struct v4l2_capability cap = {0};
 
@@ -144,18 +144,18 @@ bool V4l2Util::SetFps(int fd, uint32_t type, int fps)
     return true;
 }
 
-bool V4l2Util::SetFormat(int fd, Buffer *buffer, uint32_t pixel_format)
+bool V4l2Util::SetFormat(int fd, BufferGroup *gbuffer, uint32_t pixel_format)
 {
     struct v4l2_format fmt = {0};
-    fmt.type = buffer->type;
+    fmt.type = gbuffer->type;
     ioctl(fd, VIDIOC_G_FMT, &fmt);
 
-    printf("V4l2m2m %s formats: %s(%dx%d)", buffer->name,
+    printf("V4l2m2m %s formats: %s(%dx%d)", gbuffer->name,
            V4l2Util::FourccToString(fmt.fmt.pix_mp.pixelformat).c_str(),
            fmt.fmt.pix_mp.width, fmt.fmt.pix_mp.height);
 
-    fmt.fmt.pix_mp.width = buffer->width;
-    fmt.fmt.pix_mp.height = buffer->height;
+    fmt.fmt.pix_mp.width = gbuffer->width;
+    fmt.fmt.pix_mp.height = gbuffer->height;
     fmt.fmt.pix_mp.pixelformat = pixel_format;
 
     if (ioctl(fd, VIDIOC_S_FMT, &fmt) < 0)
@@ -228,59 +228,66 @@ bool V4l2Util::StreamOff(int fd, v4l2_buf_type type)
     return true;
 }
 
-bool V4l2Util::MMap(int fd, struct Buffer *buffer, int index)
+bool V4l2Util::MMap(int fd, struct BufferGroup *gbuffer)
 {
-    struct v4l2_buffer *inner = &buffer->inner;
-    inner->type = buffer->type;
-    inner->memory = V4L2_MEMORY_MMAP;
-    inner->length = 1;
-    inner->index = index;
-    inner->m.planes = &buffer->plane;
-
-    if (ioctl(fd, VIDIOC_QUERYBUF, inner) < 0)
+    for(int i = 0; i < gbuffer->num_buffers; i++)
     {
-        fprintf(stderr, "fd(%d) query buffer: %s\n", fd, strerror(errno));
-        return false;
-    }
+        Buffer *buffer = &gbuffer->buffers[i];
+        struct v4l2_buffer *inner = &buffer->inner;
+        inner->type = gbuffer->type;
+        inner->memory = V4L2_MEMORY_MMAP;
+        inner->length = 1;
+        inner->index = i;
+        inner->m.planes = &buffer->plane;
 
-    if(buffer->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE
-        || buffer->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
-    {
-        buffer->length = inner->m.planes[0].length;
-        buffer->start = mmap(NULL, buffer->length,
-                            PROT_READ | PROT_WRITE, MAP_SHARED, fd, inner->m.planes[0].m.mem_offset);
-    }
-    else if (buffer->type == V4L2_BUF_TYPE_VIDEO_CAPTURE
-        || buffer->type == V4L2_BUF_TYPE_VIDEO_OUTPUT)
-    {
-        buffer->length = inner->length;
-        buffer->start = mmap(NULL, buffer->length, PROT_READ | PROT_WRITE, MAP_SHARED, fd, inner->m.offset);
-    }
+        if (ioctl(fd, VIDIOC_QUERYBUF, inner) < 0)
+        {
+            fprintf(stderr, "fd(%d) query buffer: %s\n", fd, strerror(errno));
+            return false;
+        }
+    
+        if(gbuffer->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE
+            || gbuffer->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
+        {
+            buffer->length = inner->m.planes[0].length;
+            buffer->start = mmap(NULL, buffer->length,
+                                PROT_READ | PROT_WRITE, MAP_SHARED, fd, inner->m.planes[0].m.mem_offset);
+        }
+        else if (gbuffer->type == V4L2_BUF_TYPE_VIDEO_CAPTURE
+            || gbuffer->type == V4L2_BUF_TYPE_VIDEO_OUTPUT)
+        {
+            buffer->length = inner->length;
+            buffer->start = mmap(NULL, buffer->length, PROT_READ | PROT_WRITE, MAP_SHARED, fd, inner->m.offset);
+        }
 
-    if (MAP_FAILED == buffer->start)
-    {
-        perror("MAP FAILED");
-        munmap(buffer->start, buffer->length);
-        return false;
-    }
+        if (MAP_FAILED == buffer->start)
+        {
+            perror("MAP FAILED");
+            munmap(buffer->start, buffer->length);
+            return false;
+        }
 
-    if (ioctl(fd, VIDIOC_QBUF, inner) < 0)
-    {
-        fprintf(stderr, "fd(%d) queue buffer: %s\n", fd, strerror(errno));
-        return false;
-    }
+        if (!V4l2Util::QueueBuffer(fd, inner))
+        {
+            return false;
+        }
 
-    printf("V4l2m2m querying %s buffer: %p with %d length\n", buffer->name, &(buffer->start), buffer->length);
+        printf("V4l2m2m querying %s buffer: %p with %d length\n", 
+                gbuffer->name, buffer->start, buffer->length);
+    }
 
     return true;
 }
 
-bool V4l2Util::AllocateBuffer(int fd, struct Buffer *buffer, v4l2_buf_type type, int buffer_count)
+bool V4l2Util::AllocateBuffer(int fd, struct BufferGroup *gbuffer, int num_buffers)
 {
+    gbuffer->num_buffers = num_buffers;
+    gbuffer->buffers = new Buffer[num_buffers];
+
     struct v4l2_requestbuffers req = {0};
-    req.count = buffer_count;
+    req.count = num_buffers;
     req.memory = V4L2_MEMORY_MMAP;
-    req.type = type;
+    req.type = gbuffer->type;
 
     if (ioctl(fd, VIDIOC_REQBUFS, &req) < 0)
     {
@@ -288,13 +295,9 @@ bool V4l2Util::AllocateBuffer(int fd, struct Buffer *buffer, v4l2_buf_type type,
         return false;
     }
 
-    for(int i = 0; i < buffer_count; i++)
+    if (!MMap(fd, gbuffer))
     {
-        buffer[i].type = type;
-        if (!MMap(fd, &(buffer[i]), i))
-        {
-            return false;
-        }
+        return false;
     }
 
     return true;

@@ -17,13 +17,12 @@ private:
     int buffer_count_;
     bool capture_started;
     mutable webrtc::Mutex capture_lock_;
-    Buffer *buffers_;
+    BufferGroup capture_;
     Buffer shared_buffer_;
 
     rtc::PlatformThread capture_thread_;
     std::function<bool()> capture_func_;
 
-    bool AllocateBuffer();
     bool CheckMatchingDevice(std::string unique_name);
     int GetCameraIndex(webrtc::VideoCaptureModule::DeviceInfo *device_info);
     void CaptureThread();

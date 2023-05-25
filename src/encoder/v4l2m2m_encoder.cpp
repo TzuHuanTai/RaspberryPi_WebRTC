@@ -12,6 +12,7 @@ V4l2m2mEncoder::V4l2m2mEncoder()
       adapted_height_(0),
       framerate_(30),
       key_frame_interval_(12),
+      buffer_count_(1),
       recorder_(nullptr),
       callback_(nullptr) {}
 
@@ -235,8 +236,8 @@ int32_t V4l2m2mEncoder::V4l2m2mConfigure(int width, int height, int fps)
         exit(-1);
     }
 
-    output_.name = "output";
-    capture_.name = "capture";
+    output_.name = "v4l2_h264_encoder_output";
+    capture_.name = "v4l2_h264_encoder_capture";
     output_.width = capture_.width = width;
     output_.height = capture_.height = height;
     framerate_ = fps;
@@ -272,8 +273,8 @@ int32_t V4l2m2mEncoder::V4l2m2mConfigure(int width, int height, int fps)
         exit(-1);
     }
 
-    if (!V4l2Util::AllocateBuffer(fd_, &output_, output_.type, 1) 
-        || !V4l2Util::AllocateBuffer(fd_, &capture_, capture_.type, 1))
+    if (!V4l2Util::AllocateBuffer(fd_, &output_, buffer_count_) 
+        || !V4l2Util::AllocateBuffer(fd_, &capture_, buffer_count_))
     {
         exit(-1);
     }
@@ -300,10 +301,9 @@ bool V4l2m2mEncoder::V4l2m2mEncode(const uint8_t *byte, uint32_t length, Buffer 
         return false;
     }
 
-    memcpy((uint8_t *)output_.start, byte, length);
-    output_.length = length;
+    memcpy((uint8_t *)output_.buffers[buf.index].start, byte, length);
 
-    if (!V4l2Util::QueueBuffer(fd_, &output_.inner))
+    if (!V4l2Util::QueueBuffer(fd_, &output_.buffers[buf.index].inner))
     {
         return false;
     }
@@ -315,11 +315,11 @@ bool V4l2m2mEncoder::V4l2m2mEncode(const uint8_t *byte, uint32_t length, Buffer 
         return false;
     }
 
-    buffer.start = capture_.start;
+    buffer.start = capture_.buffers[buf.index].start;
     buffer.length = buf.m.planes[0].bytesused;
     buffer.flags = buf.flags;
 
-    if (!V4l2Util::QueueBuffer(fd_, &capture_.inner))
+    if (!V4l2Util::QueueBuffer(fd_, &capture_.buffers[buf.index].inner))
     {
         return false;
     }
@@ -332,8 +332,10 @@ void V4l2m2mEncoder::V4l2m2mRelease()
     V4l2Util::StreamOff(fd_, output_.type);
     V4l2Util::StreamOff(fd_, capture_.type);
 
-    munmap(output_.start, output_.length);
-    munmap(capture_.start, capture_.length);
+    for(int i = 0; i < buffer_count_; i++) {
+        munmap(output_.buffers[i].start, output_.buffers[i].length);
+        munmap(capture_.buffers[i].start, capture_.buffers[i].length);
+    }
 
     V4l2Util::CloseDevice(fd_);
     printf("[V4l2m2mEncoder]: fd(%d) is released\n", fd_);

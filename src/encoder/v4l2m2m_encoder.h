@@ -46,8 +46,9 @@ private:
     int framerate_;
     int bitrate_bps_;
     int key_frame_interval_;
-    Buffer output_;
-    Buffer capture_;
+    int buffer_count_;
+    BufferGroup output_;
+    BufferGroup capture_;
     std::mutex mtx_;
     std::mutex recording_mtx_;
     Recorder *recorder_;
