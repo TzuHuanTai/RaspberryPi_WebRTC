@@ -23,6 +23,7 @@ add_compile_definitions(
 add_compile_options(
     -pipe
     -fdeclspec
+    -g
 )
 
 include_directories(
@@ -65,6 +66,19 @@ elseif(BUILD_TEST STREQUAL "v4l2m2m_encoder")
         common
     )
     target_link_libraries(v4l2m2m_encoder
+        ${WEBRTC_LINK_LIBS}
+        ${FFMPEG_LINK_LIBS}
+        Threads::Threads
+        ${WEBRTC_LIBRARY_DIR}
+    )
+elseif(BUILD_TEST STREQUAL "v4l2m2m_decoder")
+    add_executable(v4l2m2m_decoder test/test_v4l2m2m_decoder.cpp)
+    target_link_libraries(v4l2m2m_decoder
+        capture
+        decoder
+        common
+    )
+    target_link_libraries(v4l2m2m_decoder
         ${WEBRTC_LINK_LIBS}
         ${FFMPEG_LINK_LIBS}
         Threads::Threads

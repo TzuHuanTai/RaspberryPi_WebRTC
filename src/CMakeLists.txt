@@ -7,6 +7,7 @@ target_sources(common
     recorder.cpp
 )
 
+add_subdirectory(decoder)
 add_subdirectory(encoder)
 add_subdirectory(capture)
 add_subdirectory(track)

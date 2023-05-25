@@ -17,7 +17,7 @@ std::shared_ptr<V4L2Capture> V4L2Capture::Create(std::string device)
 
 V4L2Capture::V4L2Capture(std::string device)
     : device_(device),
-      buffer_count_(4),
+      buffer_count_(2),
       capture_started(false)
 {
     webrtc::VideoCaptureModule::DeviceInfo *device_info = webrtc::VideoCaptureFactory::CreateDeviceInfo();
