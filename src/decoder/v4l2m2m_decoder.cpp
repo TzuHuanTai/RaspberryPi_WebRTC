@@ -19,16 +19,7 @@ const char *DECODER_FILE = "/dev/video10";
 V4l2m2mDecoder::V4l2m2mDecoder(int32_t width, int32_t height)
     : width_(width),
       height_(height)
-{
-    std::cout << "[V4l2m2mDecoder]: constructor" << std::endl;
-
-    output_.name = "output";
-    capture_.name = "capture";
-    output_.width = capture_.width = width;
-    output_.height = capture_.height = height;
-
-    V4l2m2mConfigure();
-}
+{}
 
 V4l2m2mDecoder::~V4l2m2mDecoder()
 {
@@ -43,30 +34,17 @@ int32_t V4l2m2mDecoder::V4l2m2mConfigure()
         perror("Open v4l2m2m decoder failed");
     }
 
+    output_.name = "output";
+    capture_.name = "capture";
+    output_.width = capture_.width = width_;
+    output_.height = capture_.height = height_;
+
     if (!V4l2Util::InitBuffer(fd_, &output_, &capture_))
     {
         exit(-1);
     }
 
-    /**
-     * requirements
-     */
-    struct v4l2_event_subscription sub;
-    memset(&sub, 0, sizeof(sub));
-    sub.type = V4L2_EVENT_SOURCE_CHANGE;
-    if (ioctl(fd_, VIDIOC_SUBSCRIBE_EVENT, &sub) < 0)
-    {
-        perror("the v4l2 driver does not support VIDIOC_SUBSCRIBE_EVENT\n"
-               "you must provide codec_height and codec_width on input\n");
-    }
-    memset(&sub, 0, sizeof(sub));
-    sub.type = V4L2_EVENT_EOS;
-    if (ioctl(fd_, VIDIOC_SUBSCRIBE_EVENT, &sub) < 0)
-    {
-        perror("the v4l2 driver does not support end of stream VIDIOC_SUBSCRIBE_EVENT\n");
-    }
-
-    if (!V4l2Util::SetFormat(fd_, &output_, V4L2_PIX_FMT_MJPEG))
+    if (!V4l2Util::SetFormat(fd_, &output_, V4L2_PIX_FMT_H264))
     {
         exit(-1);
     }
@@ -76,17 +54,54 @@ int32_t V4l2m2mDecoder::V4l2m2mConfigure()
         exit(-1);
     }
 
-    if (!V4l2Util::AllocateBuffer(fd_, &output_) || !V4l2Util::AllocateBuffer(fd_, &capture_))
+    // if (!V4l2Util::AllocateBuffer(fd_, &capture_, capture_.type, 1)
+    //     || !V4l2Util::AllocateBuffer(fd_, &output_, output_.type, 1))
+    // {
+    //     exit(-1);
+    // }
+
+    struct v4l2_requestbuffers req = {0};
+    req.count = 1;
+    req.memory = V4L2_MEMORY_MMAP;
+    req.type = capture_.type;
+
+    if (ioctl(fd_, VIDIOC_REQBUFS, &req) < 0)
     {
-        exit(-1);
+        fprintf(stderr, "fd(%d) request buffer: %s\n", fd_, strerror(errno));
+        return false;
     }
 
-    std::cout << "V4l2m2m all prepare done" << std::endl;
+    struct v4l2_buffer *inner = &capture_.inner;
+    inner->type = capture_.type;
+    inner->memory = V4L2_MEMORY_MMAP;
+    inner->length = 1;
+    inner->index = 0;
+    inner->m.planes = &capture_.plane;
+
+    if (ioctl(fd_, VIDIOC_QUERYBUF, inner) < 0)
+    {
+        fprintf(stderr, "fd(%d) query buffer: %s\n", fd_, strerror(errno));
+        return false;
+    }
+    if(capture_.type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
+    {
+        capture_.length = inner->m.planes[0].length;
+        capture_.start = mmap(NULL, capture_.length,
+                            PROT_READ | PROT_WRITE, MAP_SHARED, fd_, inner->m.planes[0].m.mem_offset);
+    }
+    else if (capture_.type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
+    {
+        capture_.length = inner->length;
+        capture_.start = mmap(NULL, capture_.length, PROT_READ | PROT_WRITE, MAP_SHARED, fd_, inner->m.offset);
+    }
+
+    /* todo: VIDIOC_QUERYBUF output buffer*/
 
     // turn on streaming
-    V4l2Util::SwitchStream(fd_, &output_, true);
-    V4l2Util::SwitchStream(fd_, &capture_, true);
-    std::cout << "V4l2m2m stream on!" << std::endl;
+    V4l2Util::StreamOn(fd_, capture_.type);
+    V4l2Util::StreamOn(fd_, output_.type);
+    std::cout << "V4l2m2m decoder prepare done" << std::endl;
+    printf("[V4l2m2mDecoder]: capture addr %p length %d\n", capture_.start,  capture_.length);
 
     return 1;
 }
@@ -96,62 +111,52 @@ Buffer V4l2m2mDecoder::V4l2m2mDecode(const uint8_t *byte, uint32_t length)
     /*
         todo
     */
-    printf("[V4l2m2mDecoder]: start decode %p length %d\n", byte, length);
+    printf("[V4l2m2mDecoder]: decode %p length %d\n", byte, length);
 
     struct v4l2_buffer buf = {0};
     struct v4l2_plane out_planes = {0};
     buf.memory = V4L2_MEMORY_MMAP;
+    // buf.type = capture_.type; // V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE
+    buf.index = 0;
     buf.length = 1;
     buf.m.planes = &out_planes;
 
-    v4l2_decoder_cmd command = {0};
-    command.cmd = V4L2_DEC_CMD_START;
-    if (ioctl(fd_, VIDIOC_DECODER_CMD, &command))
-    {
-        perror("ioctl VIDIOC_DECODER_CMD send start");
-        exit(1);
-    }
-
     // Dequeue the output buffer, read the frame and queue it back.
-    buf.type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
-    if (ioctl(fd_, VIDIOC_DQBUF, &buf) < 0)
-    {
-        perror("[V4l2m2mDecoder] ioctl dequeue output");
-    }
+    // buf.type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
+    // if (ioctl(fd_, VIDIOC_DQBUF, &buf) < 0)
+    // {
+    //     perror("[V4l2m2mDecoder] ioctl dequeue output");
+    // }
 
-    memcpy((uint8_t *)output_.start, byte, length);
-    output_.length = length;
-    output_.inner.m.planes[0].bytesused = length;
+    // memcpy((uint8_t *)output_.start, byte, length);
+    // output_.length = length;
+    // output_.inner.m.planes[0].bytesused = length;
 
-    if (ioctl(fd_, VIDIOC_QBUF, &output_.inner) < 0)
-    {
-        perror("[V4l2m2mDecoder] ioctl equeue output");
-    }
-
-    command = {0};
-    command.cmd = V4L2_DEC_CMD_STOP;
-    if (ioctl(fd_, VIDIOC_DECODER_CMD, &command))
-    {
-        perror("ioctl VIDIOC_DECODER_CMD send end");
-        exit(1);
-    }
+    // if (ioctl(fd_, VIDIOC_QBUF, &output_.inner) < 0)
+    // {
+    //     perror("[V4l2m2mDecoder] ioctl equeue output");
+    // }
 
     // Dequeue the capture buffer, write out the encoded frame and queue it back.
-    printf("[V4l2m2mDecoder]: start capture\n");
-    if (ioctl(fd_, VIDIOC_QBUF, &capture_.inner) < 0)
+    buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+    // memcpy((uint8_t *)capture_.start, byte, length);
+    // capture_.length = length;
+    // capture_.inner.m.planes[0].bytesused = length;
+    printf("[V4l2m2mDecoder]: queue buffer %p length %d\n", capture_.start,  capture_.length);
+    
+    if (ioctl(fd_, VIDIOC_QBUF, &buf) < 0)
     {
         perror("[V4l2m2mDecoder] ioctl enqueue capture");
         exit(1);
     }
-
-    buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+    printf("[V4l2m2mDecoder]: 2 dequeue buffer");
     if (ioctl(fd_, VIDIOC_DQBUF, &buf) < 0)
     {
         perror("[V4l2m2mDecoder] ioctl dequeue capture");
     }
 
     struct Buffer buffer = {.start = capture_.start,
-                            .length = capture_.length, // buf.m.planes[0].bytesused,
+                            .length = buf.m.planes[0].bytesused,
                             .flags = buf.flags};
     printf("[V4l2m2mDecoder]: %p capture %d, used %d\n", &(buffer.start), buffer.length, buf.m.planes[0].bytesused);
 
@@ -160,12 +165,11 @@ Buffer V4l2m2mDecoder::V4l2m2mDecode(const uint8_t *byte, uint32_t length)
 
 void V4l2m2mDecoder::V4l2m2mRelease()
 {
+    V4l2Util::StreamOff(fd_, output_.type);
+    V4l2Util::StreamOff(fd_, capture_.type);
+
     munmap(output_.start, output_.length);
     munmap(capture_.start, capture_.length);
-
-    // turn off stream
-    V4l2Util::SwitchStream(fd_, &output_, false);
-    V4l2Util::SwitchStream(fd_, &capture_, false);
 
     V4l2Util::CloseDevice(fd_);
     printf("[V4l2m2mDecoder]: fd(%d) is released\n", fd_);
