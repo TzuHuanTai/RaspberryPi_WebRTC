@@ -23,6 +23,9 @@ V4L2Capture::V4L2Capture(std::string device)
     webrtc::VideoCaptureModule::DeviceInfo *device_info = webrtc::VideoCaptureFactory::CreateDeviceInfo();
     fd_ = V4l2Util::OpenDevice(device_.c_str());
     camera_index_ = GetCameraIndex(device_info);
+
+    capture_.name = "v4l2_capture";
+    capture_.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 }
 
 V4L2Capture::~V4L2Capture()
@@ -35,13 +38,12 @@ V4L2Capture::~V4L2Capture()
         capture_thread_.Finalize();
     }
 
-    for (int i = 0; i < buffer_count_; i++)
+    for (int i = 0; i < capture_.num_buffers; i++)
     {
-        munmap(buffers_[i].start, buffers_[i].length);
+        munmap(capture_.buffers[i].start, capture_.buffers[i].length);
     }
-    delete[] buffers_;
 
-    V4l2Util::StreamOff(fd_, V4L2_BUF_TYPE_VIDEO_CAPTURE);
+    V4l2Util::StreamOff(fd_, capture_.type);
 
     V4l2Util::CloseDevice(fd_);
     printf("~V4L2Capture fd(%d) is closed.\n", fd_);
@@ -111,24 +113,20 @@ V4L2Capture &V4L2Capture::SetFormat(uint width, uint height, std::string video_t
 {
     width_ = width;
     height_ = height;
-    struct Buffer capture = {
-        .name = "v4l2 capture",
-        .width = width,
-        .height = height,
-        .type = V4L2_BUF_TYPE_VIDEO_CAPTURE
-    };
+    capture_.width = width;
+    capture_.height = height;
 
     if (video_type == "i420")
     {
         std::cout << "Use yuv420(i420) format source in v4l2" << std::endl;
-        V4l2Util::SetFormat(fd_, &capture, V4L2_PIX_FMT_YUV420);
+        V4l2Util::SetFormat(fd_, &capture_, V4L2_PIX_FMT_YUV420);
         V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_BITRATE, 10000000);
         capture_video_type_ = webrtc::VideoType::kI420;
     }
     else if (video_type == "h264")
     {
         std::cout << "Use h264 format source in v4l2" << std::endl;
-        V4l2Util::SetFormat(fd_, &capture, V4L2_PIX_FMT_H264);
+        V4l2Util::SetFormat(fd_, &capture_, V4L2_PIX_FMT_H264);
         V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_BITRATE_MODE, V4L2_MPEG_VIDEO_BITRATE_MODE_VBR);
         V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_H264_PROFILE, V4L2_MPEG_VIDEO_H264_PROFILE_BASELINE);
         V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_REPEAT_SEQ_HEADER, true);
@@ -139,7 +137,7 @@ V4L2Capture &V4L2Capture::SetFormat(uint width, uint height, std::string video_t
     }
     else {
         std::cout << "Use mjpeg format source in v4l2" << std::endl;
-        V4l2Util::SetFormat(fd_, &capture, V4L2_PIX_FMT_MJPEG);
+        V4l2Util::SetFormat(fd_, &capture_, V4L2_PIX_FMT_MJPEG);
         V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_BITRATE, 10000000);
         capture_video_type_ = webrtc::VideoType::kMJPEG;
     }
@@ -152,7 +150,7 @@ V4L2Capture &V4L2Capture::SetFps(uint fps)
     fps_ = fps;
     printf("  Fps: %d\n", fps);
 
-    if (!V4l2Util::SetFps(fd_, V4L2_BUF_TYPE_VIDEO_CAPTURE, fps))
+    if (!V4l2Util::SetFps(fd_, capture_.type, fps))
     {
         exit(0);
     }
@@ -174,17 +172,6 @@ V4L2Capture &V4L2Capture::SetCaptureFunc(std::function<bool()> capture_func)
     return *this;
 }
 
-bool V4L2Capture::AllocateBuffer()
-{
-    buffers_ = new Buffer[buffer_count_];
-    if (!V4l2Util::AllocateBuffer(fd_, buffers_, V4L2_BUF_TYPE_VIDEO_CAPTURE, buffer_count_))
-    {
-        exit(-1);
-    }
-
-    return true;
-}
-
 void V4L2Capture::CaptureImage()
 {
     fd_set fds;
@@ -194,18 +181,18 @@ void V4L2Capture::CaptureImage()
     tv.tv_sec = 1;
     tv.tv_usec = 0;
     int r = select(fd_ + 1, &fds, NULL, NULL, &tv);
-    if (r == 0)
+    if (r <= 0) // timeout or failed
     {
-        // timeout
+        return;
     }
 
     struct v4l2_buffer buf = {0};
-    buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    buf.type = capture_.type;
     buf.memory = V4L2_MEMORY_MMAP;
 
     V4l2Util::DequeueBuffer(fd_, &buf);
 
-    shared_buffer_ = {.start = buffers_[buf.index].start,
+    shared_buffer_ = {.start = capture_.buffers[buf.index].start,
                         .length = buf.bytesused,
                         .flags = buf.flags};
 
@@ -223,12 +210,12 @@ void V4L2Capture::StartCapture()
 {
     webrtc::MutexLock lock(&capture_lock_);
 
-    if (!AllocateBuffer())
+    if (!V4l2Util::AllocateBuffer(fd_, &capture_, buffer_count_))
     {
         exit(0);
     }
 
-    V4l2Util::StreamOn(fd_, V4L2_BUF_TYPE_VIDEO_CAPTURE);
+    V4l2Util::StreamOn(fd_, capture_.type);
 
     if (capture_func_ == nullptr)
     {

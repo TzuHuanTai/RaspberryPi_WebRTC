@@ -1,7 +1,7 @@
 #include "args.h"
 #include "encoder/v4l2m2m_encoder.h"
 #include "recorder.h"
-#include "v4l2_capture.h"
+#include "capture/v4l2_capture.h"
 
 #include <fcntl.h>
 #include <unistd.h>
@@ -17,10 +17,11 @@ int main(int argc, char *argv[])
     bool wait_first_keyframe = false;
     int images_nb = 0;
     int record_sec = 10;
+    struct Buffer encoded_buffer;
     Args args{.fps = 30,
               .width = 640,
               .height = 480,
-              .v4l2_format = "i420"};
+              .v4l2_format = "mjpeg"};
     auto capture = V4L2Capture::Create(args.device);
 
     V4l2m2mEncoder encoder;
@@ -36,10 +37,10 @@ int main(int argc, char *argv[])
     auto test = [&]() -> bool
     {
         std::unique_lock<std::mutex> lock(mtx);
-        Buffer buffer = capture->CaptureImage();
+        capture->CaptureImage();
+        Buffer buffer = capture->GetImage();
 
-        Buffer encoded_buffer =
-            encoder.V4l2m2mEncode((uint8_t *)buffer.start, buffer.length);
+        encoder.V4l2m2mEncode((uint8_t *)buffer.start, buffer.length, encoded_buffer);
         printf("V4l2Capture get %d buffer: %p with %d length\n",
                images_nb, &(encoded_buffer.start), encoded_buffer.length);
 
