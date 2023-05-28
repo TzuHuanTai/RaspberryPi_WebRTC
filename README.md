@@ -266,7 +266,7 @@ cause    *note: In contrast to the release version, debug version cause frames t
     listening-ip=192.168.x.x
     relay-ip=192.168.x.x
     external-ip=174.127.x.x/192.168.x.x
-    verbose
+    #verbose
     lt-cred-mech
     user=webrtc:webrtc
     realm=greenhouse
