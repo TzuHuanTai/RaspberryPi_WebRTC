@@ -101,6 +101,15 @@ bool Conductor::CreatePeerConnection()
     server.uri = args.stun_url;
     config.servers.push_back(server);
 
+    if (!args.turn_url.empty())
+    {
+        webrtc::PeerConnectionInterface::IceServer turn_server;
+        turn_server.uri = args.turn_url;
+        turn_server.username = args.turn_username;
+        turn_server.password = args.turn_password;
+        config.servers.push_back(turn_server);
+    }
+
     auto result = peer_connection_factory_->CreatePeerConnectionOrError(
         config, webrtc::PeerConnectionDependencies(this));
 
