@@ -16,6 +16,9 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args)
     ("rotation_angle", bpo::value<uint32_t>()->default_value(args.rotation_angle), "Set the rotation angle of the frame")
     ("device", bpo::value<std::string>()->default_value(args.device), "Set the specific camera file, default is /dev/video0")
     ("stun_url", bpo::value<std::string>()->default_value(args.stun_url), "Stun server, ex: stun:xxx.xxx.xxx")
+    ("turn_url", bpo::value<std::string>()->default_value(args.turn_url), "Turn server, ex: turn:xxx.xxx.xxx:3478?transport=tcp")
+    ("turn_username", bpo::value<std::string>()->default_value(args.turn_username), "Turn server username")
+    ("turn_password", bpo::value<std::string>()->default_value(args.turn_password), "Turn server password")
     ("signaling_url", bpo::value<std::string>()->default_value(args.signaling_url), "Signaling server url, ref: Repository > FarmerAPI > Hubs > SignalingServer")
     ("file_path", bpo::value<std::string>()->default_value(args.file_path), "The path to save the recording video files")
     ("v4l2_format", bpo::value<std::string>()->default_value(args.v4l2_format), "Set v4l2 input format i420/mjpeg/h264 while capturing, if the camera is supported");
@@ -63,6 +66,26 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args)
     {
         args.stun_url = vm["stun_url"].as<std::string>();
     }
+
+    if (!(!vm["turn_url"].empty() || (vm["turn_url"].as<std::string>()).substr(0, 4) == "turn"))
+    {
+        std::cout << "Turn url should start with \"turn:\"" << std::endl;
+        exit(1);
+    }
+    else if (vm.count("turn_url"))
+    {
+        args.turn_url = vm["turn_url"].as<std::string>();
+    }
+
+    if (vm.count("turn_username"))
+    {
+        args.turn_username = vm["turn_username"].as<std::string>();
+    }
+
+    if (vm.count("turn_password"))
+    {
+        args.turn_password = vm["turn_password"].as<std::string>();
+    }
     
     if (!vm["signaling_url"].empty() && (vm["signaling_url"].as<std::string>()).substr(0, 4) != "http")
     {
@@ -75,7 +98,8 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args)
     }
 
     if (!vm["file_path"].empty() && 
-        ((vm["file_path"].as<std::string>()).front() != '/' ||
+        (!((vm["file_path"].as<std::string>()).front() == '/' ||
+        (vm["file_path"].as<std::string>()).front() == '.') ||
         (vm["file_path"].as<std::string>()).back() != '/'))
     {
         std::cout << "The file path needs to start and end with a \"/\" character" << std::endl;
