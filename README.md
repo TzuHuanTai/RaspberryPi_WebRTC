@@ -36,7 +36,7 @@ Step of using signalr as the webrtc signaling server
 |  H264 |    YUV420     |  1280x720  |  15 | ~20% | 300~350ms |             |
 |  H264 |    YUV420     |   640x480  |  15 | ~20% | 200~220ms |             |
 |  H264 |    YUV420     |   320x240  |  30 | ~15% | 190~200ms |             |
-|  H264 |   **H264**    |  1280x720  |  30 | ~25% | ~250ms |             |
+|    -  |   **H264**    |  1280x720  |  30 | ~25% | ~250ms |             |
 
 ![latency](./doc/latency.jpg)
 
@@ -275,7 +275,7 @@ cause    *note: In contrast to the release version, debug version cause frames t
     syslog
     no-cli
     ```
-3. Set the prot `3478` forwarding on the router
+3. Set the port `3478` forwarding on the router
 4. Start the service, `sudo systemctl start coturn.service`
 
 # Reference
