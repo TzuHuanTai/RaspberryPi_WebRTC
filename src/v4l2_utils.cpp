@@ -130,6 +130,18 @@ std::unordered_set<std::string> V4l2Util::GetDeviceSupportedFormats(const char *
     return formats;
 }
 
+bool V4l2Util::SubscribeEvent(int fd, uint32_t type)
+{
+    struct v4l2_event_subscription sub = {0};
+    sub.type = type;
+    if (ioctl(fd, VIDIOC_SUBSCRIBE_EVENT, &sub) < 0)
+    {
+        fprintf(stderr, "fd(%d) does not support VIDIOC_SUBSCRIBE_EVENT(%d)\n", fd, type);
+        return false;
+    }
+    return true;
+}
+
 bool V4l2Util::SetFps(int fd, uint32_t type, int fps)
 {
     struct v4l2_streamparm streamparms = {0};
@@ -226,6 +238,15 @@ bool V4l2Util::StreamOff(int fd, v4l2_buf_type type)
         return false;
     }
     return true;
+}
+
+void V4l2Util::UnMap(struct BufferGroup *gbuffer, int num_buffers)
+{
+    for (int i = 0; i < num_buffers; i++)
+    {
+        munmap(gbuffer->buffers[i].start, gbuffer->buffers[i].length);
+    }
+    fprintf(stderr, "Unmapped (%s) buffers\n", gbuffer->name);
 }
 
 bool V4l2Util::MMap(int fd, struct BufferGroup *gbuffer)
