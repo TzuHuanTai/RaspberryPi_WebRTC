@@ -10,19 +10,22 @@
 class V4l2m2mDecoder
 {
 public:
-    explicit V4l2m2mDecoder(int32_t width, int32_t height);
+    explicit V4l2m2mDecoder();
     ~V4l2m2mDecoder();
 
-    int32_t V4l2m2mConfigure();
-    Buffer V4l2m2mDecode(const uint8_t *byte, uint32_t length);
+    int32_t V4l2m2mConfigure(int width, int height, int fps);
+    bool V4l2m2mDecode(const uint8_t *byte, uint32_t length, Buffer &buffer);
     void V4l2m2mRelease();
 
 private:
     int fd_;
-    int32_t width_;
-    int32_t height_;
-    Buffer output_;
-    Buffer capture_;
+    int width_;
+    int height_;
+    int buffer_count_;
+    BufferGroup output_;
+    BufferGroup capture_;
+
+    void HandleEvent();
 };
 
 #endif // V4L2M2M_DECODER_H_

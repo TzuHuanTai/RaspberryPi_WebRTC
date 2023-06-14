@@ -41,12 +41,14 @@ public:
     static bool DequeueBuffer(int fd, v4l2_buffer *buffer);
     static bool QueueBuffer(int fd, v4l2_buffer *buffer);
     static std::unordered_set<std::string> GetDeviceSupportedFormats(const char *file);
+    static bool SubscribeEvent(int fd, uint32_t type);
     static bool SetFps(int fd, uint32_t type, int fps);
     static bool SetFormat(int fd, BufferGroup *gbuffer, uint32_t pixel_format);
     static bool SetCtrl(int fd, unsigned int id, signed int value);
     static bool SetExtCtrl(int fd, unsigned int id, signed int value);
     static bool StreamOn(int fd, v4l2_buf_type type);
     static bool StreamOff(int fd, v4l2_buf_type type);
+    static void UnMap(struct BufferGroup *gbuffer, int num_buffers);
     static bool MMap(int fd, struct BufferGroup *gbuffer);
     static bool AllocateBuffer(int fd, struct BufferGroup *gbuffer, int num_buffers);
 };
