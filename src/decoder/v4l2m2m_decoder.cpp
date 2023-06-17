@@ -24,7 +24,7 @@ V4l2m2mDecoder::~V4l2m2mDecoder()
     V4l2m2mRelease();
 }
 
-int32_t V4l2m2mDecoder::V4l2m2mConfigure(int width, int height, int fps)
+int32_t V4l2m2mDecoder::V4l2m2mConfigure(int width, int height)
 {
     fd_ = V4l2Util::OpenDevice(DECODER_FILE);
     if (fd_ < 0)
@@ -70,8 +70,6 @@ int32_t V4l2m2mDecoder::V4l2m2mConfigure(int width, int height, int fps)
 
 bool V4l2m2mDecoder::V4l2m2mDecode(const uint8_t *byte, uint32_t length, Buffer &buffer)
 {
-    // printf("[V4l2m2mDecoder]: receive %p length %d\n", byte, length);
-
     struct v4l2_buffer buf = {0};
     struct v4l2_plane out_planes = {0};
     buf.memory = V4L2_MEMORY_MMAP;
@@ -133,7 +131,6 @@ bool V4l2m2mDecoder::V4l2m2mDecode(const uint8_t *byte, uint32_t length, Buffer 
             {
                 return false;
             }
-            // printf("[V4l2m2mDecoder]: Finish queue output %p length %d\n", output_.buffers[buf.index].start, length);
             break;
         }
 

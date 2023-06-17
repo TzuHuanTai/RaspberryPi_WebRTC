@@ -13,7 +13,7 @@ public:
     explicit V4l2m2mDecoder();
     ~V4l2m2mDecoder();
 
-    int32_t V4l2m2mConfigure(int width, int height, int fps);
+    int32_t V4l2m2mConfigure(int width, int height);
     bool V4l2m2mDecode(const uint8_t *byte, uint32_t length, Buffer &buffer);
     void V4l2m2mRelease();
 
