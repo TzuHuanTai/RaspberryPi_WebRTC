@@ -8,6 +8,23 @@
 #include <mutex>
 #include <condition_variable>
 
+void WriteImage(Buffer buffer, int index)
+{
+    printf("Dequeued buffer index: %d\n"
+           "  bytesused: %d\n",
+           index, buffer.length);
+
+    std::string filename = "img" + std::to_string(index) + ".yuv";
+    int outfd = open(filename.c_str(), O_WRONLY | O_CREAT | O_EXCL, 0600);
+    if ((outfd == -1) && (EEXIST == errno))
+    {
+        /* open the existing file with write flag */
+        outfd = open(filename.c_str(), O_WRONLY);
+    }
+
+    write(outfd, buffer.start, buffer.length);
+}
+
 int main(int argc, char *argv[])
 {
     std::mutex mtx;
@@ -17,14 +34,14 @@ int main(int argc, char *argv[])
     int images_nb = 0;
     int record_sec = 3;
     struct Buffer decoded_buffer;
-    Args args{.fps = 30,
+    Args args{.fps = 15,
               .width = 640,
               .height = 480,
               .v4l2_format = "h264"};
     auto capture = V4L2Capture::Create(args.device);
 
     V4l2m2mDecoder decoder;
-    decoder.V4l2m2mConfigure(args.width, args.height, args.fps);
+    decoder.V4l2m2mConfigure(args.width, args.height);
 
     auto test = [&]() -> bool
     {
@@ -33,8 +50,7 @@ int main(int argc, char *argv[])
         Buffer buffer = capture->GetImage();
 
         decoder.V4l2m2mDecode((uint8_t *)buffer.start, buffer.length, decoded_buffer);
-        printf("V4l2Capture get %d buffer: %p with %d length\n",
-               images_nb, &(decoded_buffer.start), decoded_buffer.length);
+        WriteImage(decoded_buffer, images_nb);
 
         if (images_nb++ < args.fps * record_sec)
         {
