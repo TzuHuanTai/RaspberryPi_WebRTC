@@ -1,11 +1,15 @@
 #include "v4l2_track_source.h"
 #include "encoder/raw_buffer.h"
 
+#include <cmath>
+
 // WebRTC
 #include <api/video/i420_buffer.h>
 #include <api/video/video_frame_buffer.h>
 #include <rtc_base/timestamp_aligner.h>
 #include <third_party/libyuv/include/libyuv.h>
+
+static const int kBufferAlignment = 64;
 
 rtc::scoped_refptr<V4L2TrackSource> V4L2TrackSource::Create(
     std::shared_ptr<V4L2Capture> capture)
@@ -74,7 +78,9 @@ void V4L2TrackSource::OnFrameCaptured(Buffer buffer)
 
         if (adapted_width != width_ || adapted_height != height_)
         {
-            i420_buffer = webrtc::I420Buffer::Create(adapted_width, adapted_height);
+            int dst_stride = std::ceil((double)adapted_width / kBufferAlignment) * kBufferAlignment;
+            i420_buffer = webrtc::I420Buffer::Create(adapted_width, adapted_height,
+                                                     dst_stride, dst_stride/2, dst_stride/2);
             i420_buffer->ScaleFrom(*dst_buffer->ToI420());
             dst_buffer = i420_buffer;
         }
