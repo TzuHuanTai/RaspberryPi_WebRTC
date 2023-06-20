@@ -332,10 +332,8 @@ void V4l2m2mEncoder::V4l2m2mRelease()
     V4l2Util::StreamOff(fd_, output_.type);
     V4l2Util::StreamOff(fd_, capture_.type);
 
-    for(int i = 0; i < buffer_count_; i++) {
-        munmap(output_.buffers[i].start, output_.buffers[i].length);
-        munmap(capture_.buffers[i].start, capture_.buffers[i].length);
-    }
+    V4l2Util::UnMap(&output_, buffer_count_);
+    V4l2Util::UnMap(&capture_, buffer_count_);
 
     V4l2Util::CloseDevice(fd_);
     printf("[V4l2m2mEncoder]: fd(%d) is released\n", fd_);
