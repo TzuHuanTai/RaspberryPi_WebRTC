@@ -8,8 +8,6 @@ const char *ENCODER_FILE = "/dev/video11";
 
 V4l2m2mEncoder::V4l2m2mEncoder()
     : name_("h264_v4l2m2m"),
-      adapted_width_(0),
-      adapted_height_(0),
       framerate_(30),
       key_frame_interval_(12),
       buffer_count_(1),
@@ -79,12 +77,10 @@ int32_t V4l2m2mEncoder::Encode(
     }
 
     auto i420_buffer = frame_buffer->GetI420();
-    adapted_width_ = i420_buffer->width();
-    adapted_height_ = i420_buffer->height();
 
     Buffer encoded_buffer = { 0 };
-    int i420_buffer_size = (width_ * height_) +
-                    ((width_ + 1) / 2) * ((height_ + 1) / 2) * 2;
+    int i420_buffer_size = (i420_buffer->StrideY() * height_) +
+                    ((i420_buffer->StrideY() + 1) / 2) * ((height_ + 1) / 2) * 2;
     if (!V4l2m2mEncode(i420_buffer->DataY(), i420_buffer_size, encoded_buffer))
     {
         return WEBRTC_VIDEO_CODEC_ERROR;
