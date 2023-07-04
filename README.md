@@ -128,15 +128,16 @@ make -j
     fetch --nohooks webrtc
     src/build/linux/sysroot_scripts/install-sysroot.py --arch=arm64
     gclient sync -D
-    # git checkout -b local-4896 branch-heads/4896 # for m100(stable) version
-    # gclient sync -D --force --reset --with_branch_heads
+    # git checkout -b local-5790 branch-heads/5790 # for m115(stable) version
+    # git gc --aggressive
+    # gclient sync -D --force --reset --with_branch_heads --no-history
     ```
 * Download llvm
     ```bash
-    curl -OL https://github.com/llvm/llvm-project/releases/download/llvmorg-14.0.3/clang+llvm-14.0.3-aarch64-linux-gnu.tar.xz
-    tar Jxvf clang+llvm-14.0.3-aarch64-linux-gnu.tar.xz
-    export PATH=/home/pi/clang+llvm-14.0.3-aarch64-linux-gnu/bin:$PATH
-    echo 'export PATH=/home/pi/clang+llvm-14.0.3-aarch64-linux-gnu/bin:$PATH' >> ~/.bashrc
+    curl -OL https://github.com/llvm/llvm-project/releases/download/llvmorg-16.0.6/clang+llvm-16.0.6-aarch64-linux-gnu.tar.xz
+    tar Jxvf clang+llvm-16.0.6-aarch64-linux-gnu.tar.xz
+    export PATH=/home/pi/clang+llvm-16.0.6-aarch64-linux-gnu/bin:$PATH
+    echo 'export PATH=/home/pi/clang+llvm-16.0.6-aarch64-linux-gnu/bin:$PATH' >> ~/.bashrc
     ```
 * Install the Chromium `depot_tools`.
     ``` bash
@@ -145,7 +146,7 @@ make -j
     export PATH=/home/pi/depot_tools:$PATH
     echo 'PATH=/home/pi/depot_tools:$PATH' >> ~/.bashrc
     ```
-* Replace ninja in the `depot_tools`.
+* Replace ninja in the `depot_tools`.(optional)
     ``` bash
     git clone https://github.com/martine/ninja.git;
     cd ninja;
@@ -153,7 +154,7 @@ make -j
     mv /home/pi/depot_tools/ninja /home/pi/depot_tools/ninja_org;
     cp /home/pi/ninja/ninja /home/pi/depot_tools/ninja;
     ```
-* Replace gn in the `depot_tools`.
+* Replace gn in the `depot_tools`.(optional)
     ``` bash
     git clone https://gn.googlesource.com/gn;
     cd gn;
@@ -170,8 +171,8 @@ make -j
 
 * Build
     ``` bash
-    gn gen out/Default64 --args='target_os="linux" target_cpu="arm64" rtc_include_tests=false rtc_use_h264=false use_rtti=true is_component_build=false is_debug=true rtc_build_examples=false use_custom_libcxx=false rtc_use_pipewire=false clang_base_path="/home/pi/clang+llvm-14.0.3-aarch64-linux-gnu" treat_warnings_as_errors=false clang_use_chrome_plugins=false'
-    ninja -C out/Default64
+    gn gen out/Release64 --args='target_os="linux" target_cpu="arm64" rtc_include_tests=false rtc_use_h264=false use_rtti=true is_component_build=false is_debug=false rtc_build_examples=false use_custom_libcxx=false rtc_build_tools=false rtc_use_pipewire=false clang_base_path="/home/pi/clang+llvm-16.0.6-aarch64-linux-gnu" clang_use_chrome_plugins=false'
+    ninja -C out/Release64
     ```
 cause    *note: In contrast to the release version, debug version cause frames to be blocked by the video sender.*
 * Extract header files

@@ -23,7 +23,7 @@ public:
     bool remote() const override;
     bool is_screencast() const override;
     absl::optional<bool> needs_denoising() const override;
-    virtual void OnFrameCaptured(Buffer buffer);
+    void OnFrameCaptured(Buffer buffer);
 
     static rtc::scoped_refptr<V4L2TrackSource> Create(std::shared_ptr<V4L2Capture> capture);
     void StartTrack();

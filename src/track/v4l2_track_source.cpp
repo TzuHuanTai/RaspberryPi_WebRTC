@@ -14,7 +14,7 @@ static const int kBufferAlignment = 64;
 rtc::scoped_refptr<V4L2TrackSource> V4L2TrackSource::Create(
     std::shared_ptr<V4L2Capture> capture)
 {
-    return rtc::make_ref_counted<V4L2TrackSource>(capture);
+    return rtc::make_ref_counted<V4L2TrackSource>(std::move(capture));
 }
 
 V4L2TrackSource::V4L2TrackSource(
