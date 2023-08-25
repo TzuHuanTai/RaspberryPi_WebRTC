@@ -55,7 +55,7 @@ Step of using signalr as the webrtc signaling server
 ```bash
 mkdir build
 cd ./build
-cmake .. -DCMAKE_CXX_COMPILER=/usr/bin/clang++
+cmake .. -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_BUILD_TYPE=Release
 make -j
 ./pi_webrtc --device=/dev/video0 --fps=30 --width=1280 --height=720 --signaling_url=http://localhost:6080/SignalingServer --v4l2_format=mjpeg --file_path=/home/pi/video/
 ```
@@ -121,6 +121,13 @@ make -j
     pulseaudio --start
     ```
 
+* Install the Chromium `depot_tools`.
+    ``` bash
+    sudo apt install git
+    git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
+    export PATH=/home/pi/depot_tools:$PATH
+    echo 'PATH=/home/pi/depot_tools:$PATH' >> ~/.bashrc
+    ```
 * Clone WebRTC source code
     ```bash
     mkdir webrtc-checkout
@@ -132,19 +139,12 @@ make -j
     # git gc --aggressive
     # gclient sync -D --force --reset --with_branch_heads --no-history
     ```
-* Download llvm
+* Download llvm(optional)
     ```bash
     curl -OL https://github.com/llvm/llvm-project/releases/download/llvmorg-16.0.6/clang+llvm-16.0.6-aarch64-linux-gnu.tar.xz
     tar Jxvf clang+llvm-16.0.6-aarch64-linux-gnu.tar.xz
     export PATH=/home/pi/clang+llvm-16.0.6-aarch64-linux-gnu/bin:$PATH
     echo 'export PATH=/home/pi/clang+llvm-16.0.6-aarch64-linux-gnu/bin:$PATH' >> ~/.bashrc
-    ```
-* Install the Chromium `depot_tools`.
-    ``` bash
-    sudo apt install git
-    git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
-    export PATH=/home/pi/depot_tools:$PATH
-    echo 'PATH=/home/pi/depot_tools:$PATH' >> ~/.bashrc
     ```
 * Replace ninja in the `depot_tools`.(optional)
     ``` bash

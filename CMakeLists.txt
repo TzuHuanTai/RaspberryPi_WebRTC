@@ -3,8 +3,8 @@ project(pi_webrtc)
 
 set(CMAKE_CXX_STANDARD 17)
 set(BUILD_TEST "" CACHE STRING "test")
-set(WEBRTC_INCLUDE_DIR /usr/local/include/webrtc)
-set(WEBRTC_LIBRARY_DIR /usr/local/lib/libwebrtc.a)
+set(WEBRTC_INCLUDE_DIR /usr/local/include/webrtc_5790)
+set(WEBRTC_LIBRARY_DIR /usr/local/lib/libwebrtc_5790.a)
 set(WEBRTC_LINK_LIBS X11 dl)
 set(SIGNALR_LINK_LIBS microsoft-signalr cpprest ssl crypto)
 set(FFMPEG_LINK_LIBS avformat avcodec avutil swscale avdevice)
@@ -23,7 +23,6 @@ add_compile_definitions(
 add_compile_options(
     -pipe
     -fdeclspec
-    -g
 )
 
 include_directories(
