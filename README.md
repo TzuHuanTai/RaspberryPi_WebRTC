@@ -29,10 +29,9 @@ Step of using signalr as the webrtc signaling server
 |  VP8  |     MJPEG     |  1280x720  |  30 | ~60% | 200~250ms |   60~65°C   |
 |  VP8  |     MJPEG     |   640x480  |  60 | ~60% | 190~220ms |             |
 |  VP8  |     MJPEG     |   320x240  |  60 | ~30% | 120~140ms |             |
-|  H264 |     MJPEG     |  1280x720  |  30 | ~35% | 190~200ms(VBR) |        |
-|  H264 |     MJPEG     |   640x480  |  30 | ~25% | 190~200ms(VBR) |        |
-|  H264 |     MJPEG     |   320x240  |  60 | ~25% | 130~200ms(VBR) |        |
-|  H264 |     MJPEG     |   320x240  |  60 | ~20% |<b>70~130ms(CBR) |       |
+|  H264 |     MJPEG     |  1280x720  |  30 | ~35% | 190~200ms |        |
+|  H264 |     MJPEG     |   640x480  |  30 | ~25% | 190~200ms |        |
+|  H264 |     MJPEG     |   320x240  |  60 | ~25% | 130~200ms |        |
 |  H264 |    YUV420     |  1280x720  |  15 | ~20% | 300~350ms |             |
 |  H264 |    YUV420     |   640x480  |  15 | ~20% | 200~220ms |             |
 |  H264 |    YUV420     |   320x240  |  30 | ~15% | 190~200ms |             |
@@ -55,7 +54,7 @@ Step of using signalr as the webrtc signaling server
 ```bash
 mkdir build
 cd ./build
-cmake .. -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_BUILD_TYPE=Release
+cmake .. -DCMAKE_CXX_COMPILER=/usr/bin/clang++
 make -j
 ./pi_webrtc --device=/dev/video0 --fps=30 --width=1280 --height=720 --signaling_url=http://localhost:6080/SignalingServer --v4l2_format=mjpeg --file_path=/home/pi/video/
 ```
