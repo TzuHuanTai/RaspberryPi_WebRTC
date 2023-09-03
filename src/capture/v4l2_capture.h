@@ -13,7 +13,6 @@ class V4L2Capture : public SubjectInterface<Buffer>
 private:
     int fd_;
     int camera_index_;
-    std::string device_;
     int buffer_count_;
     bool capture_started;
     mutable webrtc::Mutex capture_lock_;
@@ -43,7 +42,7 @@ public:
     void UnSubscribe() override;
 
     static std::shared_ptr<V4L2Capture> Create(std::string device);
-    virtual V4L2Capture &SetFormat(uint width, uint height, std::string video_type);
+    V4L2Capture &SetFormat(uint width, uint height, std::string video_type);
     V4L2Capture &SetFps(uint fps = 30);
     V4L2Capture &SetRotation(uint angle);
     V4L2Capture &SetCaptureFunc(std::function<bool()> capture_func);
