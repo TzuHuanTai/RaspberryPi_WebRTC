@@ -29,10 +29,9 @@ Step of using signalr as the webrtc signaling server
 |  VP8  |     MJPEG     |  1280x720  |  30 | ~60% | 200~250ms |   60~65°C   |
 |  VP8  |     MJPEG     |   640x480  |  60 | ~60% | 190~220ms |             |
 |  VP8  |     MJPEG     |   320x240  |  60 | ~30% | 120~140ms |             |
-|  H264 |     MJPEG     |  1280x720  |  30 | ~35% | 190~200ms(VBR) |        |
-|  H264 |     MJPEG     |   640x480  |  30 | ~25% | 190~200ms(VBR) |        |
-|  H264 |     MJPEG     |   320x240  |  60 | ~25% | 130~200ms(VBR) |        |
-|  H264 |     MJPEG     |   320x240  |  60 | ~20% |<b>70~130ms(CBR) |       |
+|  H264 |     MJPEG     |  1280x720  |  30 | ~35% | 190~200ms |        |
+|  H264 |     MJPEG     |   640x480  |  30 | ~25% | 190~200ms |        |
+|  H264 |     MJPEG     |   320x240  |  60 | ~25% | 130~200ms |        |
 |  H264 |    YUV420     |  1280x720  |  15 | ~20% | 300~350ms |             |
 |  H264 |    YUV420     |   640x480  |  15 | ~20% | 200~220ms |             |
 |  H264 |    YUV420     |   320x240  |  30 | ~15% | 190~200ms |             |
@@ -121,23 +120,6 @@ make -j
     pulseaudio --start
     ```
 
-* Clone WebRTC source code
-    ```bash
-    mkdir webrtc-checkout
-    cd ./webrtc-checkout
-    fetch --nohooks webrtc
-    src/build/linux/sysroot_scripts/install-sysroot.py --arch=arm64
-    gclient sync -D
-    # git checkout -b local-4896 branch-heads/4896 # for m100(stable) version
-    # gclient sync -D --force --reset --with_branch_heads
-    ```
-* Download llvm
-    ```bash
-    curl -OL https://github.com/llvm/llvm-project/releases/download/llvmorg-14.0.3/clang+llvm-14.0.3-aarch64-linux-gnu.tar.xz
-    tar Jxvf clang+llvm-14.0.3-aarch64-linux-gnu.tar.xz
-    export PATH=/home/pi/clang+llvm-14.0.3-aarch64-linux-gnu/bin:$PATH
-    echo 'export PATH=/home/pi/clang+llvm-14.0.3-aarch64-linux-gnu/bin:$PATH' >> ~/.bashrc
-    ```
 * Install the Chromium `depot_tools`.
     ``` bash
     sudo apt install git
@@ -145,7 +127,25 @@ make -j
     export PATH=/home/pi/depot_tools:$PATH
     echo 'PATH=/home/pi/depot_tools:$PATH' >> ~/.bashrc
     ```
-* Replace ninja in the `depot_tools`.
+* Clone WebRTC source code
+    ```bash
+    mkdir webrtc-checkout
+    cd ./webrtc-checkout
+    fetch --nohooks webrtc
+    src/build/linux/sysroot_scripts/install-sysroot.py --arch=arm64
+    gclient sync -D
+    # git checkout -b local-5790 branch-heads/5790 # for m115(stable) version
+    # git gc --aggressive
+    # gclient sync -D --force --reset --with_branch_heads --no-history
+    ```
+* Download llvm(optional)
+    ```bash
+    curl -OL https://github.com/llvm/llvm-project/releases/download/llvmorg-16.0.6/clang+llvm-16.0.6-aarch64-linux-gnu.tar.xz
+    tar Jxvf clang+llvm-16.0.6-aarch64-linux-gnu.tar.xz
+    export PATH=/home/pi/clang+llvm-16.0.6-aarch64-linux-gnu/bin:$PATH
+    echo 'export PATH=/home/pi/clang+llvm-16.0.6-aarch64-linux-gnu/bin:$PATH' >> ~/.bashrc
+    ```
+* Replace ninja in the `depot_tools`.(optional)
     ``` bash
     git clone https://github.com/martine/ninja.git;
     cd ninja;
@@ -153,7 +153,7 @@ make -j
     mv /home/pi/depot_tools/ninja /home/pi/depot_tools/ninja_org;
     cp /home/pi/ninja/ninja /home/pi/depot_tools/ninja;
     ```
-* Replace gn in the `depot_tools`.
+* Replace gn in the `depot_tools`.(optional)
     ``` bash
     git clone https://gn.googlesource.com/gn;
     cd gn;
@@ -170,8 +170,8 @@ make -j
 
 * Build
     ``` bash
-    gn gen out/Default64 --args='target_os="linux" target_cpu="arm64" rtc_include_tests=false rtc_use_h264=false use_rtti=true is_component_build=false is_debug=true rtc_build_examples=false use_custom_libcxx=false rtc_use_pipewire=false clang_base_path="/home/pi/clang+llvm-14.0.3-aarch64-linux-gnu" treat_warnings_as_errors=false clang_use_chrome_plugins=false'
-    ninja -C out/Default64
+    gn gen out/Release64 --args='target_os="linux" target_cpu="arm64" rtc_include_tests=false rtc_use_h264=false use_rtti=true is_component_build=false is_debug=false rtc_build_examples=false use_custom_libcxx=false rtc_build_tools=false rtc_use_pipewire=false clang_base_path="/home/pi/clang+llvm-16.0.6-aarch64-linux-gnu" clang_use_chrome_plugins=false'
+    ninja -C out/Release64
     ```
 cause    *note: In contrast to the release version, debug version cause frames to be blocked by the video sender.*
 * Extract header files

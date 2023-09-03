@@ -12,8 +12,12 @@
 #include <api/rtc_event_log/rtc_event_log_factory.h>
 #include <api/transport/field_trial_based_config.h>
 #include <api/task_queue/default_task_queue_factory.h>
-#include <api/video_codecs/builtin_video_decoder_factory.h>
-#include <api/video_codecs/builtin_video_encoder_factory.h>
+#include "api/video_codecs/video_decoder_factory.h"
+#include "api/video_codecs/video_decoder_factory_template.h"
+#include "api/video_codecs/video_decoder_factory_template_dav1d_adapter.h"
+#include "api/video_codecs/video_decoder_factory_template_libvpx_vp8_adapter.h"
+#include "api/video_codecs/video_decoder_factory_template_libvpx_vp9_adapter.h"
+#include "api/video_codecs/video_decoder_factory_template_open_h264_adapter.h"
 #include <pc/video_track_source_proxy.h>
 #include <media/engine/webrtc_media_engine.h>
 #include <modules/audio_device/include/audio_device.h>
@@ -44,7 +48,7 @@ bool Conductor::InitializeTracks()
 {
     auto options = peer_connection_factory_->CreateAudioSource(cricket::AudioOptions());
     audio_track_ =
-        peer_connection_factory_->CreateAudioTrack("my_audio_label", options.get());
+        peer_connection_factory_->CreateAudioTrack("raspberrypi_audio", options.get());
 
     /* split into capture and track source*/
     auto video_caputre_source = V4L2Capture::Create(args.device);
@@ -60,7 +64,7 @@ bool Conductor::InitializeTracks()
         webrtc::VideoTrackSourceProxy::Create(
             signaling_thread_.get(), worker_thread_.get(), video_track_source);
     video_track_ =
-        peer_connection_factory_->CreateVideoTrack("my_video_label", video_source.get());
+        peer_connection_factory_->CreateVideoTrack(video_source, "raspberrypi_video");
 
     return video_track_ != nullptr && audio_track_ != nullptr;
 }
@@ -198,7 +202,10 @@ bool Conductor::InitializePeerConnection()
     media_dependencies.audio_processing = webrtc::AudioProcessingBuilder().Create();
     media_dependencies.audio_mixer = nullptr;
     media_dependencies.video_encoder_factory = CreateCustomizedVideoEncoderFactory(args, data_channel_subject_);
-    media_dependencies.video_decoder_factory = webrtc::CreateBuiltinVideoDecoderFactory();
+    media_dependencies.video_decoder_factory = std::make_unique<webrtc::VideoDecoderFactoryTemplate<
+          webrtc::LibvpxVp8DecoderTemplateAdapter,
+          webrtc::LibvpxVp9DecoderTemplateAdapter,
+          webrtc::Dav1dDecoderTemplateAdapter>>();
     media_dependencies.trials = dependencies.trials.get();
     dependencies.media_engine = cricket::CreateMediaEngine(std::move(media_dependencies));
 

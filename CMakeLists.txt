@@ -2,6 +2,9 @@ cmake_minimum_required(VERSION 3.18)
 project(pi_webrtc)
 
 set(CMAKE_CXX_STANDARD 17)
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Release)
+endif()
 set(BUILD_TEST "" CACHE STRING "test")
 set(WEBRTC_INCLUDE_DIR /usr/local/include/webrtc)
 set(WEBRTC_LIBRARY_DIR /usr/local/lib/libwebrtc.a)
@@ -23,7 +26,6 @@ add_compile_definitions(
 add_compile_options(
     -pipe
     -fdeclspec
-    -g
 )
 
 include_directories(
