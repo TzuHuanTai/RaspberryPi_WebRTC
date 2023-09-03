@@ -45,11 +45,12 @@ private:
     int bitrate_bps_;
     int key_frame_interval_;
     int buffer_count_;
+    bool is_recording_;
     BufferGroup output_;
     BufferGroup capture_;
     std::mutex mtx_;
     std::mutex recording_mtx_;
-    Recorder *recorder_;
+    std::unique_ptr<Recorder> recorder_;
     RecorderConfig recoder_config_;
 
     void WriteFile(Buffer encoded_buffer);

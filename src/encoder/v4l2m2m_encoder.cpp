@@ -11,6 +11,7 @@ V4l2m2mEncoder::V4l2m2mEncoder()
       framerate_(30),
       key_frame_interval_(12),
       buffer_count_(1),
+      is_recording_(false),
       recorder_(nullptr),
       callback_(nullptr) {}
 
@@ -36,6 +37,7 @@ int32_t V4l2m2mEncoder::InitEncode(
     encoded_image_.content_type_ = webrtc::VideoContentType::UNSPECIFIED;
 
     V4l2m2mConfigure(width_, height_, framerate_);
+    EnableRecorder(is_recording_);
 
     return WEBRTC_VIDEO_CODEC_OK;
 }
@@ -51,11 +53,7 @@ int32_t V4l2m2mEncoder::Release()
 {
     std::lock_guard<std::mutex> lock(mtx_);
 
-    if (recorder_)
-    {
-        delete recorder_;
-        recorder_ = nullptr;
-    }
+    recorder_.reset();
 
     V4l2m2mRelease();
 
@@ -176,15 +174,14 @@ webrtc::VideoEncoder::EncoderInfo V4l2m2mEncoder::GetEncoderInfo() const
 void V4l2m2mEncoder::EnableRecorder(bool onoff)
 {
     std::lock_guard<std::mutex> lock(recording_mtx_);
-
-    if (onoff && !recorder_)
+    is_recording_ = onoff;
+    if (onoff)
     {
-        recorder_ = new Recorder(recoder_config_);
+        recorder_.reset(new Recorder(recoder_config_));
     }
-    else if (!onoff && recorder_)
+    else
     {
-        delete recorder_;
-        recorder_ = nullptr;
+        recorder_.reset();
     }
 }
 
@@ -218,7 +215,7 @@ void V4l2m2mEncoder::RegisterRecordingObserver(std::shared_ptr<Observable<char *
 void V4l2m2mEncoder::WriteFile(Buffer encoded_buffer)
 {
     std::lock_guard<std::mutex> lock(recording_mtx_);
-    if (recorder_ && encoded_buffer.length > 0)
+    if (recorder_ && is_recording_ && encoded_buffer.length > 0)
     {
         recorder_->PushBuffer(encoded_buffer);
     }
