@@ -21,18 +21,17 @@ int main(int argc, char *argv[])
     Args args{.fps = 30,
               .width = 640,
               .height = 480,
-              .v4l2_format = "mjpeg"};
+              .v4l2_format = "i420",
+              .record_container = "mp4",
+              .record_path = "./",
+              .encoder_name = "h264_v4l2m2m"};
     auto capture = V4L2Capture::Create(args.device);
 
     V4l2m2mEncoder encoder;
     encoder.V4l2m2mConfigure(args.width, args.height, args.fps);
 
-    RecorderConfig config{.fps = args.fps,
-                          .width = args.width,
-                          .height = args.height,
-                          .container = "mp4",
-                          .encoder_name = "h264_v4l2m2m"};
-    Recorder recorder(config);
+    args.encoder_name = encoder.name;
+    Recorder recorder(args);
 
     auto test = [&]() -> bool
     {
@@ -51,7 +50,7 @@ int main(int argc, char *argv[])
 
         if (wait_first_keyframe)
         {
-            recorder.PushBuffer(encoded_buffer);
+            recorder.PushEncodedBuffer(encoded_buffer);
         }
 
         if (images_nb++ < args.fps * record_sec)

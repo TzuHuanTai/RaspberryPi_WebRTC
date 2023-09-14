@@ -6,11 +6,11 @@
 #include <sstream>
 #include <unistd.h>
 
-Recorder::Recorder(RecorderConfig config)
+Recorder::Recorder(Args config)
     : width(config.width),
       height(config.height),
-      base_path(config.saving_path),
-      extension(config.container),
+      base_path(config.record_path),
+      extension(config.record_container),
       encoder_name(config.encoder_name),
       frame_rate({.num = (int)config.fps, .den = 1}),
       buffer_limit_num_(config.fps * 10),
@@ -89,8 +89,8 @@ void Recorder::AddVideoStream()
     AVCodec *codec = avcodec_find_encoder_by_name(encoder_name.c_str());
     video_encoder_ = avcodec_alloc_context3(codec);
     video_encoder_->codec_type = AVMEDIA_TYPE_VIDEO;
-    video_encoder_->width = 1280;
-    video_encoder_->height = 720;
+    video_encoder_->width = width;
+    video_encoder_->height = height;
     video_encoder_->framerate = frame_rate;
     video_encoder_->time_base = av_inv_q(frame_rate);
     video_encoder_->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
@@ -101,15 +101,15 @@ void Recorder::AddVideoStream()
     avcodec_parameters_from_context(video_st_->codecpar, video_encoder_);
 }
 
-void Recorder::PushBuffer(Buffer buffer)
+void Recorder::PushEncodedBuffer(Buffer encoded_buffer)
 {
     if (buffer_queue_.size() < buffer_limit_num_)
     {
         Buffer buf = {
-            .start = malloc(buffer.length),
-            .length = buffer.length,
-            .flags = buffer.flags};
-        memcpy(buf.start, buffer.start, buffer.length);
+            .start = malloc(encoded_buffer.length),
+            .length = encoded_buffer.length,
+            .flags = encoded_buffer.flags};
+        memcpy(buf.start, encoded_buffer.start, encoded_buffer.length);
 
         buffer_queue_.push(buf);
     }

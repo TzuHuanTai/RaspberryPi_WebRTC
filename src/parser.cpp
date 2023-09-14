@@ -20,7 +20,7 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args)
     ("turn_username", bpo::value<std::string>()->default_value(args.turn_username), "Turn server username")
     ("turn_password", bpo::value<std::string>()->default_value(args.turn_password), "Turn server password")
     ("signaling_url", bpo::value<std::string>()->default_value(args.signaling_url), "Signaling server url, ref: Repository > FarmerAPI > Hubs > SignalingServer")
-    ("file_path", bpo::value<std::string>()->default_value(args.file_path), "The path to save the recording video files")
+    ("record_path", bpo::value<std::string>()->default_value(args.record_path), "The path to save the recording video files")
     ("v4l2_format", bpo::value<std::string>()->default_value(args.v4l2_format), "Set v4l2 input format i420/mjpeg/h264 while capturing, if the camera is supported");
 
     bpo::variables_map vm;
@@ -97,17 +97,17 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args)
         args.signaling_url = vm["signaling_url"].as<std::string>();
     }
 
-    if (!vm["file_path"].empty() && 
-        (!((vm["file_path"].as<std::string>()).front() == '/' ||
-        (vm["file_path"].as<std::string>()).front() == '.') ||
-        (vm["file_path"].as<std::string>()).back() != '/'))
+    if (!vm["record_path"].empty() && 
+        (!((vm["record_path"].as<std::string>()).front() == '/' ||
+        (vm["record_path"].as<std::string>()).front() == '.') ||
+        (vm["record_path"].as<std::string>()).back() != '/'))
     {
         std::cout << "The file path needs to start and end with a \"/\" character" << std::endl;
         exit(1);
     }
-    else if (vm.count("file_path"))
+    else if (vm.count("record_path"))
     {
-        args.file_path = vm["file_path"].as<std::string>();
+        args.record_path = vm["record_path"].as<std::string>();
     }
 
     if (vm.count("v4l2_format"))

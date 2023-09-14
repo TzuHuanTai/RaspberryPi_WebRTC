@@ -1,6 +1,7 @@
 #ifndef V4L2M2M_ENCODER_H_
 #define V4L2M2M_ENCODER_H_
 
+#include "args.h"
 #include "v4l2_utils.h"
 #include "data_channel_subject.h"
 #include "recorder.h"
@@ -30,14 +31,14 @@ public:
     webrtc::VideoEncoder::EncoderInfo GetEncoderInfo() const override;
 
     void RegisterRecordingObserver(std::shared_ptr<Observable<char *>> observer,
-                                   std::string saving_path);
+                                   Args args);
 
     int32_t V4l2m2mConfigure(int width, int height, int fps);
     bool V4l2m2mEncode(const uint8_t *byte, uint32_t length, Buffer &buffer);
     void V4l2m2mRelease();
+    std::string name;
 
 private:
-    std::string name_;
     int fd_;
     int width_;
     int height_;
@@ -51,7 +52,7 @@ private:
     std::mutex mtx_;
     std::mutex recording_mtx_;
     std::unique_ptr<Recorder> recorder_;
-    RecorderConfig recoder_config_;
+    Args args_;
 
     void WriteFile(Buffer encoded_buffer);
     void EnableRecorder(bool onoff);

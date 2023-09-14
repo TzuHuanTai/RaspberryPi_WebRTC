@@ -7,7 +7,7 @@
 const char *ENCODER_FILE = "/dev/video11";
 
 V4l2m2mEncoder::V4l2m2mEncoder()
-    : name_("h264_v4l2m2m"),
+    : name("h264_v4l2m2m"),
       framerate_(30),
       key_frame_interval_(12),
       buffer_count_(1),
@@ -167,7 +167,7 @@ webrtc::VideoEncoder::EncoderInfo V4l2m2mEncoder::GetEncoderInfo() const
 {
     EncoderInfo info;
     info.supports_native_handle = true;
-    info.implementation_name = name_;
+    info.implementation_name = name;
     return info;
 }
 
@@ -177,7 +177,7 @@ void V4l2m2mEncoder::EnableRecorder(bool onoff)
     is_recording_ = onoff;
     if (onoff)
     {
-        recorder_.reset(new Recorder(recoder_config_));
+        recorder_.reset(new Recorder(args_));
     }
     else
     {
@@ -186,17 +186,11 @@ void V4l2m2mEncoder::EnableRecorder(bool onoff)
 }
 
 void V4l2m2mEncoder::RegisterRecordingObserver(std::shared_ptr<Observable<char *>> observer,
-                                               std::string saving_path)
+                                               Args args)
 {
     observer_ = observer;
-
-    recoder_config_ = (RecorderConfig){
-        .fps = framerate_,
-        .width = width_,
-        .height = height_,
-        .saving_path = saving_path,
-        .container = "mp4",
-        .encoder_name = name_};
+    args_ = args;
+    args_.encoder_name = name;
 
     // TODO: parse incoming message into object to control recoder
     observer_->Subscribe(
@@ -217,7 +211,7 @@ void V4l2m2mEncoder::WriteFile(Buffer encoded_buffer)
     std::lock_guard<std::mutex> lock(recording_mtx_);
     if (recorder_ && is_recording_ && encoded_buffer.length > 0)
     {
-        recorder_->PushBuffer(encoded_buffer);
+        recorder_->PushEncodedBuffer(encoded_buffer);
     }
 }
 
