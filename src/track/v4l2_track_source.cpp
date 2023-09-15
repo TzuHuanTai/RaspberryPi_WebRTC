@@ -22,7 +22,12 @@ V4L2TrackSource::V4L2TrackSource(
     : capture_(capture),
       width_(capture->width_),
       height_(capture->height_),
-      capture_video_type_(capture->capture_video_type_) { }
+      capture_video_type_(capture->capture_video_type_) 
+{
+    // todo: h264 source -> i420, need a thread to do it concurrently
+    // decoder_ = std::make_unique<V4l2m2mDecoder>();
+    // decoder_->V4l2m2mConfigure(width_, height_);
+}
 
 V4L2TrackSource::~V4L2TrackSource() { }
 
@@ -56,6 +61,13 @@ void V4L2TrackSource::OnFrameCaptured(Buffer buffer)
                     (uint8_t *)buffer.start,
                     buffer.length);
         dst_buffer = raw_buffer;
+
+        // todo: h264 source -> i420, need a thread to do it concurrently
+        // rtc::scoped_refptr<webrtc::I420Buffer> i420_buffer(webrtc::I420Buffer::Create(width_, height_));
+        // i420_buffer->InitializeData();
+        // decoder_->V4l2m2mDecode((uint8_t *)buffer.start, buffer.length, decoded_buffer);
+        // std::memcpy(i420_buffer.get()->MutableDataY(), (uint8_t *)decoded_buffer.start,
+        //             decoded_buffer.length);
     }
     else
     {
@@ -71,10 +83,8 @@ void V4L2TrackSource::OnFrameCaptured(Buffer buffer)
         {
             // "ConvertToI420 Failed"
         }
-        else
-        {
-            dst_buffer = i420_buffer;
-        }
+
+        dst_buffer = i420_buffer;
 
         if (adapted_width != width_ || adapted_height != height_)
         {

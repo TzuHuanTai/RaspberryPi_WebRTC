@@ -3,14 +3,13 @@
 
 #include "v4l2_utils.h"
 #include "capture/v4l2_capture.h"
+// #include "decoder/v4l2m2m_decoder.h"
 
+// #include <api/video/i420_buffer.h>
 #include <media/base/adapted_video_track_source.h>
 
 class V4L2TrackSource : public rtc::AdaptedVideoTrackSource
 {
-protected:
-    std::shared_ptr<V4L2Capture> capture_;
-
 public:
     int width_;
     int height_;
@@ -27,6 +26,11 @@ public:
 
     static rtc::scoped_refptr<V4L2TrackSource> Create(std::shared_ptr<V4L2Capture> capture);
     void StartTrack();
+
+private:
+    // Buffer decoded_buffer = {0};
+    // std::unique_ptr<V4l2m2mDecoder> decoder_;
+    std::shared_ptr<V4L2Capture> capture_;
 };
 
 #endif
