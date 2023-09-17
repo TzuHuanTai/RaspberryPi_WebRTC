@@ -260,7 +260,7 @@ int32_t V4l2m2mEncoder::V4l2m2mConfigure(int width, int height, int fps)
         exit(-1);
     }
 
-    if (!V4l2Util::AllocateBuffer(fd_, &output_, buffer_count_) 
+    if (!V4l2Util::AllocateBuffer(fd_, &output_, buffer_count_, false) 
         || !V4l2Util::AllocateBuffer(fd_, &capture_, buffer_count_))
     {
         exit(-1);
@@ -281,34 +281,63 @@ bool V4l2m2mEncoder::V4l2m2mEncode(const uint8_t *byte, uint32_t length, Buffer 
     buf.length = 1;
     buf.m.planes = &out_planes;
 
-    // Dequeue the output buffer, read the frame and queue it back.
-    buf.type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
-    if (!V4l2Util::DequeueBuffer(fd_, &buf))
+    memcpy((uint8_t *)output_.buffers[0].start, byte, length);
+    if (!V4l2Util::QueueBuffer(fd_, &output_.buffers[0].inner))
     {
         return false;
     }
 
-    memcpy((uint8_t *)output_.buffers[buf.index].start, byte, length);
-
-    if (!V4l2Util::QueueBuffer(fd_, &output_.buffers[buf.index].inner))
+    for (;;)
     {
-        return false;
-    }
+        fd_set fds[3];
+        fd_set *rd_fds = &fds[0]; /* for capture */
+        fd_set *ex_fds = &fds[1]; /* for handle event */
+        FD_ZERO(rd_fds);
+        FD_SET(fd_, rd_fds);
+        FD_ZERO(ex_fds);
+        FD_SET(fd_, ex_fds);
+        struct timeval tv;
+        tv.tv_sec = 1;
+        tv.tv_usec = 0;
 
-    // Dequeue the capture buffer, write out the encoded frame and queue it back.
-    buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
-    if (!V4l2Util::DequeueBuffer(fd_, &buf))
-    {
-        return false;
-    }
+        int r = select(fd_ + 1, rd_fds, NULL, ex_fds, &tv);
 
-    buffer.start = capture_.buffers[buf.index].start;
-    buffer.length = buf.m.planes[0].bytesused;
-    buffer.flags = buf.flags;
+        if (r <= 0) // timeout or failed
+        {
+            return false;
+        }
 
-    if (!V4l2Util::QueueBuffer(fd_, &capture_.buffers[buf.index].inner))
-    {
-        return false;
+        if (rd_fds && FD_ISSET(fd_, rd_fds))
+        {
+            buf.type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
+            if (!V4l2Util::DequeueBuffer(fd_, &buf))
+            {
+                return false;
+            }
+
+            buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+            if (!V4l2Util::DequeueBuffer(fd_, &buf))
+            {
+                return false;
+            }
+
+            buffer.start = capture_.buffers[buf.index].start;
+            buffer.length = buf.m.planes[0].bytesused;
+            buffer.flags = buf.flags;
+
+            if (!V4l2Util::QueueBuffer(fd_, &capture_.buffers[buf.index].inner))
+            {
+                return false;
+            }
+            break;
+        }
+
+        if (ex_fds && FD_ISSET(fd_, ex_fds))
+        {
+            fprintf(stderr, "Exception in encoder.\n");
+            break;
+        }
+        /* EAGAIN - continue select loop. */
     }
 
     return true;

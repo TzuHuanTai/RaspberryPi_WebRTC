@@ -49,8 +49,8 @@ public:
     static bool StreamOn(int fd, v4l2_buf_type type);
     static bool StreamOff(int fd, v4l2_buf_type type);
     static void UnMap(struct BufferGroup *gbuffer, int num_buffers);
-    static bool MMap(int fd, struct BufferGroup *gbuffer);
-    static bool AllocateBuffer(int fd, struct BufferGroup *gbuffer, int num_buffers);
+    static bool MMap(int fd, struct BufferGroup *gbuffer, bool is_enqueued);
+    static bool AllocateBuffer(int fd, struct BufferGroup *gbuffer, int num_buffers, bool is_enqueued = true);
 };
 
 #endif // V4L2_UTILS_

@@ -106,7 +106,7 @@ bool V4l2Util::QueueBuffer(int fd, v4l2_buffer *buffer)
 {
     if (ioctl(fd, VIDIOC_QBUF, buffer) < 0)
     {
-        fprintf(stderr, "fd(%d) queue buffer: %s\n", fd, strerror(errno));
+        fprintf(stderr, "fd(%d) queue buffer(%u): %s\n", fd, buffer->type, strerror(errno));
         return false;
     }
     return true;
@@ -249,7 +249,7 @@ void V4l2Util::UnMap(struct BufferGroup *gbuffer, int num_buffers)
     fprintf(stderr, "Unmapped (%s) buffers\n", gbuffer->name);
 }
 
-bool V4l2Util::MMap(int fd, struct BufferGroup *gbuffer)
+bool V4l2Util::MMap(int fd, struct BufferGroup *gbuffer, bool is_enqueued)
 {
     for(int i = 0; i < gbuffer->num_buffers; i++)
     {
@@ -288,10 +288,13 @@ bool V4l2Util::MMap(int fd, struct BufferGroup *gbuffer)
             return false;
         }
 
-        if (!V4l2Util::QueueBuffer(fd, inner))
-        {
-            return false;
+        if(is_enqueued){
+            if (!V4l2Util::QueueBuffer(fd, inner))
+            {
+                return false;
+            }
         }
+
 
         printf("V4l2m2m querying %s buffer: %p with %d length\n", 
                 gbuffer->name, buffer->start, buffer->length);
@@ -300,7 +303,7 @@ bool V4l2Util::MMap(int fd, struct BufferGroup *gbuffer)
     return true;
 }
 
-bool V4l2Util::AllocateBuffer(int fd, struct BufferGroup *gbuffer, int num_buffers)
+bool V4l2Util::AllocateBuffer(int fd, struct BufferGroup *gbuffer, int num_buffers, bool is_enqueued)
 {
     gbuffer->num_buffers = num_buffers;
     gbuffer->buffers = new Buffer[num_buffers];
@@ -316,7 +319,7 @@ bool V4l2Util::AllocateBuffer(int fd, struct BufferGroup *gbuffer, int num_buffe
         return false;
     }
 
-    if (!MMap(fd, gbuffer))
+    if (!MMap(fd, gbuffer, is_enqueued))
     {
         return false;
     }
