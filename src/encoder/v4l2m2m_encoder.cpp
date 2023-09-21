@@ -37,6 +37,7 @@ int32_t V4l2m2mEncoder::InitEncode(
     encoded_image_.timing_.flags = webrtc::VideoSendTiming::TimingFrameFlags::kInvalid;
     encoded_image_.content_type_ = webrtc::VideoContentType::UNSPECIFIED;
 
+    output_buffer_queue_ = {};
     V4l2m2mConfigure(width_, height_, framerate_);
     EnableRecorder(is_recording_);
     StartCapture();
@@ -387,12 +388,12 @@ void V4l2m2mEncoder::SendFrame(const webrtc::VideoFrame &frame, Buffer &encoded_
 
 void V4l2m2mEncoder::StartCapture()
 {
+    is_capturing_ = true;
     capture_thread_ = rtc::PlatformThread::SpawnJoinable(
             [this]()
             { this->CaptureThread(); },
             "CaptureThread",
             rtc::ThreadAttributes().SetPriority(rtc::ThreadPriority::kHigh));
-    is_capturing_ = true;
 }
 
 void V4l2m2mEncoder::CaptureThread()
