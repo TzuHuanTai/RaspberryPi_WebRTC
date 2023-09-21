@@ -16,7 +16,9 @@ struct Args
   std::string turn_username = "";
   std::string turn_password = "";
   std::string signaling_url = "http://localhost:5000/SignalingServer";
-  std::string file_path = "./";
+  std::string record_path = "";
+  std::string record_container = "mp4";
+  std::string encoder_name = "h264_v4l2m2m";
 };
 
 #endif // ARGS_H_

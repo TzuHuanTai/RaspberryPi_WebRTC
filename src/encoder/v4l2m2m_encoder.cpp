@@ -7,11 +7,12 @@
 const char *ENCODER_FILE = "/dev/video11";
 
 V4l2m2mEncoder::V4l2m2mEncoder()
-    : name_("h264_v4l2m2m"),
+    : name("h264_v4l2m2m"),
       framerate_(30),
       key_frame_interval_(12),
-      buffer_count_(1),
+      buffer_count_(4),
       is_recording_(false),
+      is_capturing_(false),
       recorder_(nullptr),
       callback_(nullptr) {}
 
@@ -36,8 +37,10 @@ int32_t V4l2m2mEncoder::InitEncode(
     encoded_image_.timing_.flags = webrtc::VideoSendTiming::TimingFrameFlags::kInvalid;
     encoded_image_.content_type_ = webrtc::VideoContentType::UNSPECIFIED;
 
+    output_buffer_queue_ = {};
     V4l2m2mConfigure(width_, height_, framerate_);
     EnableRecorder(is_recording_);
+    StartCapture();
 
     return WEBRTC_VIDEO_CODEC_OK;
 }
@@ -52,7 +55,8 @@ int32_t V4l2m2mEncoder::RegisterEncodeCompleteCallback(
 int32_t V4l2m2mEncoder::Release()
 {
     std::lock_guard<std::mutex> lock(mtx_);
-
+    is_capturing_ = false;
+    capture_thread_.Finalize();
     recorder_.reset();
 
     V4l2m2mRelease();
@@ -76,49 +80,22 @@ int32_t V4l2m2mEncoder::Encode(
 
     auto i420_buffer = frame_buffer->GetI420();
 
-    Buffer encoded_buffer = { 0 };
     int i420_buffer_size = (i420_buffer->StrideY() * height_) +
                     ((i420_buffer->StrideY() + 1) / 2) * ((height_ + 1) / 2) * 2;
-    if (!V4l2m2mEncode(i420_buffer->DataY(), i420_buffer_size, encoded_buffer))
+
+    auto output_result = std::async(std::launch::async, &V4l2m2mEncoder::OutputRawBuffer,
+                                    this, i420_buffer->DataY(), i420_buffer_size);
+
+    // skip sending task if output_result is false
+    bool is_output = output_result.get();
+    if(is_output)
     {
-        return WEBRTC_VIDEO_CODEC_ERROR;
+        sending_tasks_.push(
+            [this, frame](Buffer encoded_buffer) { SendFrame(frame, encoded_buffer); }
+        );
     }
 
-    auto encoded_image_buffer =
-        webrtc::EncodedImageBuffer::Create((uint8_t *)encoded_buffer.start, encoded_buffer.length);
-
-    webrtc::CodecSpecificInfo codec_specific;
-    codec_specific.codecType = webrtc::kVideoCodecH264;
-    codec_specific.codecSpecific.H264.packetization_mode =
-        webrtc::H264PacketizationMode::NonInterleaved;
-
-    encoded_image_.SetEncodedData(encoded_image_buffer);
-    encoded_image_.SetTimestamp(frame.timestamp());
-    encoded_image_.SetColorSpace(frame.color_space());
-    encoded_image_._encodedWidth = width_;
-    encoded_image_._encodedHeight = height_;
-    encoded_image_.capture_time_ms_ = frame.render_time_ms();
-    encoded_image_.ntp_time_ms_ = frame.ntp_time_ms();
-    encoded_image_.rotation_ = frame.rotation();
-    encoded_image_._frameType = webrtc::VideoFrameType::kVideoFrameDelta;
-
-    if (encoded_buffer.flags & V4L2_BUF_FLAG_KEYFRAME)
-    {
-        encoded_image_._frameType = webrtc::VideoFrameType::kVideoFrameKey;
-    }
-
-    WriteFile(encoded_buffer);
-
-    auto result = callback_->OnEncodedImage(encoded_image_, &codec_specific);
-    if (result.error != webrtc::EncodedImageCallback::Result::OK)
-    {
-        std::cout << "OnEncodedImage failed error:" << result.error << std::endl;
-        return WEBRTC_VIDEO_CODEC_ERROR;
-    }
-
-    bitrate_adjuster_->Update(encoded_buffer.length);
-
-    return WEBRTC_VIDEO_CODEC_OK;
+    return is_output? WEBRTC_VIDEO_CODEC_OK : WEBRTC_VIDEO_CODEC_ERROR;
 }
 
 void V4l2m2mEncoder::SetRates(const RateControlParameters &parameters)
@@ -167,7 +144,7 @@ webrtc::VideoEncoder::EncoderInfo V4l2m2mEncoder::GetEncoderInfo() const
 {
     EncoderInfo info;
     info.supports_native_handle = true;
-    info.implementation_name = name_;
+    info.implementation_name = name;
     return info;
 }
 
@@ -177,7 +154,7 @@ void V4l2m2mEncoder::EnableRecorder(bool onoff)
     is_recording_ = onoff;
     if (onoff)
     {
-        recorder_.reset(new Recorder(recoder_config_));
+        recorder_.reset(new Recorder(args_));
     }
     else
     {
@@ -186,17 +163,11 @@ void V4l2m2mEncoder::EnableRecorder(bool onoff)
 }
 
 void V4l2m2mEncoder::RegisterRecordingObserver(std::shared_ptr<Observable<char *>> observer,
-                                               std::string saving_path)
+                                               Args args)
 {
     observer_ = observer;
-
-    recoder_config_ = (RecorderConfig){
-        .fps = framerate_,
-        .width = width_,
-        .height = height_,
-        .saving_path = saving_path,
-        .container = "mp4",
-        .encoder_name = name_};
+    args_ = args;
+    args_.encoder_name = name;
 
     // TODO: parse incoming message into object to control recoder
     observer_->Subscribe(
@@ -217,7 +188,7 @@ void V4l2m2mEncoder::WriteFile(Buffer encoded_buffer)
     std::lock_guard<std::mutex> lock(recording_mtx_);
     if (recorder_ && is_recording_ && encoded_buffer.length > 0)
     {
-        recorder_->PushBuffer(encoded_buffer);
+        recorder_->PushEncodedBuffer(encoded_buffer);
     }
 }
 
@@ -266,10 +237,15 @@ int32_t V4l2m2mEncoder::V4l2m2mConfigure(int width, int height, int fps)
         exit(-1);
     }
 
-    if (!V4l2Util::AllocateBuffer(fd_, &output_, buffer_count_) 
+    if (!V4l2Util::AllocateBuffer(fd_, &output_, buffer_count_, false) 
         || !V4l2Util::AllocateBuffer(fd_, &capture_, buffer_count_))
     {
         exit(-1);
+    }
+
+    for (int i = 0; i < buffer_count_; i++)
+    {
+        output_buffer_queue_.push(i);
     }
 
     V4l2Util::StreamOn(fd_, output_.type);
@@ -281,43 +257,160 @@ int32_t V4l2m2mEncoder::V4l2m2mConfigure(int width, int height, int fps)
 
 bool V4l2m2mEncoder::V4l2m2mEncode(const uint8_t *byte, uint32_t length, Buffer &buffer)
 {
-    struct v4l2_buffer buf = {0};
-    struct v4l2_plane out_planes = {0};
-    buf.memory = V4L2_MEMORY_MMAP;
-    buf.length = 1;
-    buf.m.planes = &out_planes;
-
-    // Dequeue the output buffer, read the frame and queue it back.
-    buf.type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
-    if (!V4l2Util::DequeueBuffer(fd_, &buf))
+    if (!OutputRawBuffer(byte, length))
     {
         return false;
     }
 
-    memcpy((uint8_t *)output_.buffers[buf.index].start, byte, length);
-
-    if (!V4l2Util::QueueBuffer(fd_, &output_.buffers[buf.index].inner))
-    {
-        return false;
-    }
-
-    // Dequeue the capture buffer, write out the encoded frame and queue it back.
-    buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
-    if (!V4l2Util::DequeueBuffer(fd_, &buf))
-    {
-        return false;
-    }
-
-    buffer.start = capture_.buffers[buf.index].start;
-    buffer.length = buf.m.planes[0].bytesused;
-    buffer.flags = buf.flags;
-
-    if (!V4l2Util::QueueBuffer(fd_, &capture_.buffers[buf.index].inner))
+    if(!CaptureProcessedBuffer(buffer))
     {
         return false;
     }
 
     return true;
+}
+
+bool V4l2m2mEncoder::OutputRawBuffer(const uint8_t *byte, uint32_t length)
+{
+    if (output_buffer_queue_.empty())
+    {
+        return false;
+    }
+
+    int index = output_buffer_queue_.front();
+    output_buffer_queue_.pop();
+
+    memcpy((uint8_t *)output_.buffers[index].start, byte, length);
+    
+    if (!V4l2Util::QueueBuffer(fd_, &output_.buffers[index].inner))
+    {
+        fprintf(stderr, "error: QueueBuffer V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE.\n");
+        return false;
+    }
+
+    return true;
+}
+
+bool V4l2m2mEncoder::CaptureProcessedBuffer(Buffer &buffer)
+{
+    fd_set fds[2];
+    fd_set *rd_fds = &fds[0]; /* for capture */
+    fd_set *ex_fds = &fds[1]; /* for handle event */
+    FD_ZERO(rd_fds);
+    FD_SET(fd_, rd_fds);
+    FD_ZERO(ex_fds);
+    FD_SET(fd_, ex_fds);
+    struct timeval tv;
+    tv.tv_sec = 1;
+    tv.tv_usec = 0;
+
+    int r = select(fd_ + 1, rd_fds, NULL, ex_fds, &tv);
+
+    if (r <= 0) // timeout or failed
+    {
+        return false;
+    }
+
+    if (rd_fds && FD_ISSET(fd_, rd_fds))
+    {
+        struct v4l2_buffer buf = {0};
+        struct v4l2_plane out_planes = {0};
+        buf.memory = V4L2_MEMORY_MMAP;
+        buf.length = 1;
+        buf.m.planes = &out_planes;
+
+        buf.type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
+        if (!V4l2Util::DequeueBuffer(fd_, &buf))
+        {
+            return false;
+        }
+        output_buffer_queue_.push(buf.index);
+
+        buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+        if (!V4l2Util::DequeueBuffer(fd_, &buf))
+        {
+            return false;
+        }
+
+        buffer.start = capture_.buffers[buf.index].start;
+        buffer.length = buf.m.planes[0].bytesused;
+        buffer.flags = buf.flags;
+
+        if (!V4l2Util::QueueBuffer(fd_, &capture_.buffers[buf.index].inner))
+        {
+            return false;
+        }
+    }
+
+    if (ex_fds && FD_ISSET(fd_, ex_fds))
+    {
+        fprintf(stderr, "Exception in encoder.\n");
+    }
+
+    return true;
+}
+
+void V4l2m2mEncoder::SendFrame(const webrtc::VideoFrame &frame, Buffer &encoded_buffer)
+{
+    auto encoded_image_buffer =
+        webrtc::EncodedImageBuffer::Create((uint8_t *)encoded_buffer.start, encoded_buffer.length);
+
+    webrtc::CodecSpecificInfo codec_specific;
+    codec_specific.codecType = webrtc::kVideoCodecH264;
+    codec_specific.codecSpecific.H264.packetization_mode =
+        webrtc::H264PacketizationMode::NonInterleaved;
+
+    encoded_image_.SetEncodedData(encoded_image_buffer);
+    encoded_image_.SetTimestamp(frame.timestamp());
+    encoded_image_.SetColorSpace(frame.color_space());
+    encoded_image_._encodedWidth = width_;
+    encoded_image_._encodedHeight = height_;
+    encoded_image_.capture_time_ms_ = frame.render_time_ms();
+    encoded_image_.ntp_time_ms_ = frame.ntp_time_ms();
+    encoded_image_.rotation_ = frame.rotation();
+    encoded_image_._frameType = webrtc::VideoFrameType::kVideoFrameDelta;
+
+    if (encoded_buffer.flags & V4L2_BUF_FLAG_KEYFRAME)
+    {
+        encoded_image_._frameType = webrtc::VideoFrameType::kVideoFrameKey;
+    }
+
+    WriteFile(encoded_buffer);
+
+    auto result = callback_->OnEncodedImage(encoded_image_, &codec_specific);
+    if (result.error != webrtc::EncodedImageCallback::Result::OK)
+    {
+        std::cout << "OnEncodedImage failed error:" << result.error << std::endl;
+    }
+
+    bitrate_adjuster_->Update(encoded_buffer.length);
+}
+
+void V4l2m2mEncoder::StartCapture()
+{
+    is_capturing_ = true;
+    capture_thread_ = rtc::PlatformThread::SpawnJoinable(
+            [this]()
+            { this->CaptureThread(); },
+            "CaptureThread",
+            rtc::ThreadAttributes().SetPriority(rtc::ThreadPriority::kHigh));
+}
+
+void V4l2m2mEncoder::CaptureThread()
+{
+    Buffer encoded_buffer = { 0 };
+    while (is_capturing_)
+    {
+        if(CaptureProcessedBuffer(encoded_buffer))
+        {
+            if(sending_tasks_.empty()){
+                continue;
+            }
+            auto task = sending_tasks_.front();
+            sending_tasks_.pop();
+            task(encoded_buffer);
+        }
+    }
 }
 
 void V4l2m2mEncoder::V4l2m2mRelease()

@@ -1,9 +1,10 @@
 #ifndef RECODER_H_
 #define RECODER_H_
 
+#include "args.h"
 #include "v4l2_utils.h"
 
-#include "string"
+#include <string>
 #include <future>
 #include <queue>
 #include <memory>
@@ -14,16 +15,6 @@ extern "C"
 #include <libavformat/avformat.h>
 #include <libswscale/swscale.h>
 }
-
-struct RecorderConfig
-{
-    int fps;
-    int width;
-    int height;
-    std::string saving_path = "./";
-    std::string container = "mp4";
-    std::string encoder_name;
-};
 
 class Recorder : public std::enable_shared_from_this<Recorder>
 {
@@ -37,10 +28,10 @@ public:
     std::string encoder_name;
     AVRational frame_rate;
 
-    Recorder(RecorderConfig config);
+    Recorder(Args config);
     ~Recorder();
 
-    void PushBuffer(Buffer buffer);
+    void PushEncodedBuffer(Buffer buffer);
 
 private:
     bool is_recording_;
