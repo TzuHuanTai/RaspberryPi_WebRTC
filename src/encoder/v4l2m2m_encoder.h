@@ -5,6 +5,7 @@
 #include "v4l2_utils.h"
 #include "data_channel_subject.h"
 #include "recorder.h"
+#include "processor.h"
 
 #include <functional>
 #include <mutex>
@@ -14,7 +15,6 @@
 #include <api/video_codecs/video_encoder.h>
 #include <common_video/include/bitrate_adjuster.h>
 #include <modules/video_coding/codecs/h264/include/h264.h>
-#include <rtc_base/platform_thread.h>
 
 class V4l2m2mEncoder : public webrtc::VideoEncoder
 {
@@ -41,7 +41,6 @@ public:
     void V4l2m2mRelease();
     bool OutputRawBuffer(const uint8_t *byte, uint32_t length);
     bool CaptureProcessedBuffer(Buffer &buffer);
-    void StartCapture();
     std::string name;
 
 private:
@@ -53,12 +52,12 @@ private:
     int key_frame_interval_;
     int buffer_count_;
     bool is_recording_;
-    bool is_capturing_;
     BufferGroup output_;
     BufferGroup capture_;
     std::mutex mtx_;
     std::mutex recording_mtx_;
     std::unique_ptr<Recorder> recorder_;
+    std::unique_ptr<Processor> processor_;
     std::queue<int> output_buffer_queue_;
     std::queue<std::function<void(Buffer)>> sending_tasks_;
     Args args_;
@@ -66,12 +65,11 @@ private:
     void WriteFile(Buffer encoded_buffer);
     void EnableRecorder(bool onoff);
     void SendFrame(const webrtc::VideoFrame &frame, Buffer &encoded_buffer);
-    void CaptureThread();
+    void CapturingFunction();
 
     webrtc::VideoCodec codec_;
     webrtc::EncodedImage encoded_image_;
     webrtc::EncodedImageCallback *callback_;
-    rtc::PlatformThread capture_thread_;
     std::unique_ptr<webrtc::BitrateAdjuster> bitrate_adjuster_;
     std::shared_ptr<Observable<char *>> observer_;
 };

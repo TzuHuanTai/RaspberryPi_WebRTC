@@ -3,9 +3,9 @@
 
 #include "v4l2_utils.h"
 #include "subject_interface.h"
+#include "processor.h"
 
 #include <modules/video_capture/video_capture.h>
-#include <rtc_base/platform_thread.h>
 #include <rtc_base/synchronization/mutex.h>
 
 class V4L2Capture : public SubjectInterface<Buffer>
@@ -14,18 +14,15 @@ private:
     int fd_;
     int camera_index_;
     int buffer_count_;
-    bool capture_started;
     mutable webrtc::Mutex capture_lock_;
     BufferGroup capture_;
     Buffer shared_buffer_;
 
-    rtc::PlatformThread capture_thread_;
-    std::function<bool()> capture_func_;
+    std::function<void()> capture_func_;
+    std::unique_ptr<Processor> processor_;
 
     bool CheckMatchingDevice(std::string unique_name);
     int GetCameraIndex(webrtc::VideoCaptureModule::DeviceInfo *device_info);
-    void CaptureThread();
-    bool CaptureProcess();
 
 public:
     int fps_;
@@ -48,7 +45,7 @@ public:
     V4L2Capture &SetCaptureFunc(std::function<bool()> capture_func);
     void StartCapture();
     void CaptureImage();
-    Buffer GetImage();
+    const Buffer& GetImage() const;
 };
 
 #endif
