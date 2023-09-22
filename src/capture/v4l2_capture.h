@@ -6,7 +6,6 @@
 #include "processor.h"
 
 #include <modules/video_capture/video_capture.h>
-#include <rtc_base/synchronization/mutex.h>
 
 class V4L2Capture : public SubjectInterface<Buffer>
 {
@@ -14,7 +13,6 @@ private:
     int fd_;
     int camera_index_;
     int buffer_count_;
-    mutable webrtc::Mutex capture_lock_;
     BufferGroup capture_;
     Buffer shared_buffer_;
 

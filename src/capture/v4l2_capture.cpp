@@ -28,8 +28,6 @@ V4L2Capture::V4L2Capture(std::string device)
 
 V4L2Capture::~V4L2Capture()
 {
-    webrtc::MutexLock lock(&capture_lock_);
-    
     processor_.reset();
 
     for (int i = 0; i < capture_.num_buffers; i++)
@@ -202,8 +200,6 @@ const Buffer& V4L2Capture::GetImage() const
 
 void V4L2Capture::StartCapture()
 {
-    webrtc::MutexLock lock(&capture_lock_);
-
     if (!V4l2Util::AllocateBuffer(fd_, &capture_, buffer_count_))
     {
         exit(0);
@@ -213,9 +209,7 @@ void V4L2Capture::StartCapture()
 
     if (capture_func_ == nullptr)
     {
-        capture_func_ = [this]() -> void { 
-                            webrtc::MutexLock lock(&capture_lock_);
-                            CaptureImage(); };
+        capture_func_ = [this]() -> void { CaptureImage(); };
     }
 
     processor_.reset(new Processor(capture_func_));
