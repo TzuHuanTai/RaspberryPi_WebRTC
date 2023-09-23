@@ -5,6 +5,7 @@ target_sources(common
     PRIVATE
     v4l2_utils.cpp
     recorder.cpp
+    processor.cpp
 )
 
 add_subdirectory(decoder)

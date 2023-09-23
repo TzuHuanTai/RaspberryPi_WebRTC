@@ -16,8 +16,7 @@ std::shared_ptr<V4L2Capture> V4L2Capture::Create(std::string device)
 }
 
 V4L2Capture::V4L2Capture(std::string device)
-    : buffer_count_(2),
-      capture_started(false)
+    : buffer_count_(2)
 {
     webrtc::VideoCaptureModule::DeviceInfo *device_info = webrtc::VideoCaptureFactory::CreateDeviceInfo();
     fd_ = V4l2Util::OpenDevice(device.c_str());
@@ -29,13 +28,7 @@ V4L2Capture::V4L2Capture(std::string device)
 
 V4L2Capture::~V4L2Capture()
 {
-    capture_started = false;
-    webrtc::MutexLock lock(&capture_lock_);
-    
-    if (!capture_thread_.empty())
-    {
-        capture_thread_.Finalize();
-    }
+    processor_.reset();
 
     for (int i = 0; i < capture_.num_buffers; i++)
     {
@@ -200,15 +193,13 @@ void V4L2Capture::CaptureImage()
     Next(shared_buffer_);
 }
 
-Buffer V4L2Capture::GetImage()
+const Buffer& V4L2Capture::GetImage() const
 {
     return shared_buffer_;
 }
 
 void V4L2Capture::StartCapture()
 {
-    webrtc::MutexLock lock(&capture_lock_);
-
     if (!V4l2Util::AllocateBuffer(fd_, &capture_, buffer_count_))
     {
         exit(0);
@@ -218,35 +209,9 @@ void V4L2Capture::StartCapture()
 
     if (capture_func_ == nullptr)
     {
-        capture_func_ = [this]() -> bool
-        { return CaptureProcess(); };
+        capture_func_ = [this]() -> void { CaptureImage(); };
     }
 
-    // start capture thread;
-    if (capture_thread_.empty())
-    {
-        capture_thread_ = rtc::PlatformThread::SpawnJoinable(
-            [this]()
-            { this->CaptureThread(); },
-            "CaptureThread",
-            rtc::ThreadAttributes().SetPriority(rtc::ThreadPriority::kHigh));
-    }
-
-    capture_started = true;
-}
-
-void V4L2Capture::CaptureThread()
-{
-    while (capture_func_()) { }
-}
-
-bool V4L2Capture::CaptureProcess()
-{
-    webrtc::MutexLock lock(&capture_lock_);
-    if (capture_started)
-    {
-        CaptureImage();
-        return true;
-    }
-    return false;
+    processor_.reset(new Processor(capture_func_));
+    processor_->Run();
 }

@@ -42,6 +42,9 @@ int32_t V4l2m2mEncoder::InitEncode(
     EnableRecorder(is_recording_);
     StartCapture();
 
+    processor_.reset(new Processor([&]() { CapturingFunction();}));
+    processor_->Run();
+
     return WEBRTC_VIDEO_CODEC_OK;
 }
 
@@ -55,8 +58,7 @@ int32_t V4l2m2mEncoder::RegisterEncodeCompleteCallback(
 int32_t V4l2m2mEncoder::Release()
 {
     std::lock_guard<std::mutex> lock(mtx_);
-    is_capturing_ = false;
-    capture_thread_.Finalize();
+    processor_.reset();
     recorder_.reset();
 
     V4l2m2mRelease();
@@ -386,30 +388,17 @@ void V4l2m2mEncoder::SendFrame(const webrtc::VideoFrame &frame, Buffer &encoded_
     bitrate_adjuster_->Update(encoded_buffer.length);
 }
 
-void V4l2m2mEncoder::StartCapture()
+void V4l2m2mEncoder::CapturingFunction()
 {
-    is_capturing_ = true;
-    capture_thread_ = rtc::PlatformThread::SpawnJoinable(
-            [this]()
-            { this->CaptureThread(); },
-            "CaptureThread",
-            rtc::ThreadAttributes().SetPriority(rtc::ThreadPriority::kHigh));
-}
-
-void V4l2m2mEncoder::CaptureThread()
-{
-    Buffer encoded_buffer = { 0 };
-    while (is_capturing_)
+    Buffer encoded_buffer = {};
+    if(CaptureProcessedBuffer(encoded_buffer))
     {
-        if(CaptureProcessedBuffer(encoded_buffer))
-        {
-            if(sending_tasks_.empty()){
-                continue;
-            }
-            auto task = sending_tasks_.front();
-            sending_tasks_.pop();
-            task(encoded_buffer);
+        if(sending_tasks_.empty()){
+            return;
         }
+        auto task = sending_tasks_.front();
+        sending_tasks_.pop();
+        task(encoded_buffer);
     }
 }
 
