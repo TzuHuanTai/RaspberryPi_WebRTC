@@ -5,6 +5,7 @@
 #include "v4l2_utils.h"
 #include "data_channel_subject.h"
 #include "recorder.h"
+#include "processor.h"
 
 #include <functional>
 #include <mutex>
@@ -41,7 +42,6 @@ public:
     void V4l2m2mRelease();
     bool OutputRawBuffer(const uint8_t *byte, uint32_t length);
     bool CaptureProcessedBuffer(Buffer &buffer);
-    void StartCapture();
     std::string name;
 
 private:
@@ -59,6 +59,7 @@ private:
     std::mutex mtx_;
     std::mutex recording_mtx_;
     std::unique_ptr<Recorder> recorder_;
+    std::unique_ptr<Processor> processor_;
     std::queue<int> output_buffer_queue_;
     std::queue<std::function<void(Buffer)>> sending_tasks_;
     Args args_;
@@ -66,7 +67,7 @@ private:
     void WriteFile(Buffer encoded_buffer);
     void EnableRecorder(bool onoff);
     void SendFrame(const webrtc::VideoFrame &frame, Buffer &encoded_buffer);
-    void CaptureThread();
+    void CapturingFunction();
 
     webrtc::VideoCodec codec_;
     webrtc::EncodedImage encoded_image_;
