@@ -37,7 +37,7 @@ public:
     void RegisterRecordingObserver(std::shared_ptr<Observable<char *>> observer,
                                    Args args);
 
-    int32_t V4l2m2mConfigure(int width, int height, int fps);
+    bool V4l2m2mConfigure(int width, int height, int fps);
     bool V4l2m2mEncode(const uint8_t *byte, uint32_t length, Buffer &buffer);
     void V4l2m2mRelease();
     bool OutputRawBuffer(const uint8_t *byte, uint32_t length);

@@ -37,9 +37,9 @@ public:
     void UnSubscribe() override;
 
     static std::shared_ptr<V4L2Capture> Create(std::string device);
-    V4L2Capture &SetFormat(uint width, uint height, std::string video_type);
-    V4L2Capture &SetFps(uint fps = 30);
-    V4L2Capture &SetRotation(uint angle);
+    V4L2Capture &SetFormat(int width, int height, std::string video_type);
+    V4L2Capture &SetFps(int fps = 30);
+    V4L2Capture &SetRotation(int angle);
     V4L2Capture &SetCaptureFunc(std::function<bool()> capture_func);
     void StartCapture();
     void CaptureImage();
