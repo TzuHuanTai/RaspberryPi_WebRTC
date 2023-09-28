@@ -10,57 +10,43 @@
 
 #include <iostream>
 
-std::shared_ptr<V4L2Capture> V4L2Capture::Create(std::string device)
-{
+std::shared_ptr<V4L2Capture> V4L2Capture::Create(std::string device) {
     return std::make_shared<V4L2Capture>(device);
 }
 
 V4L2Capture::V4L2Capture(std::string device)
-    : buffer_count_(2)
-{
+    : buffer_count_(2) {
     webrtc::VideoCaptureModule::DeviceInfo *device_info = webrtc::VideoCaptureFactory::CreateDeviceInfo();
     fd_ = V4l2Util::OpenDevice(device.c_str());
     camera_index_ = GetCameraIndex(device_info);
 
-    capture_.name = "v4l2_capture";
-    capture_.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-}
-
-V4L2Capture::~V4L2Capture()
-{
-    processor_.reset();
-
-    for (int i = 0; i < capture_.num_buffers; i++)
-    {
-        munmap(capture_.buffers[i].start, capture_.buffers[i].length);
+    if (!V4l2Util::InitBuffer(fd_, &capture_, V4L2_BUF_TYPE_VIDEO_CAPTURE, V4L2_MEMORY_MMAP)) {
+        exit(0);
     }
-
-    V4l2Util::StreamOff(fd_, capture_.type);
-
-    V4l2Util::CloseDevice(fd_);
-    printf("~V4L2Capture fd(%d) is closed.\n", fd_);
 }
 
-void V4L2Capture::Next(Buffer buffer)
-{
-    for (auto observer : observers_)
-    {
-        if (observer->subscribed_func_ != nullptr)
-        {
+V4L2Capture::~V4L2Capture() {
+    processor_.reset();
+    V4l2Util::StreamOff(fd_, capture_.type);
+    V4l2Util::DeallocateBuffer(fd_, &capture_);
+    V4l2Util::CloseDevice(fd_);
+}
+
+void V4L2Capture::Next(Buffer buffer) {
+    for (auto observer : observers_) {
+        if (observer->subscribed_func_ != nullptr) {
             observer->subscribed_func_(buffer);
         }
     }
 }
 
-std::shared_ptr<Observable<Buffer>> V4L2Capture::AsObservable()
-{
+std::shared_ptr<Observable<Buffer>> V4L2Capture::AsObservable() {
     auto observer = std::make_shared<Observable<Buffer>>();
     observers_.push_back(observer);
     return observer;
 }
 
-void V4L2Capture::UnSubscribe()
-{
+void V4L2Capture::UnSubscribe() {
     auto it = observers_.begin();
     while (it != observers_.end())
     {
@@ -69,29 +55,23 @@ void V4L2Capture::UnSubscribe()
     }
 }
 
-bool V4L2Capture::CheckMatchingDevice(std::string unique_name)
-{
+bool V4L2Capture::CheckMatchingDevice(std::string unique_name) {
     struct v4l2_capability cap;
-    if (V4l2Util::QueryCapabilities(fd_, &cap)
-        && cap.bus_info[0] != 0
-        && strcmp((const char *)cap.bus_info, unique_name.c_str()) == 0)
-    {
+    if (V4l2Util::QueryCapabilities(fd_, &cap) && cap.bus_info[0] != 0
+        && strcmp((const char *)cap.bus_info, unique_name.c_str()) == 0) {
         return true;
     }
     return false;
 }
 
-int V4L2Capture::GetCameraIndex(webrtc::VideoCaptureModule::DeviceInfo *device_info)
-{
-    for (int i = 0; i < device_info->NumberOfDevices(); i++)
-    {
+int V4L2Capture::GetCameraIndex(webrtc::VideoCaptureModule::DeviceInfo *device_info) {
+    for (int i = 0; i < device_info->NumberOfDevices(); i++) {
         char device_name[256];
         char unique_name[256];
         if (device_info->GetDeviceName(static_cast<uint32_t>(i), device_name,
                                        sizeof(device_name), unique_name,
-                                       sizeof(unique_name)) == 0 &&
-            CheckMatchingDevice(unique_name))
-        {
+                                       sizeof(unique_name)) == 0
+            && CheckMatchingDevice(unique_name)) {
             std::cout << "GetDeviceName(" << i
                       << "): device_name=" << device_name
                       << ", unique_name=" << unique_name << std::endl;
@@ -101,24 +81,18 @@ int V4L2Capture::GetCameraIndex(webrtc::VideoCaptureModule::DeviceInfo *device_i
     return -1;
 }
 
-V4L2Capture &V4L2Capture::SetFormat(uint width, uint height, std::string video_type)
-{
+V4L2Capture &V4L2Capture::SetFormat(int width, int height, std::string video_type) {
     width_ = width;
     height_ = height;
-    capture_.width = width;
-    capture_.height = height;
 
-    if (video_type == "i420")
-    {
+    if (video_type == "i420") {
         std::cout << "Use yuv420(i420) format source in v4l2" << std::endl;
-        V4l2Util::SetFormat(fd_, &capture_, V4L2_PIX_FMT_YUV420);
+        V4l2Util::SetFormat(fd_, &capture_, width, height, V4L2_PIX_FMT_YUV420);
         V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_BITRATE, 10000000);
         capture_video_type_ = webrtc::VideoType::kI420;
-    }
-    else if (video_type == "h264")
-    {
+    } else if (video_type == "h264") {
         std::cout << "Use h264 format source in v4l2" << std::endl;
-        V4l2Util::SetFormat(fd_, &capture_, V4L2_PIX_FMT_H264);
+        V4l2Util::SetFormat(fd_, &capture_, width, height, V4L2_PIX_FMT_H264);
         V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_BITRATE_MODE, V4L2_MPEG_VIDEO_BITRATE_MODE_VBR);
         V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_H264_PROFILE, V4L2_MPEG_VIDEO_H264_PROFILE_BASELINE);
         V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_REPEAT_SEQ_HEADER, true);
@@ -126,89 +100,76 @@ V4L2Capture &V4L2Capture::SetFormat(uint width, uint height, std::string video_t
         V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_H264_I_PERIOD, 12);
         V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_BITRATE, 2000000);
         capture_video_type_ = webrtc::VideoType::kUnknown;
-    }
-    else {
+    } else {
         std::cout << "Use mjpeg format source in v4l2" << std::endl;
-        V4l2Util::SetFormat(fd_, &capture_, V4L2_PIX_FMT_MJPEG);
+        V4l2Util::SetFormat(fd_, &capture_, width, height, V4L2_PIX_FMT_MJPEG);
         V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_BITRATE, 10000000);
         capture_video_type_ = webrtc::VideoType::kMJPEG;
     }
-
     return *this;
 }
 
-V4L2Capture &V4L2Capture::SetFps(uint fps)
-{
+V4L2Capture &V4L2Capture::SetFps(int fps) {
     fps_ = fps;
     printf("  Fps: %d\n", fps);
-
-    if (!V4l2Util::SetFps(fd_, capture_.type, fps))
-    {
+    if (!V4l2Util::SetFps(fd_, capture_.type, fps)) {
         exit(0);
     }
-
     return *this;
 }
 
-V4L2Capture &V4L2Capture::SetRotation(uint angle)
-{
+V4L2Capture &V4L2Capture::SetRotation(int angle) {
     printf("  Rotation: %d\n", angle);
     V4l2Util::SetCtrl(fd_, V4L2_CID_ROTATE, angle);
-
     return *this;
 }
 
-V4L2Capture &V4L2Capture::SetCaptureFunc(std::function<bool()> capture_func)
-{
+V4L2Capture &V4L2Capture::SetCaptureFunc(std::function<bool()> capture_func) {
     capture_func_ = std::move(capture_func);
     return *this;
 }
 
-void V4L2Capture::CaptureImage()
-{
+void V4L2Capture::CaptureImage() {
     fd_set fds;
     FD_ZERO(&fds);
     FD_SET(fd_, &fds);
-    struct timeval tv = {0};
+    timeval tv = {};
     tv.tv_sec = 1;
     tv.tv_usec = 0;
     int r = select(fd_ + 1, &fds, NULL, NULL, &tv);
-    if (r <= 0) // timeout or failed
-    {
+
+    if (r <= 0) { // timeout or failed
         return;
     }
 
-    struct v4l2_buffer buf = {0};
+    v4l2_buffer buf = {};
     buf.type = capture_.type;
-    buf.memory = V4L2_MEMORY_MMAP;
+    buf.memory = capture_.memory;
 
     V4l2Util::DequeueBuffer(fd_, &buf);
 
     shared_buffer_ = {.start = capture_.buffers[buf.index].start,
-                        .length = buf.bytesused,
-                        .flags = buf.flags};
+                      .length = buf.bytesused,
+                      .flags = buf.flags};
 
     V4l2Util::QueueBuffer(fd_, &buf);
 
     Next(shared_buffer_);
 }
 
-const Buffer& V4L2Capture::GetImage() const
-{
+const Buffer& V4L2Capture::GetImage() const {
     return shared_buffer_;
 }
 
-void V4L2Capture::StartCapture()
-{
-    if (!V4l2Util::AllocateBuffer(fd_, &capture_, buffer_count_))
-    {
+void V4L2Capture::StartCapture() {
+    if (!V4l2Util::AllocateBuffer(fd_, &capture_, buffer_count_)
+        || !V4l2Util::QueueBuffers(fd_, &capture_)) {
         exit(0);
     }
 
     V4l2Util::StreamOn(fd_, capture_.type);
 
-    if (capture_func_ == nullptr)
-    {
+    if (capture_func_ == nullptr) {
         capture_func_ = [this]() -> void { CaptureImage(); };
     }
 

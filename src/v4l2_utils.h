@@ -8,6 +8,7 @@
 #include <stdint.h>
 #include <string>
 #include <unordered_set>
+#include <vector>
 
 struct Buffer {
     void *start;
@@ -17,40 +18,40 @@ struct Buffer {
     struct v4l2_plane plane;
 };
 
-struct BufferGroup
-{
-    const char *name;
-    unsigned int width;
-    unsigned int height;
+struct BufferGroup {
+    int fd;
     int num_buffers;
-    Buffer* buffers;
+    std::vector<Buffer> buffers;
     enum v4l2_buf_type type;
+    enum v4l2_memory memory;
 };
 
 class V4l2Util
 {
 public:
-    static bool IsSinglePlaneVideo(struct v4l2_capability *cap);
-    static bool IsMultiPlaneVideo(struct v4l2_capability *cap);
+    static bool IsSinglePlaneVideo(v4l2_capability *cap);
+    static bool IsMultiPlaneVideo(v4l2_capability *cap);
     static std::string FourccToString(uint32_t fourcc);
     
     static int OpenDevice(const char *file);
     static void CloseDevice(int fd);
     static bool QueryCapabilities(int fd, v4l2_capability *cap);
-    static bool InitBuffer(int fd, BufferGroup *output, BufferGroup *capture);
+    static bool InitBuffer(int fd, BufferGroup *gbuffer, v4l2_buf_type type, v4l2_memory memory);
     static bool DequeueBuffer(int fd, v4l2_buffer *buffer);
     static bool QueueBuffer(int fd, v4l2_buffer *buffer);
+    static bool QueueBuffers(int fd, BufferGroup *buffer);
     static std::unordered_set<std::string> GetDeviceSupportedFormats(const char *file);
     static bool SubscribeEvent(int fd, uint32_t type);
-    static bool SetFps(int fd, uint32_t type, int fps);
-    static bool SetFormat(int fd, BufferGroup *gbuffer, uint32_t pixel_format);
-    static bool SetCtrl(int fd, unsigned int id, signed int value);
-    static bool SetExtCtrl(int fd, unsigned int id, signed int value);
+    static bool SetFps(int fd, v4l2_buf_type type, int fps);
+    static bool SetFormat(int fd, BufferGroup *gbuffer, int width, int height, uint32_t pixel_format);
+    static bool SetCtrl(int fd, uint32_t id, int32_t value);
+    static bool SetExtCtrl(int fd, uint32_t id, int32_t value);
     static bool StreamOn(int fd, v4l2_buf_type type);
     static bool StreamOff(int fd, v4l2_buf_type type);
-    static void UnMap(struct BufferGroup *gbuffer, int num_buffers);
-    static bool MMap(int fd, struct BufferGroup *gbuffer, bool is_enqueued);
-    static bool AllocateBuffer(int fd, struct BufferGroup *gbuffer, int num_buffers, bool is_enqueued = true);
+    static void UnMap(BufferGroup *gbuffer);
+    static bool MMap(int fd, BufferGroup *gbuffer);
+    static bool AllocateBuffer(int fd, BufferGroup *gbuffer, int num_buffers);
+    static bool DeallocateBuffer(int fd, BufferGroup *gbuffer);
 };
 
 #endif // V4L2_UTILS_
