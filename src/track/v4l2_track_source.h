@@ -15,8 +15,9 @@ public:
     int height_;
     int config_width_;
     int config_height_;
-    webrtc::VideoType capture_video_type_;
+    webrtc::VideoType src_video_type_;
 
+    static rtc::scoped_refptr<V4L2TrackSource> Create(std::shared_ptr<V4L2Capture> capture);
     V4L2TrackSource(std::shared_ptr<V4L2Capture> capture);
     ~V4L2TrackSource();
 
@@ -24,15 +25,12 @@ public:
     bool remote() const override;
     bool is_screencast() const override;
     absl::optional<bool> needs_denoising() const override;
-    void OnFrameCaptured(Buffer buffer);
-
-    static rtc::scoped_refptr<V4L2TrackSource> Create(std::shared_ptr<V4L2Capture> capture);
     void StartTrack();
 
-private:
+protected:
     std::shared_ptr<V4L2Capture> capture_;
-    std::unique_ptr<V4l2m2mScaler> scaler_;
-    std::unique_ptr<V4l2m2mDecoder> decoder_;
+    virtual void Init() {};
+    virtual void OnFrameCaptured(Buffer buffer);
 };
 
 #endif

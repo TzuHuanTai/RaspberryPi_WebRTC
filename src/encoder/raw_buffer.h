@@ -12,7 +12,7 @@ class RawBuffer : public webrtc::VideoFrameBuffer
 {
 public:
     static rtc::scoped_refptr<RawBuffer> Create(
-        int width, int height, int size);
+        int width, int height, int size, Buffer buffer);
 
     void InitializeData();
 
@@ -23,14 +23,11 @@ public:
 
     unsigned int Size() const;
     Buffer GetBuffer();
-    void SetBuffer(Buffer buffer);
-    unsigned int GetFlags();
-    void SetFlags(unsigned int flags);
     const uint8_t *Data() const;
     uint8_t *MutableData();
 
 protected:
-    RawBuffer(int width, int height, int size);
+    RawBuffer(int width, int height, int size, Buffer buffer);
     ~RawBuffer() override;
 
 private:

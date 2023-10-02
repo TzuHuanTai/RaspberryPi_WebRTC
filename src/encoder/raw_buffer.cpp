@@ -3,15 +3,16 @@
 // Aligning pointer to 64 bytes for improved performance, e.g. use SIMD.
 static const int kBufferAlignment = 64;
 
-rtc::scoped_refptr<RawBuffer> RawBuffer::Create(int width, int height, int size)
-{
-    return rtc::make_ref_counted<RawBuffer>(width, height, size);
+rtc::scoped_refptr<RawBuffer> RawBuffer::Create(
+    int width, int height, int size, Buffer buffer) {
+    return rtc::make_ref_counted<RawBuffer>(width, height, size, buffer);
 }
 
-RawBuffer::RawBuffer(int width, int height, int size)
+RawBuffer::RawBuffer(int width, int height, int size, Buffer buffer)
     : width_(width),
       height_(height),
       size_(size),
+      buffer_(buffer),
       data_(static_cast<uint8_t *>(webrtc::AlignedMalloc(
           size_, kBufferAlignment))) {}
 
@@ -54,23 +55,7 @@ Buffer RawBuffer::GetBuffer()
     return buffer_;
 }
 
-void RawBuffer::SetBuffer(Buffer buffer)
-{
-    buffer_ = buffer;
-}
-
-unsigned int RawBuffer::GetFlags()
-{
-    return flags_;
-}
-
-void RawBuffer::SetFlags(unsigned int flags)
-{
-    flags_ = flags;
-}
-
-const uint8_t *RawBuffer::Data() const
-{
+const uint8_t *RawBuffer::Data() const {
     return data_.get();
 }
 
