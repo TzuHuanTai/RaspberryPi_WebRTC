@@ -9,27 +9,13 @@
 
 class V4L2Capture : public SubjectInterface<Buffer>
 {
-private:
-    int fd_;
-    int camera_index_;
-    int buffer_count_;
-    BufferGroup capture_;
-    Buffer shared_buffer_;
-
-    std::function<void()> capture_func_;
-    std::unique_ptr<Processor> processor_;
-
-    bool CheckMatchingDevice(std::string unique_name);
-    int GetCameraIndex(webrtc::VideoCaptureModule::DeviceInfo *device_info);
-
 public:
-    int fps_;
-    int width_;
-    int height_;
-    webrtc::VideoType capture_video_type_;
-
     V4L2Capture(std::string device);
     ~V4L2Capture();
+    int fps() const;
+    int width() const;
+    int height() const;
+    webrtc::VideoType type();
 
     // SubjectInterface
     void Next(Buffer buffer) override;
@@ -44,6 +30,23 @@ public:
     void StartCapture();
     void CaptureImage();
     const Buffer& GetImage() const;
+
+private:
+    int fd_;
+    int fps_;
+    int width_;
+    int height_;
+    int camera_index_;
+    int buffer_count_;
+    BufferGroup capture_;
+    Buffer shared_buffer_;
+    webrtc::VideoType video_type_;
+
+    std::function<void()> capture_func_;
+    std::unique_ptr<Processor> processor_;
+
+    bool CheckMatchingDevice(std::string unique_name);
+    int GetCameraIndex(webrtc::VideoCaptureModule::DeviceInfo *device_info);
 };
 
 #endif

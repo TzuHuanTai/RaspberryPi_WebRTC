@@ -1,6 +1,7 @@
 #include "conductor.h"
 #include "capture/v4l2_capture.h"
 #include "track/v4l2_track_source.h"
+#include "track/v4l2dma_track_source.h"
 #include "customized_video_encoder_factory.h"
 
 #include <api/audio_codecs/builtin_audio_decoder_factory.h>
@@ -51,14 +52,20 @@ bool Conductor::InitializeTracks()
         peer_connection_factory_->CreateAudioTrack("raspberrypi_audio", options.get());
 
     /* split into capture and track source*/
-    auto video_caputre_source = V4L2Capture::Create(args.device);
-    (*video_caputre_source)
-        .SetFps(args.fps)
-        .SetRotation(args.rotation_angle)
-        .SetFormat(args.width, args.height, args.v4l2_format)
-        .StartCapture();
-    auto video_track_source = V4L2TrackSource::Create(video_caputre_source);
-    video_track_source->StartTrack();
+    auto video_track_source =  ([this]() -> rtc::scoped_refptr<rtc::AdaptedVideoTrackSource> {
+        auto video_caputre_source = V4L2Capture::Create(args.device);
+        (*video_caputre_source)
+            .SetFps(args.fps)
+            .SetRotation(args.rotation_angle)
+            .SetFormat(args.width, args.height, args.v4l2_format)
+            .StartCapture();
+
+        if (args.v4l2_format == "h264") {
+            return V4l2DmaTrackSource::Create(video_caputre_source);
+        } else {
+            return V4L2TrackSource::Create(video_caputre_source);
+        }
+    })();
 
     rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> video_source =
         webrtc::VideoTrackSourceProxy::Create(

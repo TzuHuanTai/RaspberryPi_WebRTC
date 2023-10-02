@@ -13,28 +13,26 @@ static const int kBufferAlignment = 64;
 
 rtc::scoped_refptr<V4L2TrackSource> V4L2TrackSource::Create(
     std::shared_ptr<V4L2Capture> capture) {
-    return rtc::make_ref_counted<V4L2TrackSource>(std::move(capture));
+    auto obj = rtc::make_ref_counted<V4L2TrackSource>(std::move(capture));
+    obj->StartTrack();
+    return obj;
 }
 
 V4L2TrackSource::V4L2TrackSource(std::shared_ptr<V4L2Capture> capture)
     : capture_(capture),
-      width_(capture->width_),
-      height_(capture->height_),
-      config_width_(0),
-      config_height_(0),
-      capture_video_type_(capture->capture_video_type_) {
-    if (capture_video_type_ == webrtc::VideoType::kUnknown){
-        decoder_ = std::make_unique<V4l2m2mDecoder>();
-        decoder_->V4l2m2mConfigure(width_, height_, true);
-        scaler_ = std::make_unique<V4l2m2mScaler>();
-        scaler_->V4l2m2mConfigure(width_, height_, width_,
-                                  height_, true, true);
-    }
+      width_(capture->width()),
+      height_(capture->height()),
+      config_width_(capture->width()),
+      config_height_(capture->height()),
+      src_video_type_(capture->type()) {}
+
+V4L2TrackSource::~V4L2TrackSource() {
+    // todo: tell capture unsubscribe observer.
 }
 
-V4L2TrackSource::~V4L2TrackSource() {}
-
 void V4L2TrackSource::StartTrack() {
+    Init();
+
     auto observer = capture_->AsObservable();
     observer->Subscribe([&](Buffer buffer) {
         OnFrameCaptured(buffer);
@@ -54,56 +52,33 @@ void V4L2TrackSource::OnFrameCaptured(Buffer buffer) {
         return;
     }
 
-    if (capture_video_type_ == webrtc::VideoType::kUnknown) {
-        if (adapted_width != config_width_ || adapted_height != config_height_) {
-            config_width_ = adapted_width;
-            config_height_ = adapted_height;
-            scaler_->ReleaseCodec();
-            scaler_->V4l2m2mConfigure(width_, height_, config_width_,
-                                    config_height_, true, true);
-        }
-        decoder_->EmplaceBuffer(buffer, [&](Buffer decoded_buffer) {
-            scaler_->EmplaceBuffer(decoded_buffer, [&](Buffer scaled_buffer) {
-                rtc::scoped_refptr<RawBuffer> raw_buffer(
-                    RawBuffer::Create(adapted_width, adapted_height, scaled_buffer.length));
-                raw_buffer->SetBuffer(scaled_buffer);
+    rtc::scoped_refptr<webrtc::I420Buffer> i420_buffer(webrtc::I420Buffer::Create(width_, height_));
+    i420_buffer->InitializeData();
 
-                OnFrame(webrtc::VideoFrame::Builder()
-                    .set_video_frame_buffer(raw_buffer)
-                    .set_rotation(webrtc::kVideoRotation_0)
-                    .set_timestamp_us(translated_timestamp_us)
-                    .build());
-            });
-        });
-    } else {
-        rtc::scoped_refptr<webrtc::I420Buffer> i420_buffer(webrtc::I420Buffer::Create(width_, height_));
-        i420_buffer->InitializeData();
-
-        if (libyuv::ConvertToI420((uint8_t *)buffer.start, buffer.length,
-                                i420_buffer.get()->MutableDataY(), i420_buffer.get()->StrideY(),
-                                i420_buffer.get()->MutableDataU(), i420_buffer.get()->StrideU(),
-                                i420_buffer.get()->MutableDataV(), i420_buffer.get()->StrideV(),
-                                0, 0, width_, height_, width_, height_, libyuv::kRotate0,
-                                ConvertVideoType(capture_video_type_)) < 0) {
-            // "ConvertToI420 Failed"
-        }
-
-        dst_buffer = i420_buffer;
-
-        if (adapted_width != width_ || adapted_height != height_) {
-            int dst_stride = std::ceil((double)adapted_width / kBufferAlignment) * kBufferAlignment;
-            i420_buffer = webrtc::I420Buffer::Create(adapted_width, adapted_height,
-                                                     dst_stride, dst_stride/2, dst_stride/2);
-            i420_buffer->ScaleFrom(*dst_buffer->ToI420());
-            dst_buffer = i420_buffer;
-        }
-
-        OnFrame(webrtc::VideoFrame::Builder()
-                .set_video_frame_buffer(dst_buffer)
-                .set_rotation(webrtc::kVideoRotation_0)
-                .set_timestamp_us(translated_timestamp_us)
-                .build());
+    if (libyuv::ConvertToI420((uint8_t *)buffer.start, buffer.length,
+                              i420_buffer.get()->MutableDataY(), i420_buffer.get()->StrideY(),
+                              i420_buffer.get()->MutableDataU(), i420_buffer.get()->StrideU(),
+                              i420_buffer.get()->MutableDataV(), i420_buffer.get()->StrideV(),
+                              0, 0, width_, height_, width_, height_, libyuv::kRotate0,
+                              ConvertVideoType(src_video_type_)) < 0) {
+        // "ConvertToI420 Failed"
     }
+
+    dst_buffer = i420_buffer;
+
+    if (adapted_width != width_ || adapted_height != height_) {
+        int dst_stride = std::ceil((double)adapted_width / kBufferAlignment) * kBufferAlignment;
+        i420_buffer = webrtc::I420Buffer::Create(adapted_width, adapted_height,
+                                                 dst_stride, dst_stride/2, dst_stride/2);
+        i420_buffer->ScaleFrom(*dst_buffer->ToI420());
+        dst_buffer = i420_buffer;
+    }
+
+    OnFrame(webrtc::VideoFrame::Builder()
+            .set_video_frame_buffer(dst_buffer)
+            .set_rotation(webrtc::kVideoRotation_0)
+            .set_timestamp_us(translated_timestamp_us)
+            .build());
 }
 
 webrtc::MediaSourceInterface::SourceState V4L2TrackSource::state() const {
