@@ -30,7 +30,7 @@ bool V4l2m2mDecoder::V4l2m2mConfigure(int width, int height) {
     }
 
     if (!V4l2Util::InitBuffer(fd_, &output_, V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE, V4L2_MEMORY_MMAP) 
-        || !V4l2Util::InitBuffer(fd_, &capture_, V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE, V4L2_MEMORY_MMAP)) {
+        || !V4l2Util::InitBuffer(fd_, &capture_, V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE, V4L2_MEMORY_MMAP)) {
         return false;
     }
 
