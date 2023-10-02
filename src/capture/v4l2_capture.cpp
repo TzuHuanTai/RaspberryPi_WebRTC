@@ -146,13 +146,17 @@ void V4L2Capture::CaptureImage() {
     buf.type = capture_.type;
     buf.memory = capture_.memory;
 
-    V4l2Util::DequeueBuffer(fd_, &buf);
+    if(!V4l2Util::DequeueBuffer(fd_, &buf)) {
+        return;
+    }
 
     shared_buffer_ = {.start = capture_.buffers[buf.index].start,
                       .length = buf.bytesused,
                       .flags = buf.flags};
 
-    V4l2Util::QueueBuffer(fd_, &buf);
+    if(!V4l2Util::QueueBuffer(fd_, &buf)) {
+        return;
+    }
 
     Next(shared_buffer_);
 }

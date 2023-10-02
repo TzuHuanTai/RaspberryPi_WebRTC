@@ -1,16 +1,10 @@
 project(src)
 
-add_library(common)
-target_sources(common
-    PRIVATE
-    v4l2_utils.cpp
-    recorder.cpp
-    processor.cpp
-)
 
 add_subdirectory(decoder)
 add_subdirectory(encoder)
 add_subdirectory(capture)
+add_subdirectory(scaler)
 add_subdirectory(track)
 
 add_library(${PROJECT_NAME})

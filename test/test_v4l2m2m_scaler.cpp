@@ -1,5 +1,5 @@
 #include "args.h"
-#include "decoder/v4l2m2m_decoder.h"
+#include "scaler/v4l2m2m_scaler.h"
 #include "capture/v4l2_capture.h"
 
 #include <fcntl.h>
@@ -36,11 +36,11 @@ int main(int argc, char *argv[])
     Args args{.fps = 15,
               .width = 640,
               .height = 480,
-              .v4l2_format = "h264"};
+              .v4l2_format = "i420"};
     auto capture = V4L2Capture::Create(args.device);
 
-    V4l2m2mDecoder decoder;
-    decoder.V4l2m2mConfigure(args.width, args.height);
+    V4l2m2mScaler scaler;
+    scaler.V4l2m2mConfigure(args.width, args.height, 320, 240);
 
     auto test = [&]() -> bool
     {
@@ -48,9 +48,9 @@ int main(int argc, char *argv[])
         capture->CaptureImage();
         Buffer buffer = capture->GetImage();
 
-        decoder.EmplaceBuffer((uint8_t *)buffer.start, buffer.length,
-            [&, images_nb](Buffer decoded_buffer) { 
-                WriteImage(decoded_buffer, images_nb);
+        scaler.EmplaceBuffer((uint8_t *)buffer.start, buffer.length,
+            [&, images_nb](Buffer scaled_buffer) { 
+                WriteImage(scaled_buffer, images_nb);
             });
 
         if (images_nb++ < args.fps * record_sec)
