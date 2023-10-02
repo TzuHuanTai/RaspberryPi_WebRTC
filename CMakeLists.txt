@@ -35,9 +35,18 @@ include_directories(
     ${WEBRTC_INCLUDE_DIR}/third_party/libyuv/include
     ${WEBRTC_INCLUDE_DIR}/tools/json_schema_compiler
 )
-add_subdirectory(src)
+
+add_library(common)
+target_sources(common
+    PRIVATE
+    src/v4l2_utils.cpp
+    src/recorder.cpp
+    src/processor.cpp
+)
+
 
 if(BUILD_TEST STREQUAL "recorder")
+    add_subdirectory(src/capture)
     add_executable(recorder test/test_recorder.cpp)
     target_link_libraries(recorder
         capture
@@ -50,6 +59,7 @@ if(BUILD_TEST STREQUAL "recorder")
         ${WEBRTC_LIBRARY_DIR}
     )
 elseif(BUILD_TEST STREQUAL "v4l2_capture")
+    add_subdirectory(src/capture)
     add_executable(v4l2_capture test/test_v4l2_capture.cpp)
     target_link_libraries(v4l2_capture
         capture
@@ -61,6 +71,8 @@ elseif(BUILD_TEST STREQUAL "v4l2_capture")
         ${WEBRTC_LIBRARY_DIR}
     )
 elseif(BUILD_TEST STREQUAL "v4l2m2m_encoder")
+    add_subdirectory(src/capture)
+    add_subdirectory(src/encoder)
     add_executable(v4l2m2m_encoder test/test_v4l2m2m_encoder.cpp)
     target_link_libraries(v4l2m2m_encoder
         capture
@@ -74,6 +86,8 @@ elseif(BUILD_TEST STREQUAL "v4l2m2m_encoder")
         ${WEBRTC_LIBRARY_DIR}
     )
 elseif(BUILD_TEST STREQUAL "v4l2m2m_decoder")
+    add_subdirectory(src/capture)
+    add_subdirectory(src/decoder)
     add_executable(v4l2m2m_decoder test/test_v4l2m2m_decoder.cpp)
     target_link_libraries(v4l2m2m_decoder
         capture
@@ -86,7 +100,23 @@ elseif(BUILD_TEST STREQUAL "v4l2m2m_decoder")
         Threads::Threads
         ${WEBRTC_LIBRARY_DIR}
     )
+elseif(BUILD_TEST STREQUAL "v4l2m2m_scaler")
+    add_subdirectory(src/capture)
+    add_subdirectory(src/scaler)
+    add_executable(v4l2m2m_scaler test/test_v4l2m2m_scaler.cpp)
+    target_link_libraries(v4l2m2m_scaler
+        capture
+        scaler
+        common
+    )
+    target_link_libraries(v4l2m2m_scaler
+        ${WEBRTC_LINK_LIBS}
+        ${FFMPEG_LINK_LIBS}
+        Threads::Threads
+        ${WEBRTC_LIBRARY_DIR}
+    )
 else()
+    add_subdirectory(src)
     add_executable(${PROJECT_NAME} src/main.cpp)
     target_link_libraries(${PROJECT_NAME}
         src

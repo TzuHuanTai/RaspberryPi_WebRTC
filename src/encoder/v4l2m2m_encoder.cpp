@@ -5,14 +5,14 @@
 #include <memory>
 
 const char *ENCODER_FILE = "/dev/video11";
+const int BUFFER_NUM = 4;
 
 V4l2m2mEncoder::V4l2m2mEncoder()
-    : name("h264_v4l2m2m"),
+    : V4l2Codec(),
+      name("h264_v4l2m2m"),
       framerate_(30),
       key_frame_interval_(12),
-      buffer_count_(4),
       is_recording_(false),
-      is_capturing_(false),
       recorder_(nullptr),
       callback_(nullptr) {}
 
@@ -34,14 +34,14 @@ int32_t V4l2m2mEncoder::InitEncode(
     encoded_image_.timing_.flags = webrtc::VideoSendTiming::TimingFrameFlags::kInvalid;
     encoded_image_.content_type_ = webrtc::VideoContentType::UNSPECIFIED;
 
-    output_buffer_queue_ = {};
-    if (!V4l2m2mConfigure(width_, height_, framerate_)) {
+    if (codec_.codecType != webrtc::kVideoCodecH264) {
+        return WEBRTC_VIDEO_CODEC_ERROR;
+    }
+
+    if (!V4l2m2mConfigure(width_, height_)) {
         return WEBRTC_VIDEO_CODEC_ERROR;
     }
     EnableRecorder(is_recording_);
-
-    processor_.reset(new Processor([&]() { CapturingFunction();}));
-    processor_->Run();
 
     return WEBRTC_VIDEO_CODEC_OK;
 }
@@ -54,9 +54,8 @@ int32_t V4l2m2mEncoder::RegisterEncodeCompleteCallback(
 
 int32_t V4l2m2mEncoder::Release() {
     std::lock_guard<std::mutex> lock(mtx_);
-    processor_.reset();
     recorder_.reset();
-    V4l2m2mRelease();
+    ReleaseCodec();
     return WEBRTC_VIDEO_CODEC_OK;
 }
 
@@ -68,26 +67,15 @@ int32_t V4l2m2mEncoder::Encode(
     rtc::scoped_refptr<webrtc::VideoFrameBuffer> frame_buffer =
         frame.video_frame_buffer();
 
-    if (codec_.codecType != webrtc::kVideoCodecH264) {
-        return WEBRTC_VIDEO_CODEC_ERROR;
-    }
-
     auto i420_buffer = frame_buffer->GetI420();
     int i420_buffer_size = (i420_buffer->StrideY() * height_) +
                     ((i420_buffer->StrideY() + 1) / 2) * ((height_ + 1) / 2) * 2;
 
-    auto output_result = std::async(std::launch::async, &V4l2m2mEncoder::OutputRawBuffer,
-                                    this, i420_buffer->DataY(), i420_buffer_size);
-
-    // skip sending task if output_result is false
-    bool is_output = output_result.get();
-    if(is_output) {
-        sending_tasks_.push(
-            [this, frame](Buffer encoded_buffer) { SendFrame(frame, encoded_buffer); }
-        );
-    }
-
-    return is_output? WEBRTC_VIDEO_CODEC_OK : WEBRTC_VIDEO_CODEC_ERROR;
+    EmplaceBuffer(i420_buffer->DataY(), i420_buffer_size,
+                [this, frame](Buffer encoded_buffer) { 
+                    SendFrame(frame, encoded_buffer); 
+                });
+    return WEBRTC_VIDEO_CODEC_OK;
 }
 
 void V4l2m2mEncoder::SetRates(const RateControlParameters &parameters) {
@@ -162,20 +150,12 @@ void V4l2m2mEncoder::WriteFile(Buffer encoded_buffer) {
     }
 }
 
-bool V4l2m2mEncoder::V4l2m2mConfigure(int width, int height, int fps) {
-    fd_ = V4l2Util::OpenDevice(ENCODER_FILE);
-    if (fd_ < 0) {
-        return false;
+bool V4l2m2mEncoder::V4l2m2mConfigure(int width, int height) {
+    if (!Open(ENCODER_FILE)) {
+        return WEBRTC_VIDEO_CODEC_ERROR;
     }
 
-    framerate_ = fps;
-    bitrate_bps_ = ((width * height * fps / 10) / 25000 + 1) * 25000;;
-
-    if (!V4l2Util::InitBuffer(fd_, &output_, V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE, V4L2_MEMORY_MMAP) 
-        || !V4l2Util::InitBuffer(fd_, &capture_, V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE, V4L2_MEMORY_MMAP)) {
-        return false;
-    }
-
+    bitrate_bps_ = ((width * height * framerate_ / 10) / 25000 + 1) * 25000;
     /* set ext ctrls */
     // MODE_CBR will cause performance issue in high resolution?!
     V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_BITRATE_MODE, V4L2_MPEG_VIDEO_BITRATE_MODE_VBR);
@@ -186,117 +166,16 @@ bool V4l2m2mEncoder::V4l2m2mConfigure(int width, int height, int fps) {
     V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_H264_LEVEL, V4L2_MPEG_VIDEO_H264_LEVEL_3_1);
     V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_H264_I_PERIOD, key_frame_interval_);
 
-    if (!V4l2Util::SetFormat(fd_, &output_, width, height, V4L2_PIX_FMT_YUV420)) {
-        return false;
-    }
-
-    if (!V4l2Util::SetFormat(fd_, &capture_, width, height, V4L2_PIX_FMT_H264)) {
-        return false;
-    }
-
-    if (!V4l2Util::SetFps(fd_, output_.type, framerate_)) {
-        return false;
-    }
-
-    if (!V4l2Util::AllocateBuffer(fd_, &output_, buffer_count_) 
-        || !V4l2Util::AllocateBuffer(fd_, &capture_, buffer_count_)) {
-        return false;
-    }
-
-    if (!V4l2Util::QueueBuffers(fd_, &capture_)) {
-        return false;
-    }
-
-    for (int i = 0; i < buffer_count_; i++) {
-        output_buffer_queue_.push(i);
-    }
+    PrepareBuffer(&output_, width, height, V4L2_PIX_FMT_YUV420,
+                  V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE, V4L2_MEMORY_MMAP, BUFFER_NUM);
+    PrepareBuffer(&capture_, width, height, V4L2_PIX_FMT_H264,
+                  V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE, V4L2_MEMORY_MMAP, BUFFER_NUM);
 
     V4l2Util::StreamOn(fd_, output_.type);
     V4l2Util::StreamOn(fd_, capture_.type);
 
-    return true;
-}
+    ResetProcessor();
 
-bool V4l2m2mEncoder::V4l2m2mEncode(const uint8_t *byte, uint32_t length, Buffer &buffer)
-{
-    if (!OutputRawBuffer(byte, length)) {
-        return false;
-    }
-
-    if(!CaptureProcessedBuffer(buffer)) {
-        return false;
-    }
-
-    return true;
-}
-
-bool V4l2m2mEncoder::OutputRawBuffer(const uint8_t *byte, uint32_t length) {
-    if (output_buffer_queue_.empty()) {
-        return false;
-    }
-
-    int index = output_buffer_queue_.front();
-    output_buffer_queue_.pop();
-
-    memcpy((uint8_t *)output_.buffers[index].start, byte, length);
-    
-    if (!V4l2Util::QueueBuffer(fd_, &output_.buffers[index].inner)) {
-        printf("error: QueueBuffer V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE. fd(%d) at index %d\n",
-               fd_, index);
-        return false;
-    }
-    return true;
-}
-
-bool V4l2m2mEncoder::CaptureProcessedBuffer(Buffer &buffer)
-{
-    fd_set fds[2];
-    fd_set *rd_fds = &fds[0]; /* for capture */
-    fd_set *ex_fds = &fds[1]; /* for handle event */
-    FD_ZERO(rd_fds);
-    FD_SET(fd_, rd_fds);
-    FD_ZERO(ex_fds);
-    FD_SET(fd_, ex_fds);
-    struct timeval tv;
-    tv.tv_sec = 1;
-    tv.tv_usec = 0;
-
-    int r = select(fd_ + 1, rd_fds, NULL, ex_fds, &tv);
-
-    if (r <= 0) { // timeout or failed
-        return false;
-    }
-
-    if (rd_fds && FD_ISSET(fd_, rd_fds)) {
-        struct v4l2_buffer buf = {0};
-        struct v4l2_plane out_planes = {0};
-        buf.memory = V4L2_MEMORY_MMAP;
-        buf.length = 1;
-        buf.m.planes = &out_planes;
-
-        buf.type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
-        if (!V4l2Util::DequeueBuffer(fd_, &buf)) {
-            return false;
-        }
-        output_buffer_queue_.push(buf.index);
-
-        buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
-        if (!V4l2Util::DequeueBuffer(fd_, &buf)) {
-            return false;
-        }
-
-        buffer.start = capture_.buffers[buf.index].start;
-        buffer.length = buf.m.planes[0].bytesused;
-        buffer.flags = buf.flags;
-
-        if (!V4l2Util::QueueBuffer(fd_, &capture_.buffers[buf.index].inner)) {
-            return false;
-        }
-    }
-
-    if (ex_fds && FD_ISSET(fd_, ex_fds)) {
-        fprintf(stderr, "Exception in encoder.\n");
-    }
     return true;
 }
 
@@ -329,25 +208,4 @@ void V4l2m2mEncoder::SendFrame(const webrtc::VideoFrame &frame, Buffer &encoded_
     if (result.error != webrtc::EncodedImageCallback::Result::OK) {
         std::cout << "OnEncodedImage failed error:" << result.error << std::endl;
     }
-
-    bitrate_adjuster_->Update(encoded_buffer.length);
-}
-
-void V4l2m2mEncoder::CapturingFunction() {
-    Buffer encoded_buffer = {};
-    if(CaptureProcessedBuffer(encoded_buffer) && !sending_tasks_.empty()) {
-        auto task = sending_tasks_.front();
-        sending_tasks_.pop();
-        task(encoded_buffer);
-    }
-}
-
-void V4l2m2mEncoder::V4l2m2mRelease() {
-    V4l2Util::StreamOff(fd_, output_.type);
-    V4l2Util::StreamOff(fd_, capture_.type);
-
-    V4l2Util::DeallocateBuffer(fd_, &output_);
-    V4l2Util::DeallocateBuffer(fd_, &capture_);
-
-    V4l2Util::CloseDevice(fd_);
 }

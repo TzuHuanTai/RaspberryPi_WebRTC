@@ -145,9 +145,11 @@ bool V4l2Util::SetFormat(int fd, BufferGroup *gbuffer, int width, int height,
            V4l2Util::FourccToString(fmt.fmt.pix_mp.pixelformat).c_str(),
            fmt.fmt.pix_mp.width, fmt.fmt.pix_mp.height);
 
-    fmt.fmt.pix_mp.width = width;
-    fmt.fmt.pix_mp.height = height;
-    fmt.fmt.pix_mp.pixelformat = pixel_format;
+    if(width > 0 && height > 0) {
+        fmt.fmt.pix_mp.width = width;
+        fmt.fmt.pix_mp.height = height;
+        fmt.fmt.pix_mp.pixelformat = pixel_format;
+    }
 
     if (ioctl(fd, VIDIOC_S_FMT, &fmt) < 0) {
         fprintf(stderr, "fd(%d) set format(%s) : %s\n", 
