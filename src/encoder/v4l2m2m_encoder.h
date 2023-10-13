@@ -37,7 +37,8 @@ public:
     void RegisterRecordingObserver(std::shared_ptr<Observable<char *>> observer,
                                    Args args);
 
-    bool V4l2m2mConfigure(int width, int height);
+    bool V4l2m2mConfigure(int width, int height, bool is_drm_src);
+    void V4l2m2mSetFps(const RateControlParameters &parameters);
     std::string name;
 
 private:
@@ -59,7 +60,7 @@ private:
     webrtc::VideoCodec codec_;
     webrtc::EncodedImage encoded_image_;
     webrtc::EncodedImageCallback *callback_;
-    std::unique_ptr<webrtc::BitrateAdjuster> bitrate_adjuster_;
+    webrtc::BitrateAdjuster bitrate_adjuster_;
     std::shared_ptr<Observable<char *>> observer_;
 };
 

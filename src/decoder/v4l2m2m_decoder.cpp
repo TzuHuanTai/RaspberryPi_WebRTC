@@ -17,7 +17,7 @@
 const char *DECODER_FILE = "/dev/video10";
 const int BUFFER_NUM = 2;
 
-bool V4l2m2mDecoder::V4l2m2mConfigure(int width, int height) {
+bool V4l2m2mDecoder::V4l2m2mConfigure(int width, int height, bool is_drm_dst) {
     if(!Open(DECODER_FILE)) {
         printf("failed to open scaler: /dev/video10\n");
     }
@@ -25,7 +25,7 @@ bool V4l2m2mDecoder::V4l2m2mConfigure(int width, int height) {
     PrepareBuffer(&output_, width, height, V4L2_PIX_FMT_H264,
                   V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE, V4L2_MEMORY_MMAP, BUFFER_NUM);
     PrepareBuffer(&capture_, width, height, V4L2_PIX_FMT_YUV420,
-                  V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE, V4L2_MEMORY_MMAP, BUFFER_NUM);
+                  V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE, V4L2_MEMORY_MMAP, BUFFER_NUM, is_drm_dst);
 
     V4l2Util::SubscribeEvent(fd_, V4L2_EVENT_SOURCE_CHANGE);
     V4l2Util::SubscribeEvent(fd_, V4L2_EVENT_EOS);

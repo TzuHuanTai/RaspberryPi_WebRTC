@@ -20,7 +20,17 @@ V4L2TrackSource::V4L2TrackSource(std::shared_ptr<V4L2Capture> capture)
     : capture_(capture),
       width_(capture->width_),
       height_(capture->height_),
-      capture_video_type_(capture->capture_video_type_) {}
+      config_width_(0),
+      config_height_(0),
+      capture_video_type_(capture->capture_video_type_) {
+    if (capture_video_type_ == webrtc::VideoType::kUnknown){
+        decoder_ = std::make_unique<V4l2m2mDecoder>();
+        decoder_->V4l2m2mConfigure(width_, height_, true);
+        scaler_ = std::make_unique<V4l2m2mScaler>();
+        scaler_->V4l2m2mConfigure(width_, height_, width_,
+                                  height_, true, true);
+    }
+}
 
 V4L2TrackSource::~V4L2TrackSource() {}
 
@@ -45,13 +55,26 @@ void V4L2TrackSource::OnFrameCaptured(Buffer buffer) {
     }
 
     if (capture_video_type_ == webrtc::VideoType::kUnknown) {
-        rtc::scoped_refptr<RawBuffer> raw_buffer(
-            RawBuffer::Create(adapted_width, adapted_height, buffer.length));
-        raw_buffer->SetFlags(buffer.flags);
-        std::memcpy(raw_buffer->MutableData(),
-                    (uint8_t *)buffer.start,
-                    buffer.length);
-        dst_buffer = raw_buffer;
+        if (adapted_width != config_width_ || adapted_height != config_height_) {
+            config_width_ = adapted_width;
+            config_height_ = adapted_height;
+            scaler_->ReleaseCodec();
+            scaler_->V4l2m2mConfigure(width_, height_, config_width_,
+                                    config_height_, true, true);
+        }
+        decoder_->EmplaceBuffer(buffer, [&](Buffer decoded_buffer) {
+            scaler_->EmplaceBuffer(decoded_buffer, [&](Buffer scaled_buffer) {
+                rtc::scoped_refptr<RawBuffer> raw_buffer(
+                    RawBuffer::Create(adapted_width, adapted_height, scaled_buffer.length));
+                raw_buffer->SetBuffer(scaled_buffer);
+
+                OnFrame(webrtc::VideoFrame::Builder()
+                    .set_video_frame_buffer(raw_buffer)
+                    .set_rotation(webrtc::kVideoRotation_0)
+                    .set_timestamp_us(translated_timestamp_us)
+                    .build());
+            });
+        });
     } else {
         rtc::scoped_refptr<webrtc::I420Buffer> i420_buffer(webrtc::I420Buffer::Create(width_, height_));
         i420_buffer->InitializeData();
@@ -74,13 +97,13 @@ void V4L2TrackSource::OnFrameCaptured(Buffer buffer) {
             i420_buffer->ScaleFrom(*dst_buffer->ToI420());
             dst_buffer = i420_buffer;
         }
-    }
-    
-    OnFrame(webrtc::VideoFrame::Builder()
+
+        OnFrame(webrtc::VideoFrame::Builder()
                 .set_video_frame_buffer(dst_buffer)
                 .set_rotation(webrtc::kVideoRotation_0)
                 .set_timestamp_us(translated_timestamp_us)
                 .build());
+    }
 }
 
 webrtc::MediaSourceInterface::SourceState V4L2TrackSource::state() const {

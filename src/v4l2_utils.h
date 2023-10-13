@@ -11,16 +11,18 @@
 #include <vector>
 
 struct Buffer {
-    void *start;
+    void *start = nullptr;
     unsigned int length;
     unsigned int flags;
+    int dmafd = 0;
     struct v4l2_buffer inner;
     struct v4l2_plane plane;
 };
 
 struct BufferGroup {
-    int fd;
-    int num_buffers;
+    int fd = 0;
+    int num_buffers = 0;
+    bool has_dmafd = false;
     std::vector<Buffer> buffers;
     enum v4l2_buf_type type;
     enum v4l2_memory memory;
@@ -36,7 +38,8 @@ public:
     static int OpenDevice(const char *file);
     static void CloseDevice(int fd);
     static bool QueryCapabilities(int fd, v4l2_capability *cap);
-    static bool InitBuffer(int fd, BufferGroup *gbuffer, v4l2_buf_type type, v4l2_memory memory);
+    static bool InitBuffer(int fd, BufferGroup *gbuffer, v4l2_buf_type type, v4l2_memory memory,
+                           bool has_dmafd = false);
     static bool DequeueBuffer(int fd, v4l2_buffer *buffer);
     static bool QueueBuffer(int fd, v4l2_buffer *buffer);
     static bool QueueBuffers(int fd, BufferGroup *buffer);

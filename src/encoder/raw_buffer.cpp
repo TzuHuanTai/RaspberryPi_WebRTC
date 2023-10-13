@@ -44,9 +44,19 @@ rtc::scoped_refptr<webrtc::I420BufferInterface> RawBuffer::ToI420()
     return buffer;
 }
 
-int RawBuffer::Size() const
+unsigned int RawBuffer::Size() const
 {
-    return size_;
+    return static_cast<unsigned int>(size_);
+}
+
+Buffer RawBuffer::GetBuffer()
+{
+    return buffer_;
+}
+
+void RawBuffer::SetBuffer(Buffer buffer)
+{
+    buffer_ = buffer;
 }
 
 unsigned int RawBuffer::GetFlags()

@@ -10,7 +10,6 @@ RawBufferEncoder::RawBufferEncoder(const webrtc::SdpVideoFormat &format, Args ar
       callback_(nullptr) {}
 
 RawBufferEncoder::~RawBufferEncoder() {
-    decoder_.reset();
     Release();
 }
 
@@ -30,15 +29,8 @@ int32_t RawBufferEncoder::InitEncode(
     encoded_image_.timing_.flags = webrtc::VideoSendTiming::TimingFrameFlags::kInvalid;
     encoded_image_.content_type_ = webrtc::VideoContentType::UNSPECIFIED;
 
-    first_key_frame_ = false;
-    if(decoder_ == nullptr) {
-        decoder_ = std::make_unique<V4l2m2mDecoder>();
-        decoder_->V4l2m2mConfigure(src_width_, src_height_);
-    }
-    scaler_ = std::make_unique<V4l2m2mScaler>();
-    scaler_->V4l2m2mConfigure(src_width_, src_height_, dst_width_, dst_height_);
     encoder_ = std::make_unique<V4l2m2mEncoder>();
-    encoder_->V4l2m2mConfigure(dst_width_, dst_height_);
+    encoder_->V4l2m2mConfigure(dst_width_, dst_height_, true);
 
     return WEBRTC_VIDEO_CODEC_OK;
 }
@@ -50,7 +42,6 @@ int32_t RawBufferEncoder::RegisterEncodeCompleteCallback(
 }
 
 int32_t RawBufferEncoder::Release() {
-    scaler_.reset();
     encoder_.reset();
     return WEBRTC_VIDEO_CODEC_OK;
 }
@@ -61,46 +52,20 @@ int32_t RawBufferEncoder::Encode(
     rtc::scoped_refptr<webrtc::VideoFrameBuffer> frame_buffer =
         frame.video_frame_buffer();
 
-    if (frame_buffer->type() != webrtc::VideoFrameBuffer::Type::kNative)
-    {
+    if (frame_buffer->type() != webrtc::VideoFrameBuffer::Type::kNative) {
         return WEBRTC_VIDEO_CODEC_ERROR;
     }
 
     RawBuffer *raw_buffer = static_cast<RawBuffer *>(frame_buffer.get());
+    Buffer buffer = raw_buffer->GetBuffer();
 
-    if ((raw_buffer->GetFlags() & V4L2_BUF_FLAG_KEYFRAME) && !first_key_frame_) {
-        first_key_frame_ = true;
-    }
-    
-    if(!first_key_frame_) {
-        return WEBRTC_VIDEO_CODEC_ERROR;
-    }
-
-    decoder_->EmplaceBuffer(raw_buffer->Data(), raw_buffer->Size(), 
-    [this, frame](Buffer decoded_buffer) {
-        scaler_->EmplaceBuffer((uint8_t *)decoded_buffer.start, decoded_buffer.length, 
-        [this, frame](Buffer scaled_buffer) { 
-            encoder_->EmplaceBuffer((uint8_t *)scaled_buffer.start, scaled_buffer.length,
-            [this, frame](Buffer encoded_buffer) { 
-                SendFrame(frame, encoded_buffer);
-            });
+    // skip sending task if output_result is false
+    bool is_output = encoder_->EmplaceBuffer(buffer,
+        [this, frame](Buffer encoded_buffer) {
+            SendFrame(frame, encoded_buffer);
         });
-    });
     
-    return WEBRTC_VIDEO_CODEC_OK;
-}
-
-void RawBufferEncoder::SetRates(const RateControlParameters &parameters) {
-    // std::cout << __FUNCTION__ << " framerate:" << parameters.framerate_fps
-    //           << " bitrate:" << parameters.bitrate.ToString() << std::endl;
-    // encoder_->SetRates(parameters);
-}
-
-webrtc::VideoEncoder::EncoderInfo RawBufferEncoder::GetEncoderInfo() const {
-    EncoderInfo info;
-    info.supports_native_handle = true;
-    info.implementation_name = "Raw H264";
-    return info;
+    return is_output? WEBRTC_VIDEO_CODEC_OK : WEBRTC_VIDEO_CODEC_ERROR;
 }
 
 void RawBufferEncoder::SendFrame(const webrtc::VideoFrame &frame, Buffer &encoded_buffer) {
@@ -130,4 +95,15 @@ void RawBufferEncoder::SendFrame(const webrtc::VideoFrame &frame, Buffer &encode
     if (result.error != webrtc::EncodedImageCallback::Result::OK) {
         std::cout << "OnEncodedImage failed error:" << result.error << std::endl;
     }
+}
+
+void RawBufferEncoder::SetRates(const RateControlParameters &parameters) {
+    encoder_->V4l2m2mSetFps(parameters);
+}
+
+webrtc::VideoEncoder::EncoderInfo RawBufferEncoder::GetEncoderInfo() const {
+    EncoderInfo info;
+    info.supports_native_handle = true;
+    info.implementation_name = "Raw H264";
+    return info;
 }

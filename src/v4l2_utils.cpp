@@ -55,7 +55,8 @@ bool V4l2Util::QueryCapabilities(int fd, v4l2_capability *cap) {
     return true;
 }
 
-bool V4l2Util::InitBuffer(int fd, BufferGroup *gbuffer, v4l2_buf_type type, v4l2_memory memory) {
+bool V4l2Util::InitBuffer(int fd, BufferGroup *gbuffer, v4l2_buf_type type, v4l2_memory memory,
+                          bool has_dmafd) {
     v4l2_capability cap = {};
     if (!V4l2Util::QueryCapabilities(fd, &cap)) {
         return false;
@@ -67,6 +68,7 @@ bool V4l2Util::InitBuffer(int fd, BufferGroup *gbuffer, v4l2_buf_type type, v4l2
     gbuffer->fd = fd;
     gbuffer->type = type;
     gbuffer->memory = memory;
+    gbuffer->has_dmafd = has_dmafd;
     
     return true;
 }
@@ -214,9 +216,15 @@ bool V4l2Util::StreamOff(int fd, v4l2_buf_type type) {
 
 void V4l2Util::UnMap(BufferGroup *gbuffer) {
     for (int i = 0; i < gbuffer->num_buffers; i++) {
-        munmap(gbuffer->buffers[i].start, gbuffer->buffers[i].length);
+        if(gbuffer->buffers[i].dmafd != 0) {
+            printf("close (%d) dmafd\n", gbuffer->buffers[i].dmafd);
+            close(gbuffer->buffers[i].dmafd);
+        }
+        if (gbuffer->buffers[i].start != nullptr) {
+            printf("unmapped (%d) buffers\n", gbuffer->fd);
+            munmap(gbuffer->buffers[i].start, gbuffer->buffers[i].length);
+        }
     }
-    printf("Unmapped (%d) buffers\n", gbuffer->fd);
 }
 
 bool V4l2Util::MMap(int fd, BufferGroup *gbuffer) {
@@ -234,6 +242,19 @@ bool V4l2Util::MMap(int fd, BufferGroup *gbuffer) {
             return false;
         }
     
+        if (gbuffer->has_dmafd) {
+            v4l2_exportbuffer expbuf = {};
+            expbuf.type = gbuffer->type;
+            expbuf.index = i;
+            expbuf.plane = 0;
+            if (ioctl(fd, VIDIOC_EXPBUF, &expbuf) < 0) {
+                fprintf(stderr, "fd(%d) export buffer: %s\n", fd, strerror(errno));
+                return false;
+            }
+            buffer->dmafd = expbuf.fd;
+            printf("(%d) %d export dma fd: (%d)\n",
+                   gbuffer->fd, gbuffer->type, buffer->dmafd);
+        } else {
         if(gbuffer->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE
             || gbuffer->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
             buffer->length = inner->m.planes[0].length;
@@ -254,6 +275,7 @@ bool V4l2Util::MMap(int fd, BufferGroup *gbuffer) {
 
         printf("V4l2m2m querying (%d) %d buffer: %p with %d length\n", 
                 gbuffer->fd, gbuffer->type, buffer->start, buffer->length);
+        }
     }
 
     return true;
@@ -276,7 +298,15 @@ bool V4l2Util::AllocateBuffer(int fd, BufferGroup *gbuffer, int num_buffers) {
     if (gbuffer->memory == V4L2_MEMORY_MMAP) {
         return MMap(fd, gbuffer);
     } else if (gbuffer->memory == V4L2_MEMORY_DMABUF) {
-        // todo
+        for(int i = 0; i < num_buffers; i++) {
+            Buffer *buffer = &gbuffer->buffers[i];
+            v4l2_buffer *inner = &buffer->inner;
+            inner->type = gbuffer->type;
+            inner->memory = V4L2_MEMORY_DMABUF;
+            inner->index = i;
+            inner->length = 1;
+            inner->m.planes = &buffer->plane;
+        }
     }
     
     return true;
@@ -296,6 +326,9 @@ bool V4l2Util::DeallocateBuffer(int fd, BufferGroup *gbuffer) {
         fprintf(stderr, "fd(%d) request buffer: %s\n", fd, strerror(errno));
         return false;
     }
+
+    gbuffer->fd = 0;
+    gbuffer->has_dmafd = false;
 
     return true;
 }

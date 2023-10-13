@@ -11,17 +11,20 @@ V4l2m2mEncoder::V4l2m2mEncoder()
     : V4l2Codec(),
       name("h264_v4l2m2m"),
       framerate_(30),
+      bitrate_bps_(10000000),
       key_frame_interval_(12),
       is_recording_(false),
       recorder_(nullptr),
-      callback_(nullptr) {}
+      callback_(nullptr),
+      bitrate_adjuster_(.85, 1) {}
 
 V4l2m2mEncoder::~V4l2m2mEncoder() {}
 
 int32_t V4l2m2mEncoder::InitEncode(
     const webrtc::VideoCodec *codec_settings,
     const VideoEncoder::Settings &settings) {
-    bitrate_adjuster_.reset(new webrtc::BitrateAdjuster(1, 1));
+    bitrate_bps_ = codec_settings->startBitrate * 1000;
+    bitrate_adjuster_.SetTargetBitrateBps(bitrate_bps_);
     codec_ = *codec_settings;
     width_ = codec_settings->width;
     height_ = codec_settings->height;
@@ -38,7 +41,7 @@ int32_t V4l2m2mEncoder::InitEncode(
         return WEBRTC_VIDEO_CODEC_ERROR;
     }
 
-    if (!V4l2m2mConfigure(width_, height_)) {
+    if (!V4l2m2mConfigure(width_, height_, false)) {
         return WEBRTC_VIDEO_CODEC_ERROR;
     }
     EnableRecorder(is_recording_);
@@ -68,25 +71,36 @@ int32_t V4l2m2mEncoder::Encode(
         frame.video_frame_buffer();
 
     auto i420_buffer = frame_buffer->GetI420();
-    int i420_buffer_size = (i420_buffer->StrideY() * height_) +
+    unsigned int i420_buffer_size = (i420_buffer->StrideY() * height_) +
                     ((i420_buffer->StrideY() + 1) / 2) * ((height_ + 1) / 2) * 2;
 
-    EmplaceBuffer(i420_buffer->DataY(), i420_buffer_size,
+    Buffer src_buffer = {
+        .start = const_cast<uint8_t*>(i420_buffer->DataY()),
+        .length = i420_buffer_size
+    };
+
+    // skip sending task if output_result is false
+    bool is_output = EmplaceBuffer(src_buffer,
                 [this, frame](Buffer encoded_buffer) { 
                     SendFrame(frame, encoded_buffer); 
                 });
-    return WEBRTC_VIDEO_CODEC_OK;
+
+    return is_output? WEBRTC_VIDEO_CODEC_OK : WEBRTC_VIDEO_CODEC_ERROR;
 }
 
 void V4l2m2mEncoder::SetRates(const RateControlParameters &parameters) {
+    V4l2m2mSetFps(parameters);
+}
+
+void V4l2m2mEncoder::V4l2m2mSetFps(const RateControlParameters &parameters) {
     std::lock_guard<std::mutex> lock(mtx_);
 
     if (parameters.bitrate.get_sum_bps() <= 0 || parameters.framerate_fps <= 0) {
         return;
     }
 
-    bitrate_adjuster_->SetTargetBitrateBps(parameters.bitrate.get_sum_bps());
-    uint32_t adjusted_bitrate_bps_ = bitrate_adjuster_->GetAdjustedBitrateBps();
+    bitrate_adjuster_.SetTargetBitrateBps(parameters.bitrate.get_sum_bps());
+    uint32_t adjusted_bitrate_bps_ = bitrate_adjuster_.GetAdjustedBitrateBps();
 
     if(adjusted_bitrate_bps_ < 300000) {
         adjusted_bitrate_bps_ = 300000;
@@ -150,12 +164,11 @@ void V4l2m2mEncoder::WriteFile(Buffer encoded_buffer) {
     }
 }
 
-bool V4l2m2mEncoder::V4l2m2mConfigure(int width, int height) {
+bool V4l2m2mEncoder::V4l2m2mConfigure(int width, int height, bool is_drm_src) {
     if (!Open(ENCODER_FILE)) {
         return WEBRTC_VIDEO_CODEC_ERROR;
     }
 
-    bitrate_bps_ = ((width * height * framerate_ / 10) / 25000 + 1) * 25000;
     /* set ext ctrls */
     // MODE_CBR will cause performance issue in high resolution?!
     V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_BITRATE_MODE, V4L2_MPEG_VIDEO_BITRATE_MODE_VBR);
@@ -163,11 +176,12 @@ bool V4l2m2mEncoder::V4l2m2mConfigure(int width, int height) {
     V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_REPEAT_SEQ_HEADER, true);
     V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_BITRATE, bitrate_bps_);
     V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_H264_PROFILE, V4L2_MPEG_VIDEO_H264_PROFILE_BASELINE);
-    V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_H264_LEVEL, V4L2_MPEG_VIDEO_H264_LEVEL_3_1);
+    V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_H264_LEVEL, V4L2_MPEG_VIDEO_H264_LEVEL_4_0);
     V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_H264_I_PERIOD, key_frame_interval_);
 
+    auto src_memory = is_drm_src? V4L2_MEMORY_DMABUF: V4L2_MEMORY_MMAP;
     PrepareBuffer(&output_, width, height, V4L2_PIX_FMT_YUV420,
-                  V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE, V4L2_MEMORY_MMAP, BUFFER_NUM);
+                  V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE, src_memory, BUFFER_NUM);
     PrepareBuffer(&capture_, width, height, V4L2_PIX_FMT_H264,
                   V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE, V4L2_MEMORY_MMAP, BUFFER_NUM);
 
