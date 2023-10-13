@@ -9,15 +9,14 @@
 
 class V4l2Codec {
 public:
-    V4l2Codec(): fd_(-1) {};
+    V4l2Codec(): fd_(0) {};
     virtual ~V4l2Codec();
     bool Open(const char *file_name);
     bool PrepareBuffer(BufferGroup *gbuffer, int width, int height,
                        uint32_t pix_fmt, v4l2_buf_type type,
-                       v4l2_memory memory, int buffer_num);
+                       v4l2_memory memory, int buffer_num, bool has_dmafd = false);
     void ResetProcessor();
-    void EmplaceBuffer(const uint8_t *byte, uint32_t length, 
-                       std::function<void(Buffer)>on_capture);
+    bool EmplaceBuffer(Buffer &buffer, std::function<void(Buffer)>on_capture);
     void ReleaseCodec();
 
 protected:
@@ -30,7 +29,7 @@ protected:
     virtual void HandleEvent() {};
 
 private:
-    bool OutputBuffer(const uint8_t *byte, uint32_t length);
+    bool OutputBuffer(Buffer &buffer);
     bool CaptureBuffer(Buffer &buffer);
     void CapturingFunction();
 };

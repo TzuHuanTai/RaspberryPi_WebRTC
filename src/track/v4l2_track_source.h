@@ -3,6 +3,8 @@
 
 #include "v4l2_utils.h"
 #include "capture/v4l2_capture.h"
+#include "scaler/v4l2m2m_scaler.h"
+#include "decoder/v4l2m2m_decoder.h"
 
 #include <media/base/adapted_video_track_source.h>
 
@@ -11,6 +13,8 @@ class V4L2TrackSource : public rtc::AdaptedVideoTrackSource
 public:
     int width_;
     int height_;
+    int config_width_;
+    int config_height_;
     webrtc::VideoType capture_video_type_;
 
     V4L2TrackSource(std::shared_ptr<V4L2Capture> capture);
@@ -27,6 +31,8 @@ public:
 
 private:
     std::shared_ptr<V4L2Capture> capture_;
+    std::unique_ptr<V4l2m2mScaler> scaler_;
+    std::unique_ptr<V4l2m2mDecoder> decoder_;
 };
 
 #endif

@@ -88,10 +88,12 @@ elseif(BUILD_TEST STREQUAL "v4l2m2m_encoder")
 elseif(BUILD_TEST STREQUAL "v4l2m2m_decoder")
     add_subdirectory(src/capture)
     add_subdirectory(src/decoder)
+    add_subdirectory(src/scaler)
     add_executable(v4l2m2m_decoder test/test_v4l2m2m_decoder.cpp)
     target_link_libraries(v4l2m2m_decoder
         capture
         decoder
+        scaler
         common
     )
     target_link_libraries(v4l2m2m_decoder

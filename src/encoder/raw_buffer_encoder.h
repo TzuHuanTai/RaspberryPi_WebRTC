@@ -43,9 +43,7 @@ private:
     int src_height_;
     int dst_width_;
     int dst_height_;
-    bool first_key_frame_;
     std::unique_ptr<V4l2m2mScaler> scaler_;
-    std::unique_ptr<V4l2m2mDecoder> decoder_;
     std::unique_ptr<V4l2m2mEncoder> encoder_;
     webrtc::VideoCodec codec_;
     webrtc::EncodedImage encoded_image_;

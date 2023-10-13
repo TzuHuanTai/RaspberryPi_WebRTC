@@ -3,9 +3,7 @@
 #include <future>
 
 V4l2Codec::~V4l2Codec() {
-    if (fd_ > 0) {
-        ReleaseCodec();
-    }
+    ReleaseCodec();
 }
 
 bool V4l2Codec::Open(const char *file_name) {
@@ -18,8 +16,8 @@ bool V4l2Codec::Open(const char *file_name) {
 
 bool V4l2Codec::PrepareBuffer(BufferGroup *gbuffer, int width, int height,
                               uint32_t pix_fmt, v4l2_buf_type type,
-                              v4l2_memory memory, int buffer_num) {
-    if (!V4l2Util::InitBuffer(fd_, gbuffer, type, memory)) {
+                              v4l2_memory memory, int buffer_num, bool has_dmafd) {
+    if (!V4l2Util::InitBuffer(fd_, gbuffer, type, memory, has_dmafd)) {
         return false;
     }
 
@@ -49,19 +47,21 @@ void V4l2Codec::ResetProcessor() {
     processor_->Run();
 }
 
-void V4l2Codec::EmplaceBuffer(const uint8_t *byte, uint32_t length, 
+bool V4l2Codec::EmplaceBuffer(Buffer &buffer, 
                               std::function<void(Buffer)>on_capture) {
     auto output_result = std::async(std::launch::async, 
                                     &V4l2Codec::OutputBuffer,
-                                    this, byte, length);
+                                    this, std::ref(buffer));
 
-    // skip sending task if output_result is false
-    if(output_result.get()) {
+    bool is_output = output_result.get();
+    if(is_output) {
         capturing_tasks_.push(on_capture);
     }
+
+    return is_output;
 }
 
-bool V4l2Codec::OutputBuffer(const uint8_t *byte, uint32_t length) {
+bool V4l2Codec::OutputBuffer(Buffer &buffer) {
     if (output_buffer_index_.empty()) {
         return false;
     }
@@ -69,7 +69,14 @@ bool V4l2Codec::OutputBuffer(const uint8_t *byte, uint32_t length) {
     int index = output_buffer_index_.front();
     output_buffer_index_.pop();
 
-    memcpy((uint8_t *)output_.buffers[index].start, byte, length);
+    if (output_.memory == V4L2_MEMORY_DMABUF){
+        v4l2_buffer *buf = &output_.buffers[index].inner;
+        buf->m.planes[0].m.fd = buffer.dmafd;
+        buf->m.planes[0].bytesused = buffer.length;
+        buf->m.planes[0].length = buffer.length;
+    } else {
+        memcpy((uint8_t *)output_.buffers[index].start, (uint8_t *)buffer.start, buffer.length);
+    }
     
     if (!V4l2Util::QueueBuffer(fd_, &output_.buffers[index].inner)) {
         printf("error: QueueBuffer V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE. fd(%d) at index %d\n",
@@ -99,24 +106,29 @@ bool V4l2Codec::CaptureBuffer(Buffer &buffer) {
 
     if (rd_fds && FD_ISSET(fd_, rd_fds)) {
         struct v4l2_buffer buf = {0};
-        struct v4l2_plane out_planes = {0};
-        buf.memory = V4L2_MEMORY_MMAP;
+        struct v4l2_plane planes = {0};
+        buf.memory = output_.memory;
         buf.length = 1;
-        buf.m.planes = &out_planes;
-
-        buf.type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
+        buf.m.planes = &planes;
+        buf.type = output_.type;
         if (!V4l2Util::DequeueBuffer(fd_, &buf)) {
             return false;
         }
         output_buffer_index_.push(buf.index);
 
-        buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+        buf = {};
+        planes = {};
+        buf.memory = capture_.memory;
+        buf.length = 1;
+        buf.m.planes = &planes;
+        buf.type = capture_.type;
         if (!V4l2Util::DequeueBuffer(fd_, &buf)) {
             return false;
         }
 
         buffer.start = capture_.buffers[buf.index].start;
         buffer.length = buf.m.planes[0].bytesused;
+        buffer.dmafd = capture_.buffers[buf.index].dmafd;
         buffer.flags = buf.flags;
 
         if (!V4l2Util::QueueBuffer(fd_, &capture_.buffers[buf.index].inner)) {
@@ -141,6 +153,10 @@ void V4l2Codec::CapturingFunction() {
 }
 
 void V4l2Codec::ReleaseCodec() {
+    if (fd_ <= 0) {
+        return;
+    }
+    capturing_tasks_ = {};
     output_buffer_index_ = {};
     processor_.reset();
 
@@ -151,5 +167,5 @@ void V4l2Codec::ReleaseCodec() {
     V4l2Util::DeallocateBuffer(fd_, &capture_);
 
     V4l2Util::CloseDevice(fd_);
-    fd_ = -1;
+    fd_ = 0;
 }
