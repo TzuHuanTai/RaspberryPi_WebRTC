@@ -5,6 +5,8 @@
 #include "subject_interface.h"
 #include "processor.h"
 
+#include "mutex"
+
 #include <modules/video_capture/video_capture.h>
 
 class V4L2Capture : public SubjectInterface<Buffer>
@@ -41,6 +43,7 @@ private:
     BufferGroup capture_;
     Buffer shared_buffer_;
     webrtc::VideoType video_type_;
+    std::mutex capture_lock_;
 
     std::function<void()> capture_func_;
     std::unique_ptr<Processor> processor_;

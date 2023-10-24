@@ -26,6 +26,7 @@ V4L2Capture::V4L2Capture(std::string device)
 }
 
 V4L2Capture::~V4L2Capture() {
+    std::lock_guard<std::mutex> lock(capture_lock_);
     processor_.reset();
     V4l2Util::StreamOff(fd_, capture_.type);
     V4l2Util::DeallocateBuffer(fd_, &capture_);
@@ -146,6 +147,8 @@ V4L2Capture &V4L2Capture::SetCaptureFunc(std::function<bool()> capture_func) {
 }
 
 void V4L2Capture::CaptureImage() {
+    std::lock_guard<std::mutex> lock(capture_lock_);
+
     fd_set fds;
     FD_ZERO(&fds);
     FD_SET(fd_, &fds);
@@ -182,6 +185,8 @@ const Buffer& V4L2Capture::GetImage() const {
 }
 
 void V4L2Capture::StartCapture() {
+    std::lock_guard<std::mutex> lock(capture_lock_);
+
     if (!V4l2Util::AllocateBuffer(fd_, &capture_, buffer_count_)
         || !V4l2Util::QueueBuffers(fd_, &capture_)) {
         exit(0);
@@ -190,7 +195,7 @@ void V4L2Capture::StartCapture() {
     V4l2Util::StreamOn(fd_, capture_.type);
 
     if (capture_func_ == nullptr) {
-        capture_func_ = [this]() -> void { CaptureImage(); };
+        capture_func_ = std::bind(&V4L2Capture::CaptureImage, this);
     }
 
     processor_.reset(new Processor(capture_func_));
