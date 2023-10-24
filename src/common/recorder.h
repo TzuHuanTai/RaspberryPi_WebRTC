@@ -16,8 +16,7 @@ extern "C"
 #include <libswscale/swscale.h>
 }
 
-class Recorder : public std::enable_shared_from_this<Recorder>
-{
+class Recorder : public std::enable_shared_from_this<Recorder> {
 public:
     int width;
     int height;

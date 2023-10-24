@@ -1,5 +1,5 @@
 #include "capture/v4l2_capture.h"
-#include "recorder.h"
+#include "common/recorder.h"
 #include "args.h"
 
 #include <chrono>
@@ -8,8 +8,7 @@
 #include <iostream>
 #include <string>
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
     int images_nb = 0;
     int record_sec = 5;
     Args args{.fps = 15,
@@ -31,10 +30,8 @@ int main(int argc, char *argv[])
     auto start = std::chrono::steady_clock::now();
     auto elasped = std::chrono::steady_clock::now() - start;
     auto mili = std::chrono::duration_cast<std::chrono::milliseconds>(elasped);
-    while (record_sec * 1000 >= mili.count())
-    {
-        if (images_nb * 1000 / args.fps < mili.count())
-        {
+    while (record_sec * 1000 >= mili.count()) {
+        if (images_nb * 1000 / args.fps < mili.count()) {
             recorder.PushEncodedBuffer(capture->GetImage());
             printf("Dequeue buffer number: %d\n"
                 "  bytesused: %d in %d ms\n",

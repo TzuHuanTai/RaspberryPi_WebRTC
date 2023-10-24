@@ -28,8 +28,7 @@ struct BufferGroup {
     enum v4l2_memory memory;
 };
 
-class V4l2Util
-{
+class V4l2Util {
 public:
     static bool IsSinglePlaneVideo(v4l2_capability *cap);
     static bool IsMultiPlaneVideo(v4l2_capability *cap);

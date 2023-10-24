@@ -15,21 +15,18 @@ Recorder::Recorder(Args config)
       frame_rate({.num = (int)config.fps, .den = 1}),
       buffer_limit_num_(config.fps * 10),
       video_frame_count_(0),
-      wait_first_keyframe_(false)
-{
+      wait_first_keyframe_(false) {
     Initialize();
     AsyncWriteFileBackground();
 }
 
-std::string Recorder::PrefixZero(int src, int digits)
-{
+std::string Recorder::PrefixZero(int src, int digits) {
     std::string str = std::to_string(src);
     std::string n_zero(digits - str.length(), '0');
     return n_zero + str;
 }
 
-std::string Recorder::GenerateFilename()
-{
+std::string Recorder::GenerateFilename() {
     time_t now = time(0);
     tm *ltm = localtime(&now);
 
@@ -48,25 +45,21 @@ std::string Recorder::GenerateFilename()
     return filename;
 }
 
-bool Recorder::Initialize()
-{
+bool Recorder::Initialize() {
     filename = GenerateFilename() + "." + extension;
     full_path = base_path + '/' + filename;
 
     if (avformat_alloc_output_context2(&fmt_ctx_, nullptr,
                                        extension.c_str(),
-                                       full_path.c_str()) < 0)
-    {
+                                       full_path.c_str()) < 0) {
         fprintf(stderr, "Could not alloc output context");
         return false;
     }
 
     AddVideoStream();
 
-    if (!(fmt_ctx_->oformat->flags & AVFMT_NOFILE))
-    {
-        if (avio_open(&fmt_ctx_->pb, full_path.c_str(), AVIO_FLAG_WRITE) < 0)
-        {
+    if (!(fmt_ctx_->oformat->flags & AVFMT_NOFILE)) {
+        if (avio_open(&fmt_ctx_->pb, full_path.c_str(), AVIO_FLAG_WRITE) < 0) {
             fprintf(stderr, "Could not open '%s'\n", full_path.c_str());
             return false;
         }
@@ -74,8 +67,7 @@ bool Recorder::Initialize()
 
     av_dump_format(fmt_ctx_, 0, full_path.c_str(), 1);
 
-    if (avformat_write_header(fmt_ctx_, nullptr) < 0)
-    {
+    if (avformat_write_header(fmt_ctx_, nullptr) < 0) {
         fprintf(stderr, "Error occurred when opening output file\n");
         return false;
     }
@@ -83,8 +75,7 @@ bool Recorder::Initialize()
     return true;
 }
 
-void Recorder::AddVideoStream()
-{
+void Recorder::AddVideoStream() {
     // encoder just for setting up stream->codecpar.
     AVCodec *codec = avcodec_find_encoder_by_name(encoder_name.c_str());
     video_encoder_ = avcodec_alloc_context3(codec);
@@ -101,10 +92,8 @@ void Recorder::AddVideoStream()
     avcodec_parameters_from_context(video_st_->codecpar, video_encoder_);
 }
 
-void Recorder::PushEncodedBuffer(Buffer encoded_buffer)
-{
-    if (buffer_queue_.size() < buffer_limit_num_)
-    {
+void Recorder::PushEncodedBuffer(Buffer encoded_buffer) {
+    if (buffer_queue_.size() < buffer_limit_num_) {
         Buffer buf = {
             .start = malloc(encoded_buffer.length),
             .length = encoded_buffer.length,
@@ -115,12 +104,9 @@ void Recorder::PushEncodedBuffer(Buffer encoded_buffer)
     }
 }
 
-void Recorder::ConsumeBuffer()
-{
-    while (is_recording_)
-    {
-        while (!buffer_queue_.empty())
-        {
+void Recorder::ConsumeBuffer() {
+    while (is_recording_) {
+        while (!buffer_queue_.empty()) {
             Write(buffer_queue_.front());
             buffer_queue_.pop();
         }
@@ -128,21 +114,17 @@ void Recorder::ConsumeBuffer()
     }
 }
 
-void Recorder::AsyncWriteFileBackground()
-{
+void Recorder::AsyncWriteFileBackground() {
     is_recording_ = true;
     consumer_ = std::async(std::launch::async, &Recorder::ConsumeBuffer, this);
 }
 
-bool Recorder::Write(Buffer buffer)
-{
-    if (!wait_first_keyframe_ && (buffer.flags & V4L2_BUF_FLAG_KEYFRAME))
-    {
+bool Recorder::Write(Buffer buffer) {
+    if (!wait_first_keyframe_ && (buffer.flags & V4L2_BUF_FLAG_KEYFRAME)) {
         wait_first_keyframe_ = true;
     }
 
-    if (!wait_first_keyframe_)
-    {
+    if (!wait_first_keyframe_) {
         return false;
     }
 
@@ -154,8 +136,7 @@ bool Recorder::Write(Buffer buffer)
     pkt.stream_index = video_st_->index;
     pkt.pts = pkt.dts = av_rescale_q(video_frame_count_++, av_inv_q(frame_rate), video_st_->time_base);
 
-    if (av_interleaved_write_frame(fmt_ctx_, &pkt) < 0)
-    {
+    if (av_interleaved_write_frame(fmt_ctx_, &pkt) < 0) {
         std::cout << "av_interleaved_write_frame: error" << std::endl;
         return false;
     }
@@ -163,14 +144,12 @@ bool Recorder::Write(Buffer buffer)
     return true;
 }
 
-void Recorder::Finish()
-{
+void Recorder::Finish() {
     is_recording_ = false;
 
     consumer_.wait();
 
-    if (fmt_ctx_)
-    {
+    if (fmt_ctx_) {
         av_write_trailer(fmt_ctx_);
         avio_closep(&fmt_ctx_->pb);
         avformat_free_context(fmt_ctx_);
@@ -178,7 +157,6 @@ void Recorder::Finish()
     }
 }
 
-Recorder::~Recorder()
-{
+Recorder::~Recorder() {
     Finish();
 }

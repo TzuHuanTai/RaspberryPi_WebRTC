@@ -1,5 +1,5 @@
-#ifndef SUBJECT_INTERFACE_H_
-#define SUBJECT_INTERFACE_H_
+#ifndef SUBJECT_H_
+#define SUBJECT_H_
 
 #include <functional>
 #include <memory>
@@ -7,15 +7,13 @@
 #include <vector>
 
 template<typename T>
-class Observable
-{
+class Observable {
 public:
-    Observable(){};
-    ~Observable(){};
+    Observable() {};
+    ~Observable() {};
     typedef std::function<void(T)> OnMessageFunc;
 
-    void Subscribe(OnMessageFunc func)
-    {
+    void Subscribe(OnMessageFunc func) {
         subscribed_func_ = func;
     }
 
@@ -23,10 +21,9 @@ public:
 };
 
 template<typename T>
-class SubjectInterface
-{
+class Subject {
 public:
-    virtual ~SubjectInterface(){};
+    virtual ~Subject(){};
     virtual void Next(T message) = 0;
     virtual std::shared_ptr<Observable<T>> AsObservable() = 0;
     virtual void UnSubscribe() = 0;

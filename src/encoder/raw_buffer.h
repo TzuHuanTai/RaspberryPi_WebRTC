@@ -1,15 +1,14 @@
 #ifndef RAW_BUFFER_H_
 #define RAW_BUFFER_H_
 
-#include "v4l2_utils.h"
+#include "common/v4l2_utils.h"
 
 #include <api/video/video_frame.h>
 #include <api/video/i420_buffer.h>
 #include <common_video/include/video_frame_buffer.h>
 #include <rtc_base/memory/aligned_malloc.h>
 
-class RawBuffer : public webrtc::VideoFrameBuffer
-{
+class RawBuffer : public webrtc::VideoFrameBuffer {
 public:
     static rtc::scoped_refptr<RawBuffer> Create(
         int width, int height, int size, Buffer buffer);

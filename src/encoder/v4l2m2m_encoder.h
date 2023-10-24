@@ -2,10 +2,8 @@
 #define V4L2M2M_ENCODER_H_
 
 #include "args.h"
-#include "v4l2_utils.h"
+#include "common/recorder.h"
 #include "data_channel_subject.h"
-#include "recorder.h"
-#include "worker.h"
 #include "encoder/v4l2_codec.h"
 
 #include <functional>

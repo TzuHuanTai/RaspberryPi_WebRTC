@@ -1,8 +1,8 @@
 #ifndef V4L2_CODEC_
 #define V4L2_CODEC_
 
-#include "v4l2_utils.h"
-#include "worker.h"
+#include "common/v4l2_utils.h"
+#include "common/worker.h"
 
 #include <functional>
 #include <queue>
