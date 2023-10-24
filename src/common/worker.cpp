@@ -10,8 +10,7 @@ Worker::~Worker() {
 
 void Worker::Release() {
     can_running_ = false;
-    if (!thread_.empty())
-    {
+    if (!thread_.empty()) {
         thread_.Finalize();
     }
 }

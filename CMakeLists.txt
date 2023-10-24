@@ -39,9 +39,9 @@ include_directories(
 add_library(common)
 target_sources(common
     PRIVATE
-    src/v4l2_utils.cpp
-    src/recorder.cpp
-    src/worker.cpp
+    src/common/v4l2_utils.cpp
+    src/common/recorder.cpp
+    src/common/worker.cpp
 )
 
 

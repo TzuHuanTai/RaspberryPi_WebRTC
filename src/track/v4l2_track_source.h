@@ -1,15 +1,14 @@
 #ifndef V4L2_TRACK_SOURCE_H_
 #define V4L2_TRACK_SOURCE_H_
 
-#include "v4l2_utils.h"
+#include "common/v4l2_utils.h"
 #include "capture/v4l2_capture.h"
 #include "scaler/v4l2m2m_scaler.h"
 #include "decoder/v4l2m2m_decoder.h"
 
 #include <media/base/adapted_video_track_source.h>
 
-class V4L2TrackSource : public rtc::AdaptedVideoTrackSource
-{
+class V4L2TrackSource : public rtc::AdaptedVideoTrackSource {
 public:
     int width_;
     int height_;

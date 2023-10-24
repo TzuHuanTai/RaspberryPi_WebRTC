@@ -1,15 +1,13 @@
 #ifndef V4L2M2M_SCALER_H_
 #define V4L2M2M_SCALER_H_
 
-#include "v4l2_utils.h"
 #include "encoder/v4l2_codec.h"
 
 // Linux
 #include <linux/videodev2.h>
 #include <stdint.h>
 
-class V4l2m2mScaler : public V4l2Codec
-{
+class V4l2m2mScaler : public V4l2Codec {
 public:
     V4l2m2mScaler() {};
     ~V4l2m2mScaler() {};

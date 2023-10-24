@@ -1,15 +1,15 @@
 #ifndef V4L2_CAPTURER_H_
 #define V4L2_CAPTURER_H_
 
-#include "v4l2_utils.h"
-#include "subject_interface.h"
-#include "worker.h"
+#include "common/v4l2_utils.h"
+#include "common/interface/subject.h"
+#include "common/worker.h"
 
 #include "mutex"
 
 #include <modules/video_capture/video_capture.h>
 
-class V4L2Capture : public SubjectInterface<Buffer>
+class V4L2Capture : public Subject<Buffer>
 {
 public:
     V4L2Capture(std::string device);
@@ -19,7 +19,7 @@ public:
     int height() const;
     webrtc::VideoType type();
 
-    // SubjectInterface
+    // Subject
     void Next(Buffer buffer) override;
     std::shared_ptr<Observable<Buffer>> AsObservable() override;
     void UnSubscribe() override;

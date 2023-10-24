@@ -1,7 +1,7 @@
 #include "args.h"
-#include "encoder/v4l2m2m_encoder.h"
-#include "recorder.h"
+#include "common/recorder.h"
 #include "capture/v4l2_capture.h"
+#include "encoder/v4l2m2m_encoder.h"
 
 #include <fcntl.h>
 #include <unistd.h>
@@ -9,8 +9,7 @@
 #include <mutex>
 #include <condition_variable>
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
     std::mutex mtx;
     std::condition_variable cond_var;
     bool is_finished = false;
@@ -33,8 +32,7 @@ int main(int argc, char *argv[])
     args.encoder_name = encoder.name;
     Recorder recorder(args);
 
-    auto test = [&]() -> bool
-    {
+    auto test = [&]() -> bool {
         std::unique_lock<std::mutex> lock(mtx);
         capture->CaptureImage();
         Buffer buffer = capture->GetImage();
@@ -43,22 +41,17 @@ int main(int argc, char *argv[])
         printf("V4l2Capture get %d buffer: %p with %d length\n",
                images_nb, &(encoded_buffer.start), encoded_buffer.length);
 
-        if (encoded_buffer.flags & V4L2_BUF_FLAG_KEYFRAME)
-        {
+        if (encoded_buffer.flags & V4L2_BUF_FLAG_KEYFRAME) {
             wait_first_keyframe = true;
         }
 
-        if (wait_first_keyframe)
-        {
+        if (wait_first_keyframe) {
             recorder.PushEncodedBuffer(encoded_buffer);
         }
 
-        if (images_nb++ < args.fps * record_sec)
-        {
+        if (images_nb++ < args.fps * record_sec) {
             return true;
-        }
-        else
-        {
+        } else {
             is_finished = true;
             cond_var.notify_all();
             return false;
