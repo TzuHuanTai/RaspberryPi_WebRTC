@@ -41,7 +41,7 @@ target_sources(common
     PRIVATE
     src/v4l2_utils.cpp
     src/recorder.cpp
-    src/processor.cpp
+    src/worker.cpp
 )
 
 

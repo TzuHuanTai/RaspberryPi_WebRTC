@@ -1,12 +1,12 @@
-#ifndef PROCESSOR_H_
-#define PROCESSOR_H_
+#ifndef WORKER_H_
+#define WORKER_H_
 
 #include <rtc_base/platform_thread.h>
 
-class Processor {
+class Worker {
 public:
-    Processor(std::function<void()> excuting_function);
-    ~Processor();
+    Worker(std::function<void()> excuting_function);
+    ~Worker();
     void Release();
     void Run();
 

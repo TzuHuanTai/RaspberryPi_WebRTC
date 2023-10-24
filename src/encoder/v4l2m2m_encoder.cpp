@@ -188,7 +188,7 @@ bool V4l2m2mEncoder::V4l2m2mConfigure(int width, int height, bool is_drm_src) {
     V4l2Util::StreamOn(fd_, output_.type);
     V4l2Util::StreamOn(fd_, capture_.type);
 
-    ResetProcessor();
+    ResetWorker();
 
     return true;
 }

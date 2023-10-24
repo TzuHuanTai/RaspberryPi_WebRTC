@@ -2,7 +2,7 @@
 #define V4L2_CODEC_
 
 #include "v4l2_utils.h"
-#include "processor.h"
+#include "worker.h"
 
 #include <functional>
 #include <queue>
@@ -15,7 +15,7 @@ public:
     bool PrepareBuffer(BufferGroup *gbuffer, int width, int height,
                        uint32_t pix_fmt, v4l2_buf_type type,
                        v4l2_memory memory, int buffer_num, bool has_dmafd = false);
-    void ResetProcessor();
+    void ResetWorker();
     bool EmplaceBuffer(Buffer &buffer, std::function<void(Buffer)>on_capture);
     void ReleaseCodec();
 
@@ -24,7 +24,7 @@ protected:
     BufferGroup output_;
     BufferGroup capture_;
     std::queue<int> output_buffer_index_;
-    std::unique_ptr<Processor> processor_;
+    std::unique_ptr<Worker> worker_;
     std::queue<std::function<void(Buffer)>> capturing_tasks_;
     virtual void HandleEvent() {};
 

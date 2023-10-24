@@ -32,7 +32,7 @@ bool V4l2m2mScaler::V4l2m2mConfigure(int src_width, int src_height,
     V4l2Util::StreamOn(fd_, output_.type);
     V4l2Util::StreamOn(fd_, capture_.type);
 
-    ResetProcessor();
+    ResetWorker();
 
     std::cout << "[V4l2m2mScaler]: prepare done" << std::endl;
     return true;
