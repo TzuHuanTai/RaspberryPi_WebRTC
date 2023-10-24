@@ -1,16 +1,14 @@
-#include "processor.h"
+#include "worker.h"
 
-Processor::Processor(std::function<void()> excuting_function)
+Worker::Worker(std::function<void()> excuting_function)
     : can_running_(true),
       excuting_function_(excuting_function) {}
 
-Processor::~Processor()
-{
+Worker::~Worker() {
     Release();
 }
 
-void Processor::Release()
-{
+void Worker::Release() {
     can_running_ = false;
     if (!thread_.empty())
     {
@@ -18,8 +16,7 @@ void Processor::Release()
     }
 }
 
-void Processor::Run()
-{
+void Worker::Run() {
     thread_ = rtc::PlatformThread::SpawnJoinable(
             [this]()
             { this->Thread(); },
@@ -27,8 +24,7 @@ void Processor::Run()
             rtc::ThreadAttributes().SetPriority(rtc::ThreadPriority::kHigh));
 }
 
-void Processor::Thread()
-{
+void Worker::Thread() {
     while (can_running_) {
         excuting_function_();
     }

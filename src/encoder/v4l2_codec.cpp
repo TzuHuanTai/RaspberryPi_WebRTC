@@ -42,9 +42,9 @@ bool V4l2Codec::PrepareBuffer(BufferGroup *gbuffer, int width, int height,
     return true;
 }
 
-void V4l2Codec::ResetProcessor() {
-    processor_.reset(new Processor([&]() { CapturingFunction();}));
-    processor_->Run();
+void V4l2Codec::ResetWorker() {
+    worker_.reset(new Worker([&]() { CapturingFunction();}));
+    worker_->Run();
 }
 
 bool V4l2Codec::EmplaceBuffer(Buffer &buffer, 
@@ -158,7 +158,7 @@ void V4l2Codec::ReleaseCodec() {
     }
     capturing_tasks_ = {};
     output_buffer_index_ = {};
-    processor_.reset();
+    worker_.reset();
 
     V4l2Util::StreamOff(fd_, output_.type);
     V4l2Util::StreamOff(fd_, capture_.type);

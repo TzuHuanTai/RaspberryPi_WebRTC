@@ -33,7 +33,7 @@ bool V4l2m2mDecoder::V4l2m2mConfigure(int width, int height, bool is_drm_dst) {
     V4l2Util::StreamOn(fd_, output_.type);
     V4l2Util::StreamOn(fd_, capture_.type);
 
-    ResetProcessor();
+    ResetWorker();
 
     std::cout << "[V4l2m2mDecoder]: prepare done" << std::endl;
     return true;

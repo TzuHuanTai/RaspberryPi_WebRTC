@@ -27,7 +27,7 @@ V4L2Capture::V4L2Capture(std::string device)
 
 V4L2Capture::~V4L2Capture() {
     std::lock_guard<std::mutex> lock(capture_lock_);
-    processor_.reset();
+    worker_.reset();
     V4l2Util::StreamOff(fd_, capture_.type);
     V4l2Util::DeallocateBuffer(fd_, &capture_);
     V4l2Util::CloseDevice(fd_);
@@ -198,6 +198,6 @@ void V4L2Capture::StartCapture() {
         capture_func_ = std::bind(&V4L2Capture::CaptureImage, this);
     }
 
-    processor_.reset(new Processor(capture_func_));
-    processor_->Run();
+    worker_.reset(new Worker(capture_func_));
+    worker_->Run();
 }

@@ -5,7 +5,7 @@
 #include "v4l2_utils.h"
 #include "data_channel_subject.h"
 #include "recorder.h"
-#include "processor.h"
+#include "worker.h"
 #include "encoder/v4l2_codec.h"
 
 #include <functional>

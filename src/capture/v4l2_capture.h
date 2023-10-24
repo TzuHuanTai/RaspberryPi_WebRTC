@@ -3,7 +3,7 @@
 
 #include "v4l2_utils.h"
 #include "subject_interface.h"
-#include "processor.h"
+#include "worker.h"
 
 #include "mutex"
 
@@ -46,7 +46,7 @@ private:
     std::mutex capture_lock_;
 
     std::function<void()> capture_func_;
-    std::unique_ptr<Processor> processor_;
+    std::unique_ptr<Worker> worker_;
 
     bool CheckMatchingDevice(std::string unique_name);
     int GetCameraIndex(webrtc::VideoCaptureModule::DeviceInfo *device_info);
