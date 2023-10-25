@@ -1,4 +1,4 @@
-#include "raw_buffer.h"
+#include "v4l2_codecs/raw_buffer.h"
 
 // Aligning pointer to 64 bytes for improved performance, e.g. use SIMD.
 static const int kBufferAlignment = 64;
@@ -18,40 +18,33 @@ RawBuffer::RawBuffer(int width, int height, int size, Buffer buffer)
 
 RawBuffer::~RawBuffer() {}
 
-void RawBuffer::InitializeData()
-{
+void RawBuffer::InitializeData() {
     memset(data_.get(), 0, size_);
 }
 
-webrtc::VideoFrameBuffer::Type RawBuffer::type() const
-{
+webrtc::VideoFrameBuffer::Type RawBuffer::type() const {
     return Type::kNative;
 }
 
-int RawBuffer::width() const
-{
+int RawBuffer::width() const {
     return width_;
 }
 
-int RawBuffer::height() const
-{
+int RawBuffer::height() const {
     return height_;
 }
 
-rtc::scoped_refptr<webrtc::I420BufferInterface> RawBuffer::ToI420()
-{
+rtc::scoped_refptr<webrtc::I420BufferInterface> RawBuffer::ToI420() {
     rtc::scoped_refptr<webrtc::I420Buffer> buffer =
         webrtc::I420Buffer::Create(width_, height_);
     return buffer;
 }
 
-unsigned int RawBuffer::Size() const
-{
+unsigned int RawBuffer::Size() const {
     return static_cast<unsigned int>(size_);
 }
 
-Buffer RawBuffer::GetBuffer()
-{
+Buffer RawBuffer::GetBuffer() {
     return buffer_;
 }
 
@@ -59,7 +52,6 @@ const uint8_t *RawBuffer::Data() const {
     return data_.get();
 }
 
-uint8_t *RawBuffer::MutableData()
-{
+uint8_t *RawBuffer::MutableData() {
     return const_cast<uint8_t *>(Data());
 }

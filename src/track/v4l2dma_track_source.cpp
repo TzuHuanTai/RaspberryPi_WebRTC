@@ -1,7 +1,5 @@
 #include "v4l2dma_track_source.h"
-#include "encoder/raw_buffer.h"
-
-#include <cmath>
+#include "v4l2_codecs/raw_buffer.h"
 
 // WebRTC
 #include <api/video/i420_buffer.h>

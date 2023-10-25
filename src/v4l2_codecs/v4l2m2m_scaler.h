@@ -1,7 +1,7 @@
 #ifndef V4L2M2M_SCALER_H_
 #define V4L2M2M_SCALER_H_
 
-#include "encoder/v4l2_codec.h"
+#include "v4l2_codecs/v4l2_codec.h"
 
 // Linux
 #include <linux/videodev2.h>

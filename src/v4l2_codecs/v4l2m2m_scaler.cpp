@@ -1,5 +1,5 @@
-#include "scaler/v4l2m2m_scaler.h"
-#include "encoder/raw_buffer.h"
+#include "v4l2_codecs/v4l2m2m_scaler.h"
+#include "v4l2_codecs/raw_buffer.h"
 
 #include <sys/mman.h>
 #include <sys/ioctl.h>

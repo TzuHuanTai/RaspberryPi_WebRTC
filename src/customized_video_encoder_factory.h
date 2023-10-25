@@ -16,14 +16,13 @@
 std::unique_ptr<webrtc::VideoEncoderFactory> CreateCustomizedVideoEncoderFactory(
     Args args, std::shared_ptr<DataChannelSubject> data_channel_subject);
 
-class CustomizedVideoEncoderFactory : public webrtc::VideoEncoderFactory
-{
+class CustomizedVideoEncoderFactory : public webrtc::VideoEncoderFactory {
 public:
     CustomizedVideoEncoderFactory(Args args, 
         std::shared_ptr<DataChannelSubject> data_channel_subject)
         : args_(args),
-          data_channel_subject_(data_channel_subject){};
-    ~CustomizedVideoEncoderFactory(){};
+          data_channel_subject_(data_channel_subject) {};
+    ~CustomizedVideoEncoderFactory() {};
 
     std::vector<webrtc::SdpVideoFormat> GetSupportedFormats() const override;
 

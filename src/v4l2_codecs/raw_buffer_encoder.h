@@ -2,9 +2,9 @@
 #define RAW_BUFFER_ENCODER_H_
 
 #include "args.h"
-#include "scaler/v4l2m2m_scaler.h"
-#include "decoder/v4l2m2m_decoder.h"
-#include "encoder/v4l2m2m_encoder.h"
+#include "v4l2_codecs/v4l2m2m_scaler.h"
+#include "v4l2_codecs/v4l2m2m_decoder.h"
+#include "v4l2_codecs/v4l2m2m_encoder.h"
 
 #include <chrono>
 #include <memory>
@@ -20,8 +20,7 @@
 
 class ProcessThread;
 
-class RawBufferEncoder : public webrtc::VideoEncoder
-{
+class RawBufferEncoder : public webrtc::VideoEncoder {
 public:
     explicit RawBufferEncoder(const webrtc::SdpVideoFormat &format, Args args);
     ~RawBufferEncoder() override;
