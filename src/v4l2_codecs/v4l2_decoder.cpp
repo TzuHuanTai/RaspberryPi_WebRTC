@@ -1,4 +1,4 @@
-#include "v4l2_codecs/v4l2m2m_decoder.h"
+#include "v4l2_codecs/v4l2_decoder.h"
 #include "v4l2_codecs/raw_buffer.h"
 
 #include <sys/mman.h>
@@ -17,7 +17,7 @@
 const char *DECODER_FILE = "/dev/video10";
 const int BUFFER_NUM = 2;
 
-bool V4l2m2mDecoder::V4l2m2mConfigure(int width, int height, bool is_drm_dst) {
+bool V4l2Decoder::V4l2m2mConfigure(int width, int height, bool is_drm_dst) {
     if(!Open(DECODER_FILE)) {
         printf("failed to open scaler: /dev/video10\n");
     }
@@ -35,11 +35,11 @@ bool V4l2m2mDecoder::V4l2m2mConfigure(int width, int height, bool is_drm_dst) {
 
     ResetWorker();
 
-    std::cout << "[V4l2m2mDecoder]: prepare done" << std::endl;
+    std::cout << "[V4l2Decoder]: prepare done" << std::endl;
     return true;
 }
 
-void V4l2m2mDecoder::HandleEvent() {
+void V4l2Decoder::HandleEvent() {
     struct v4l2_event ev;
     while (!ioctl(fd_, VIDIOC_DQEVENT, &ev)) {
         switch (ev.type) {

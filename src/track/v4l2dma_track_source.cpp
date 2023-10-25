@@ -18,9 +18,9 @@ V4l2DmaTrackSource::V4l2DmaTrackSource(std::shared_ptr<V4L2Capture> capture)
     : V4L2TrackSource(capture) {}
 
 void V4l2DmaTrackSource::Init() {
-    decoder_ = std::make_unique<V4l2m2mDecoder>();
+    decoder_ = std::make_unique<V4l2Decoder>();
     decoder_->V4l2m2mConfigure(width_, height_, true);
-    scaler_ = std::make_unique<V4l2m2mScaler>();
+    scaler_ = std::make_unique<V4l2Scaler>();
     scaler_->V4l2m2mConfigure(width_, height_, width_, height_, true, true);
 }
 

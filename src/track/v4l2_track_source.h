@@ -3,8 +3,6 @@
 
 #include "common/v4l2_utils.h"
 #include "capture/v4l2_capture.h"
-#include "v4l2_codecs/v4l2m2m_scaler.h"
-#include "v4l2_codecs/v4l2m2m_decoder.h"
 
 #include <media/base/adapted_video_track_source.h>
 
