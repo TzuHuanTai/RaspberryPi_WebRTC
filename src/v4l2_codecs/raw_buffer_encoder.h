@@ -2,8 +2,8 @@
 #define RAW_BUFFER_ENCODER_H_
 
 #include "args.h"
-#include "v4l2_codecs/v4l2m2m_scaler.h"
-#include "v4l2_codecs/v4l2m2m_decoder.h"
+#include "v4l2_codecs/v4l2_scaler.h"
+#include "v4l2_codecs/v4l2_decoder.h"
 #include "v4l2_codecs/v4l2m2m_encoder.h"
 
 #include <chrono>
@@ -42,7 +42,7 @@ private:
     int src_height_;
     int dst_width_;
     int dst_height_;
-    std::unique_ptr<V4l2m2mScaler> scaler_;
+    std::unique_ptr<V4l2Scaler> scaler_;
     std::unique_ptr<V4l2m2mEncoder> encoder_;
     webrtc::VideoCodec codec_;
     webrtc::EncodedImage encoded_image_;

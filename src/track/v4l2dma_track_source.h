@@ -2,6 +2,8 @@
 #define V4L2DMA_TRACK_SOURCE_H_
 
 #include "track/v4l2_track_source.h"
+#include "v4l2_codecs/v4l2_scaler.h"
+#include "v4l2_codecs/v4l2_decoder.h"
 
 #include <media/base/adapted_video_track_source.h>
 
@@ -16,8 +18,8 @@ protected:
     void Init() override;
 
 private:
-    std::unique_ptr<V4l2m2mScaler> scaler_;
-    std::unique_ptr<V4l2m2mDecoder> decoder_;
+    std::unique_ptr<V4l2Scaler> scaler_;
+    std::unique_ptr<V4l2Decoder> decoder_;
 };
 
 #endif

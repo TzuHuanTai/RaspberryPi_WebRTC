@@ -1,5 +1,5 @@
-#ifndef V4L2M2M_DECODER_H_
-#define V4L2M2M_DECODER_H_
+#ifndef V4L2_DECODER_H_
+#define V4L2_DECODER_H_
 
 #include "v4l2_codecs/v4l2_codec.h"
 
@@ -7,14 +7,14 @@
 #include <linux/videodev2.h>
 #include <stdint.h>
 
-class V4l2m2mDecoder : public V4l2Codec {
+class V4l2Decoder : public V4l2Codec {
 public:
-    V4l2m2mDecoder() {};
-    ~V4l2m2mDecoder() {};
+    V4l2Decoder() {};
+    ~V4l2Decoder() {};
     bool V4l2m2mConfigure(int width, int height, bool is_drm_dst);
 
 protected:
     void HandleEvent() override;
 };
 
-#endif // V4L2M2M_DECODER_H_
+#endif // V4L2_DECODER_H_

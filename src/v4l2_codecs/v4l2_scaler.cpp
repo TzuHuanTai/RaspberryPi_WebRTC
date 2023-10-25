@@ -1,4 +1,4 @@
-#include "v4l2_codecs/v4l2m2m_scaler.h"
+#include "v4l2_codecs/v4l2_scaler.h"
 #include "v4l2_codecs/raw_buffer.h"
 
 #include <sys/mman.h>
@@ -17,7 +17,7 @@
 const char *SCALER_FILE = "/dev/video12";
 const int BUFFER_NUM = 2;
 
-bool V4l2m2mScaler::V4l2m2mConfigure(int src_width, int src_height, 
+bool V4l2Scaler::V4l2m2mConfigure(int src_width, int src_height, 
                                      int dst_width, int dst_height,
                                      bool is_drm_src, bool is_drm_dst) {
     if(!Open(SCALER_FILE)) {
@@ -34,6 +34,6 @@ bool V4l2m2mScaler::V4l2m2mConfigure(int src_width, int src_height,
 
     ResetWorker();
 
-    std::cout << "[V4l2m2mScaler]: prepare done" << std::endl;
+    std::cout << "[V4l2Scaler]: prepare done" << std::endl;
     return true;
 }
