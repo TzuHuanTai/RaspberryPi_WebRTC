@@ -1,11 +1,8 @@
 project(src)
 
-
-add_subdirectory(decoder)
-add_subdirectory(encoder)
 add_subdirectory(capture)
-add_subdirectory(scaler)
 add_subdirectory(track)
+add_subdirectory(v4l2_codecs)
 
 add_library(${PROJECT_NAME})
 target_sources(${PROJECT_NAME}
@@ -17,4 +14,4 @@ target_sources(${PROJECT_NAME}
     signal_server.cpp
 )
 
-target_link_libraries(${PROJECT_NAME} encoder capture track)
+target_link_libraries(${PROJECT_NAME} capture track v4l2_codecs)

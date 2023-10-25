@@ -2,9 +2,6 @@
 #define V4L2DMA_TRACK_SOURCE_H_
 
 #include "track/v4l2_track_source.h"
-#include "capture/v4l2_capture.h"
-#include "scaler/v4l2m2m_scaler.h"
-#include "decoder/v4l2m2m_decoder.h"
 
 #include <media/base/adapted_video_track_source.h>
 

@@ -44,7 +44,6 @@ target_sources(common
     src/common/worker.cpp
 )
 
-
 if(BUILD_TEST STREQUAL "recorder")
     add_subdirectory(src/capture)
     add_executable(recorder test/test_recorder.cpp)
@@ -72,12 +71,12 @@ elseif(BUILD_TEST STREQUAL "v4l2_capture")
     )
 elseif(BUILD_TEST STREQUAL "v4l2m2m_encoder")
     add_subdirectory(src/capture)
-    add_subdirectory(src/encoder)
+    add_subdirectory(src/v4l2_codecs)
     add_executable(v4l2m2m_encoder test/test_v4l2m2m_encoder.cpp)
     target_link_libraries(v4l2m2m_encoder
         capture
-        encoder
         common
+        v4l2_codecs
     )
     target_link_libraries(v4l2m2m_encoder
         ${WEBRTC_LINK_LIBS}
@@ -87,14 +86,12 @@ elseif(BUILD_TEST STREQUAL "v4l2m2m_encoder")
     )
 elseif(BUILD_TEST STREQUAL "v4l2m2m_decoder")
     add_subdirectory(src/capture)
-    add_subdirectory(src/decoder)
-    add_subdirectory(src/scaler)
+    add_subdirectory(src/v4l2_codecs)
     add_executable(v4l2m2m_decoder test/test_v4l2m2m_decoder.cpp)
     target_link_libraries(v4l2m2m_decoder
         capture
-        decoder
-        scaler
         common
+        v4l2_codecs
     )
     target_link_libraries(v4l2m2m_decoder
         ${WEBRTC_LINK_LIBS}
@@ -104,12 +101,12 @@ elseif(BUILD_TEST STREQUAL "v4l2m2m_decoder")
     )
 elseif(BUILD_TEST STREQUAL "v4l2m2m_scaler")
     add_subdirectory(src/capture)
-    add_subdirectory(src/scaler)
+    add_subdirectory(src/v4l2_codecs)
     add_executable(v4l2m2m_scaler test/test_v4l2m2m_scaler.cpp)
     target_link_libraries(v4l2m2m_scaler
         capture
-        scaler
         common
+        v4l2_codecs
     )
     target_link_libraries(v4l2m2m_scaler
         ${WEBRTC_LINK_LIBS}
@@ -122,10 +119,10 @@ else()
     add_executable(${PROJECT_NAME} src/main.cpp)
     target_link_libraries(${PROJECT_NAME}
         src
-        encoder
         common
         capture
         track
+        v4l2_codecs
     )
     target_link_libraries(${PROJECT_NAME}
         ${WEBRTC_LINK_LIBS}

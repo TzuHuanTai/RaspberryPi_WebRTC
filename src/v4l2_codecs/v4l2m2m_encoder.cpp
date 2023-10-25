@@ -1,4 +1,4 @@
-#include "encoder/v4l2m2m_encoder.h"
+#include "v4l2_codecs/v4l2m2m_encoder.h"
 
 #include <sys/mman.h>
 #include <iostream>
