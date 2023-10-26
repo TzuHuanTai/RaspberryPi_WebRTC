@@ -2,12 +2,7 @@
 #define RAW_BUFFER_ENCODER_H_
 
 #include "args.h"
-#include "v4l2_codecs/v4l2_scaler.h"
-#include "v4l2_codecs/v4l2_decoder.h"
-#include "v4l2_codecs/v4l2m2m_encoder.h"
-
-#include <chrono>
-#include <memory>
+#include "v4l2_codecs/v4l2_encoder.h"
 
 // Linux
 #include <linux/videodev2.h>
@@ -42,11 +37,11 @@ private:
     int src_height_;
     int dst_width_;
     int dst_height_;
-    std::unique_ptr<V4l2Scaler> scaler_;
-    std::unique_ptr<V4l2m2mEncoder> encoder_;
+    std::unique_ptr<V4l2Encoder> encoder_;
     webrtc::VideoCodec codec_;
     webrtc::EncodedImage encoded_image_;
     webrtc::EncodedImageCallback *callback_;
+    webrtc::BitrateAdjuster bitrate_adjuster_;
 
     void SendFrame(const webrtc::VideoFrame &frame, Buffer &encoded_buffer);
 };
