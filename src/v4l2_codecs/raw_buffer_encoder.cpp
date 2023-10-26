@@ -7,7 +7,8 @@ RawBufferEncoder::RawBufferEncoder(const webrtc::SdpVideoFormat &format, Args ar
     : args_(args),
       src_width_(args.width),
       src_height_(args.height),
-      callback_(nullptr) {}
+      callback_(nullptr),
+      bitrate_adjuster_(.85, 1) {}
 
 RawBufferEncoder::~RawBufferEncoder() {
     Release();
@@ -29,8 +30,8 @@ int32_t RawBufferEncoder::InitEncode(
     encoded_image_.timing_.flags = webrtc::VideoSendTiming::TimingFrameFlags::kInvalid;
     encoded_image_.content_type_ = webrtc::VideoContentType::UNSPECIFIED;
 
-    encoder_ = std::make_unique<V4l2m2mEncoder>();
-    encoder_->V4l2m2mConfigure(dst_width_, dst_height_, true);
+    encoder_ = std::make_unique<V4l2Encoder>();
+    encoder_->Configure(dst_width_, dst_height_, true);
 
     return WEBRTC_VIDEO_CODEC_OK;
 }
@@ -98,7 +99,7 @@ void RawBufferEncoder::SendFrame(const webrtc::VideoFrame &frame, Buffer &encode
 }
 
 void RawBufferEncoder::SetRates(const RateControlParameters &parameters) {
-    encoder_->V4l2m2mSetFps(parameters);
+    encoder_->SetFps(parameters, bitrate_adjuster_);
 }
 
 webrtc::VideoEncoder::EncoderInfo RawBufferEncoder::GetEncoderInfo() const {
