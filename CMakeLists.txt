@@ -46,12 +46,12 @@ target_sources(common
 
 if(BUILD_TEST STREQUAL "recorder")
     add_subdirectory(src/capture)
-    add_executable(recorder test/test_recorder.cpp)
-    target_link_libraries(recorder
+    add_executable(test_recorder test/test_recorder.cpp)
+    target_link_libraries(test_recorder
         capture
         common
     )
-    target_link_libraries(recorder
+    target_link_libraries(test_recorder
         ${WEBRTC_LINK_LIBS}
         ${FFMPEG_LINK_LIBS}
         Threads::Threads
@@ -59,56 +59,56 @@ if(BUILD_TEST STREQUAL "recorder")
     )
 elseif(BUILD_TEST STREQUAL "v4l2_capture")
     add_subdirectory(src/capture)
-    add_executable(v4l2_capture test/test_v4l2_capture.cpp)
-    target_link_libraries(v4l2_capture
+    add_executable(test_v4l2_capture test/test_v4l2_capture.cpp)
+    target_link_libraries(test_v4l2_capture
         capture
         common
     )
-    target_link_libraries(v4l2_capture
+    target_link_libraries(test_v4l2_capture
         ${WEBRTC_LINK_LIBS}
         Threads::Threads
         ${WEBRTC_LIBRARY_DIR}
     )
-elseif(BUILD_TEST STREQUAL "v4l2m2m_encoder")
+elseif(BUILD_TEST STREQUAL "v4l2_encoder")
     add_subdirectory(src/capture)
     add_subdirectory(src/v4l2_codecs)
-    add_executable(v4l2m2m_encoder test/test_v4l2m2m_encoder.cpp)
-    target_link_libraries(v4l2m2m_encoder
+    add_executable(test_v4l2_encoder test/test_v4l2_encoder.cpp)
+    target_link_libraries(test_v4l2_encoder
         capture
         common
         v4l2_codecs
     )
-    target_link_libraries(v4l2m2m_encoder
-        ${WEBRTC_LINK_LIBS}
-        ${FFMPEG_LINK_LIBS}
-        Threads::Threads
-        ${WEBRTC_LIBRARY_DIR}
-    )
-elseif(BUILD_TEST STREQUAL "v4l2m2m_decoder")
-    add_subdirectory(src/capture)
-    add_subdirectory(src/v4l2_codecs)
-    add_executable(v4l2m2m_decoder test/test_v4l2m2m_decoder.cpp)
-    target_link_libraries(v4l2m2m_decoder
-        capture
-        common
-        v4l2_codecs
-    )
-    target_link_libraries(v4l2m2m_decoder
+    target_link_libraries(test_v4l2_encoder
         ${WEBRTC_LINK_LIBS}
         ${FFMPEG_LINK_LIBS}
         Threads::Threads
         ${WEBRTC_LIBRARY_DIR}
     )
-elseif(BUILD_TEST STREQUAL "v4l2m2m_scaler")
+elseif(BUILD_TEST STREQUAL "v4l2_decoder")
     add_subdirectory(src/capture)
     add_subdirectory(src/v4l2_codecs)
-    add_executable(v4l2m2m_scaler test/test_v4l2m2m_scaler.cpp)
-    target_link_libraries(v4l2m2m_scaler
+    add_executable(test_v4l2_decoder test/test_v4l2_decoder.cpp)
+    target_link_libraries(test_v4l2_decoder
         capture
         common
         v4l2_codecs
     )
-    target_link_libraries(v4l2m2m_scaler
+    target_link_libraries(test_v4l2_decoder
+        ${WEBRTC_LINK_LIBS}
+        ${FFMPEG_LINK_LIBS}
+        Threads::Threads
+        ${WEBRTC_LIBRARY_DIR}
+    )
+elseif(BUILD_TEST STREQUAL "v4l2_scaler")
+    add_subdirectory(src/capture)
+    add_subdirectory(src/v4l2_codecs)
+    add_executable(test_v4l2_scaler test/test_v4l2_scaler.cpp)
+    target_link_libraries(test_v4l2_scaler
+        capture
+        common
+        v4l2_codecs
+    )
+    target_link_libraries(test_v4l2_scaler
         ${WEBRTC_LINK_LIBS}
         ${FFMPEG_LINK_LIBS}
         Threads::Threads

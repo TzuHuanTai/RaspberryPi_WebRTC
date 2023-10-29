@@ -17,9 +17,8 @@
 const char *SCALER_FILE = "/dev/video12";
 const int BUFFER_NUM = 2;
 
-bool V4l2Scaler::V4l2m2mConfigure(int src_width, int src_height, 
-                                     int dst_width, int dst_height,
-                                     bool is_drm_src, bool is_drm_dst) {
+bool V4l2Scaler::Configure(int src_width, int src_height, int dst_width,
+                           int dst_height, bool is_drm_src, bool is_drm_dst) {
     if(!Open(SCALER_FILE)) {
         printf("failed to open scaler: /dev/video12\n");
     }

@@ -1,7 +1,7 @@
 #include "args.h"
 #include "common/recorder.h"
 #include "capture/v4l2_capture.h"
-#include "encoder/v4l2m2m_encoder.h"
+#include "v4l2_codecs/v4l2_encoder.h"
 
 #include <fcntl.h>
 #include <unistd.h>
@@ -21,41 +21,44 @@ int main(int argc, char *argv[]) {
               .width = 640,
               .height = 480,
               .v4l2_format = "i420",
-              .record_container = "mp4",
               .record_path = "./",
+              .record_container = "mp4",
               .encoder_name = "h264_v4l2m2m"};
     auto capture = V4L2Capture::Create(args.device);
 
-    V4l2m2mEncoder encoder;
-    encoder.V4l2m2mConfigure(args.width, args.height, args.fps);
+    auto encoder = std::make_unique<V4l2Encoder>();
+    encoder->Configure(args.width, args.height, false);
 
-    args.encoder_name = encoder.name;
-    Recorder recorder(args);
+    auto recorder = std::make_unique<Recorder>(args);
 
     auto test = [&]() -> bool {
         std::unique_lock<std::mutex> lock(mtx);
         capture->CaptureImage();
         Buffer buffer = capture->GetImage();
 
-        encoder.V4l2m2mEncode((uint8_t *)buffer.start, buffer.length, encoded_buffer);
-        printf("V4l2Capture get %d buffer: %p with %d length\n",
+        encoder->EmplaceBuffer(buffer,
+        [&](Buffer encoded_buffer) {
+            if (is_finished) {
+                return;
+            }
+
+            printf("V4l2Capture get %d buffer: %p with %d length\n",
                images_nb, &(encoded_buffer.start), encoded_buffer.length);
 
-        if (encoded_buffer.flags & V4L2_BUF_FLAG_KEYFRAME) {
-            wait_first_keyframe = true;
-        }
+            if (encoded_buffer.flags & V4L2_BUF_FLAG_KEYFRAME) {
+                wait_first_keyframe = true;
+            }
 
-        if (wait_first_keyframe) {
-            recorder.PushEncodedBuffer(encoded_buffer);
-        }
+            if (wait_first_keyframe) {
+                recorder->PushEncodedBuffer(encoded_buffer);
+            }
 
-        if (images_nb++ < args.fps * record_sec) {
-            return true;
-        } else {
-            is_finished = true;
-            cond_var.notify_all();
-            return false;
-        }
+            if (images_nb++ > args.fps * record_sec) {
+                is_finished = true;
+                cond_var.notify_all();
+            }
+        });
+        return !is_finished;
     };
 
     (*capture).SetFormat(args.width, args.height, args.v4l2_format)
@@ -64,8 +67,7 @@ int main(int argc, char *argv[]) {
         .StartCapture();
 
     std::unique_lock<std::mutex> lock(mtx);
-    cond_var.wait(lock, [&]
-                  { return is_finished; });
+    cond_var.wait(lock, [&] { return is_finished; });
 
     return 0;
 }
