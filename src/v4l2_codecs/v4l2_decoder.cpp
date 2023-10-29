@@ -17,7 +17,7 @@
 const char *DECODER_FILE = "/dev/video10";
 const int BUFFER_NUM = 2;
 
-bool V4l2Decoder::V4l2m2mConfigure(int width, int height, bool is_drm_dst) {
+bool V4l2Decoder::Configure(int width, int height, bool is_drm_dst) {
     if(!Open(DECODER_FILE)) {
         printf("failed to open scaler: /dev/video10\n");
     }

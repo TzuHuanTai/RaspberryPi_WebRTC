@@ -1,5 +1,6 @@
 #include "args.h"
-#include "scaler/v4l2m2m_scaler.h"
+#include "v4l2_codecs/v4l2_decoder.h"
+#include "v4l2_codecs/v4l2_scaler.h"
 #include "capture/v4l2_capture.h"
 
 #include <fcntl.h>
@@ -8,16 +9,14 @@
 #include <mutex>
 #include <condition_variable>
 
-void WriteImage(Buffer buffer, int index)
-{
+void WriteImage(Buffer buffer, int index) {
     printf("Dequeued buffer index: %d\n"
            "  bytesused: %d\n",
            index, buffer.length);
 
     std::string filename = "img" + std::to_string(index) + ".yuv";
     int outfd = open(filename.c_str(), O_WRONLY | O_CREAT | O_EXCL, 0600);
-    if ((outfd == -1) && (EEXIST == errno))
-    {
+    if ((outfd == -1) && (EEXIST == errno)) {
         /* open the existing file with write flag */
         outfd = open(filename.c_str(), O_WRONLY);
     }
@@ -25,44 +24,44 @@ void WriteImage(Buffer buffer, int index)
     write(outfd, buffer.start, buffer.length);
 }
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
     std::mutex mtx;
     std::condition_variable cond_var;
     bool is_finished = false;
-    bool wait_first_keyframe = false;
     int images_nb = 0;
-    int record_sec = 3;
+    int record_sec = 1;
     Args args{.fps = 15,
               .width = 640,
               .height = 480,
-              .v4l2_format = "i420"};
+              .v4l2_format = "h264"};
     auto capture = V4L2Capture::Create(args.device);
 
-    V4l2m2mScaler scaler;
-    scaler.V4l2m2mConfigure(args.width, args.height, 320, 240);
+    auto decoder = std::make_unique<V4l2Decoder>();
+    decoder->Configure(args.width, args.height, true);
+    auto scaler = std::make_unique<V4l2Scaler>();
+    scaler->Configure(args.width, args.height, 320, 240, true, false);
 
-    auto test = [&]() -> bool
-    {
+    auto test = [&]() -> bool {
         std::unique_lock<std::mutex> lock(mtx);
         capture->CaptureImage();
         Buffer buffer = capture->GetImage();
 
-        scaler.EmplaceBuffer((uint8_t *)buffer.start, buffer.length,
-            [&, images_nb](Buffer scaled_buffer) { 
-                WriteImage(scaled_buffer, images_nb);
-            });
+        decoder->EmplaceBuffer(buffer, [&](Buffer decoded_buffer) {
+            scaler->EmplaceBuffer(decoded_buffer, [&](Buffer scaled_buffer) {
+                if (is_finished) {
+                    return;
+                }
 
-        if (images_nb++ < args.fps * record_sec)
-        {
-            return true;
-        }
-        else
-        {
-            is_finished = true;
-            cond_var.notify_all();
-            return false;
-        }
+                if (images_nb++ < args.fps * record_sec) {
+                    WriteImage(scaled_buffer, images_nb);
+                } else {
+                    is_finished = true;
+                    cond_var.notify_all();
+                }
+            });
+        });
+
+        return !is_finished;
     };
 
     (*capture).SetFormat(args.width, args.height, args.v4l2_format)
@@ -71,8 +70,7 @@ int main(int argc, char *argv[])
         .StartCapture();
 
     std::unique_lock<std::mutex> lock(mtx);
-    cond_var.wait(lock, [&]
-                  { return is_finished; });
+    cond_var.wait(lock, [&] { return is_finished; });
 
     return 0;
 }

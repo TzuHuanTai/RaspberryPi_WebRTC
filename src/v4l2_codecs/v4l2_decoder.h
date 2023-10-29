@@ -11,7 +11,7 @@ class V4l2Decoder : public V4l2Codec {
 public:
     V4l2Decoder() {};
     ~V4l2Decoder() {};
-    bool V4l2m2mConfigure(int width, int height, bool is_drm_dst);
+    bool Configure(int width, int height, bool is_drm_dst);
 
 protected:
     void HandleEvent() override;

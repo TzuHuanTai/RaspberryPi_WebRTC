@@ -1,9 +1,11 @@
 #include "capture/v4l2_capture.h"
 #include "args.h"
 
+#include <condition_variable>
 #include <fcntl.h>
-#include <unistd.h>
 #include <iostream>
+#include <mutex>
+#include <unistd.h>
 
 void WriteImage(Buffer buffer, int index)
 {
@@ -24,6 +26,9 @@ void WriteImage(Buffer buffer, int index)
 
 int main(int argc, char *argv[])
 {
+    std::mutex mtx;
+    std::condition_variable cond_var;
+    bool is_finished = false;
     int i = 0;
     int images_nb = 10;
     auto capture = V4L2Capture::Create("/dev/video0");
@@ -34,8 +39,11 @@ int main(int argc, char *argv[])
             capture->CaptureImage();
             WriteImage(capture->GetImage(), ++i);
             return true;
+        } else {
+            is_finished = true;
+            cond_var.notify_all();
+            return false;
         }
-        return false;
     };
 
     (*capture).SetFormat(1280, 720, "mjpeg")
@@ -43,4 +51,8 @@ int main(int argc, char *argv[])
         .SetRotation(0)
         .SetCaptureFunc(test)
         .StartCapture();
+    
+    std::unique_lock<std::mutex> lock(mtx);
+    cond_var.wait(lock, [&]
+                  { return is_finished; });
 }

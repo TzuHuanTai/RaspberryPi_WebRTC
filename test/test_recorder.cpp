@@ -16,8 +16,8 @@ int main(int argc, char *argv[]) {
               .height = 720,
               .v4l2_format = "mjpeg",
               .device = "/dev/video0",
-              .record_container = "mp4",
               .record_path = "./",
+              .record_container = "mp4",
               .encoder_name = "mjpeg"};
 
     auto capture = V4L2Capture::Create(args.device);
@@ -34,8 +34,8 @@ int main(int argc, char *argv[]) {
         if (images_nb * 1000 / args.fps < mili.count()) {
             recorder.PushEncodedBuffer(capture->GetImage());
             printf("Dequeue buffer number: %d\n"
-                "  bytesused: %d in %d ms\n",
-                images_nb, capture->GetImage().length, mili);
+                "  bytesused: %d in %ld ms\n",
+                images_nb, capture->GetImage().length, mili.count());
     
             images_nb++;
         }

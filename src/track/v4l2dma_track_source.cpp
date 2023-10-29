@@ -19,9 +19,9 @@ V4l2DmaTrackSource::V4l2DmaTrackSource(std::shared_ptr<V4L2Capture> capture)
 
 void V4l2DmaTrackSource::Init() {
     decoder_ = std::make_unique<V4l2Decoder>();
-    decoder_->V4l2m2mConfigure(width_, height_, true);
+    decoder_->Configure(width_, height_, true);
     scaler_ = std::make_unique<V4l2Scaler>();
-    scaler_->V4l2m2mConfigure(width_, height_, width_, height_, true, true);
+    scaler_->Configure(width_, height_, width_, height_, true, true);
 }
 
 void V4l2DmaTrackSource::OnFrameCaptured(Buffer buffer) {
@@ -40,7 +40,7 @@ void V4l2DmaTrackSource::OnFrameCaptured(Buffer buffer) {
         config_width_ = adapted_width;
         config_height_ = adapted_height;
         scaler_->ReleaseCodec();
-        scaler_->V4l2m2mConfigure(width_, height_, config_width_,
+        scaler_->Configure(width_, height_, config_width_,
                                     config_height_, true, true);
     }
 
