@@ -9,6 +9,7 @@ struct Args
   int width = 640;
   int height = 480;
   int rotation_angle = 0;
+  bool enable_v4l2_dma = false;
   std::string v4l2_format = "mjpeg";
   std::string device = "/dev/video0";
   std::string stun_url = "stun:stun.l.google.com:19302";

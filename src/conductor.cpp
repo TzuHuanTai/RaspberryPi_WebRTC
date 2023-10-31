@@ -55,7 +55,7 @@ bool Conductor::InitializeTracks()
     auto video_track_source =  ([this]() -> rtc::scoped_refptr<rtc::AdaptedVideoTrackSource> {
         auto video_caputre_source = V4L2Capture::Create(args);
 
-        if (args.v4l2_format == "h264") {
+        if (args.enable_v4l2_dma || args.v4l2_format == "h264") {
             return V4l2DmaTrackSource::Create(video_caputre_source);
         } else {
             return V4L2TrackSource::Create(video_caputre_source);

@@ -119,11 +119,12 @@ V4L2Capture &V4L2Capture::SetFormat(int width, int height, std::string video_typ
     width_ = width;
     height_ = height;
 
-    if (video_type == "i420") {
-        std::cout << "Use yuv420(i420) format source in v4l2" << std::endl;
-        V4l2Util::SetFormat(fd_, &capture_, width, height, V4L2_PIX_FMT_YUV420);
+    if (video_type == "mjpeg") {
+        std::cout << "Use mjpeg format source in v4l2" << std::endl;
+        V4l2Util::SetFormat(fd_, &capture_, width, height, V4L2_PIX_FMT_MJPEG);
         V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_BITRATE, 10000000);
-        video_type_ = webrtc::VideoType::kI420;
+        format_ = V4L2_PIX_FMT_MJPEG;
+        video_type_ = webrtc::VideoType::kMJPEG;
     } else if (video_type == "h264") {
         std::cout << "Use h264 format source in v4l2" << std::endl;
         V4l2Util::SetFormat(fd_, &capture_, width, height, V4L2_PIX_FMT_H264);
@@ -133,12 +134,14 @@ V4L2Capture &V4L2Capture::SetFormat(int width, int height, std::string video_typ
         V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_H264_LEVEL, V4L2_MPEG_VIDEO_H264_LEVEL_4_0);
         V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_H264_I_PERIOD, 1); /* trick */
         V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_BITRATE, 10000000);
+        format_ = V4L2_PIX_FMT_H264;
         video_type_ = webrtc::VideoType::kUnknown;
     } else {
-        std::cout << "Use mjpeg format source in v4l2" << std::endl;
-        V4l2Util::SetFormat(fd_, &capture_, width, height, V4L2_PIX_FMT_MJPEG);
+        std::cout << "Use yuv420(i420) format source in v4l2" << std::endl;
+        V4l2Util::SetFormat(fd_, &capture_, width, height, V4L2_PIX_FMT_YUV420);
         V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_BITRATE, 10000000);
-        video_type_ = webrtc::VideoType::kMJPEG;
+        format_ = V4L2_PIX_FMT_YUV420;
+        video_type_ = webrtc::VideoType::kI420;
     }
     return *this;
 }

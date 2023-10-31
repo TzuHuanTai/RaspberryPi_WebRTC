@@ -36,7 +36,7 @@ int main(int argc, char *argv[]) {
               .v4l2_format = "h264"};
 
     auto decoder = std::make_unique<V4l2Decoder>();
-    decoder->Configure(args.width, args.height, true);
+    decoder->Configure(args.width, args.height, V4L2_PIX_FMT_H264, true);
     auto scaler = std::make_unique<V4l2Scaler>();
     scaler->Configure(args.width, args.height, 320, 240, true, false);
 

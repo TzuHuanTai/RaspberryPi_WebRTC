@@ -19,7 +19,7 @@ V4l2DmaTrackSource::V4l2DmaTrackSource(std::shared_ptr<V4L2Capture> capture)
 
 void V4l2DmaTrackSource::Init() {
     decoder_ = std::make_unique<V4l2Decoder>();
-    decoder_->Configure(width_, height_, true);
+    decoder_->Configure(width_, height_, capture_->format(), true);
     scaler_ = std::make_unique<V4l2Scaler>();
     scaler_->Configure(width_, height_, width_, height_, true, true);
 }
@@ -42,6 +42,10 @@ void V4l2DmaTrackSource::OnFrameCaptured(Buffer buffer) {
         scaler_->ReleaseCodec();
         scaler_->Configure(width_, height_, config_width_,
                                     config_height_, true, true);
+        if (capture_->format() == V4L2_PIX_FMT_MJPEG) {
+            decoder_->ReleaseCodec();
+            decoder_->Configure(width_, height_, capture_->format(), true);
+        }
     }
 
     decoder_->EmplaceBuffer(buffer, [&](Buffer decoded_buffer) {
