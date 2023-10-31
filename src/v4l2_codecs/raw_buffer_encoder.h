@@ -4,6 +4,8 @@
 #include "args.h"
 #include "v4l2_codecs/v4l2_encoder.h"
 
+#include <future>
+#include <mutex>
 // Linux
 #include <linux/videodev2.h>
 
@@ -32,11 +34,11 @@ public:
     webrtc::VideoEncoder::EncoderInfo GetEncoderInfo() const override;
 
 private:
-    Args args_;
     int src_width_;
     int src_height_;
     int dst_width_;
     int dst_height_;
+    std::mutex mtx_;
     std::unique_ptr<V4l2Encoder> encoder_;
     webrtc::VideoCodec codec_;
     webrtc::EncodedImage encoded_image_;

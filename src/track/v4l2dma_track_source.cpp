@@ -1,6 +1,8 @@
 #include "v4l2dma_track_source.h"
 #include "v4l2_codecs/raw_buffer.h"
 
+#include <future>
+
 // WebRTC
 #include <api/video/i420_buffer.h>
 #include <api/video/video_frame_buffer.h>
@@ -18,10 +20,15 @@ V4l2DmaTrackSource::V4l2DmaTrackSource(std::shared_ptr<V4L2Capture> capture)
     : V4L2TrackSource(capture) {}
 
 void V4l2DmaTrackSource::Init() {
-    decoder_ = std::make_unique<V4l2Decoder>();
-    decoder_->Configure(width_, height_, capture_->format(), true);
-    scaler_ = std::make_unique<V4l2Scaler>();
-    scaler_->Configure(width_, height_, width_, height_, true, true);
+    auto s = std::async(std::launch::async, [&]() {
+        scaler_ = std::make_unique<V4l2Scaler>();
+        scaler_->Configure(width_, height_, width_, height_, true, capture_->is_dma());
+    });
+
+    auto d = std::async(std::launch::async, [&]() {
+        decoder_ = std::make_unique<V4l2Decoder>();
+        decoder_->Configure(width_, height_, capture_->format(), true);
+    });
 }
 
 void V4l2DmaTrackSource::OnFrameCaptured(Buffer buffer) {
@@ -41,7 +48,7 @@ void V4l2DmaTrackSource::OnFrameCaptured(Buffer buffer) {
         config_height_ = adapted_height;
         scaler_->ReleaseCodec();
         scaler_->Configure(width_, height_, config_width_,
-                                    config_height_, true, true);
+                            config_height_, true, capture_->is_dma());
         if (capture_->format() == V4L2_PIX_FMT_MJPEG) {
             decoder_->ReleaseCodec();
             decoder_->Configure(width_, height_, capture_->format(), true);
@@ -50,11 +57,19 @@ void V4l2DmaTrackSource::OnFrameCaptured(Buffer buffer) {
 
     decoder_->EmplaceBuffer(buffer, [&](Buffer decoded_buffer) {
         scaler_->EmplaceBuffer(decoded_buffer, [&](Buffer scaled_buffer) {
-            rtc::scoped_refptr<RawBuffer> raw_buffer(
-                RawBuffer::Create(config_width_, config_height_, 0, scaled_buffer));
+            rtc::scoped_refptr<webrtc::VideoFrameBuffer> dst_buffer = nullptr;
+
+            if (!capture_->is_dma()) {
+                auto i420_buffer = webrtc::I420Buffer::Create(config_width_, config_height_);
+                memcpy(i420_buffer->MutableDataY(), (uint8_t*)scaled_buffer.start, scaled_buffer.length);
+                dst_buffer = i420_buffer;
+            } else {
+                dst_buffer = RawBuffer::Create(config_width_, config_height_,
+                                                0, scaled_buffer);
+            }
 
             OnFrame(webrtc::VideoFrame::Builder()
-                    .set_video_frame_buffer(raw_buffer)
+                    .set_video_frame_buffer(dst_buffer)
                     .set_rotation(webrtc::kVideoRotation_0)
                     .set_timestamp_us(translated_timestamp_us)
                     .build());

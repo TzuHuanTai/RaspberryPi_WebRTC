@@ -69,8 +69,8 @@ int32_t V4l2m2mEncoder::Encode(
 
     // skip sending task if output_result is false
     bool is_output = encoder_->EmplaceBuffer(src_buffer,
-                [this, frame](Buffer encoded_buffer) { 
-                    SendFrame(frame, encoded_buffer); 
+                [&](Buffer encoded_buffer) { 
+                    SendFrame(frame, encoded_buffer);
                 });
 
     return is_output? WEBRTC_VIDEO_CODEC_OK : WEBRTC_VIDEO_CODEC_ERROR;
