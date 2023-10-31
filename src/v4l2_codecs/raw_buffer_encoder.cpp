@@ -4,8 +4,7 @@
 #include <iostream>
 
 RawBufferEncoder::RawBufferEncoder(const webrtc::SdpVideoFormat &format, Args args)
-    : args_(args),
-      src_width_(args.width),
+    : src_width_(args.width),
       src_height_(args.height),
       callback_(nullptr),
       bitrate_adjuster_(.85, 1) {}
@@ -30,8 +29,10 @@ int32_t RawBufferEncoder::InitEncode(
     encoded_image_.timing_.flags = webrtc::VideoSendTiming::TimingFrameFlags::kInvalid;
     encoded_image_.content_type_ = webrtc::VideoContentType::UNSPECIFIED;
 
-    encoder_ = std::make_unique<V4l2Encoder>();
-    encoder_->Configure(dst_width_, dst_height_, true);
+    auto e = std::async(std::launch::async, [&]() {
+        encoder_ = std::make_unique<V4l2Encoder>();
+        encoder_->Configure(dst_width_, dst_height_, true);
+    });
 
     return WEBRTC_VIDEO_CODEC_OK;
 }
@@ -43,6 +44,7 @@ int32_t RawBufferEncoder::RegisterEncodeCompleteCallback(
 }
 
 int32_t RawBufferEncoder::Release() {
+    std::lock_guard<std::mutex> lock(mtx_);
     encoder_.reset();
     return WEBRTC_VIDEO_CODEC_OK;
 }
@@ -50,6 +52,7 @@ int32_t RawBufferEncoder::Release() {
 int32_t RawBufferEncoder::Encode(
     const webrtc::VideoFrame &frame,
     const std::vector<webrtc::VideoFrameType> *frame_types) {
+    std::lock_guard<std::mutex> lock(mtx_);
     rtc::scoped_refptr<webrtc::VideoFrameBuffer> frame_buffer =
         frame.video_frame_buffer();
 
@@ -62,7 +65,7 @@ int32_t RawBufferEncoder::Encode(
 
     // skip sending task if output_result is false
     bool is_output = encoder_->EmplaceBuffer(buffer,
-        [this, frame](Buffer encoded_buffer) {
+        [&](Buffer encoded_buffer) {
             SendFrame(frame, encoded_buffer);
         });
     
@@ -99,6 +102,7 @@ void RawBufferEncoder::SendFrame(const webrtc::VideoFrame &frame, Buffer &encode
 }
 
 void RawBufferEncoder::SetRates(const RateControlParameters &parameters) {
+    std::lock_guard<std::mutex> lock(mtx_);
     encoder_->SetFps(parameters, bitrate_adjuster_);
 }
 
