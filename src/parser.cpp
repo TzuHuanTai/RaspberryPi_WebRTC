@@ -21,6 +21,7 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args)
     ("turn_password", bpo::value<std::string>()->default_value(args.turn_password), "Turn server password")
     ("signaling_url", bpo::value<std::string>()->default_value(args.signaling_url), "Signaling server url, ref: Repository > FarmerAPI > Hubs > SignalingServer")
     ("record_path", bpo::value<std::string>()->default_value(args.record_path), "The path to save the recording video files")
+    ("enable_v4l2_dma", bpo::bool_switch()->default_value(args.enable_v4l2_dma), "Share DMA buffers between decoder/scaler/encoder, which can decrease cpu usage")
     ("v4l2_format", bpo::value<std::string>()->default_value(args.v4l2_format), "Set v4l2 input format i420/mjpeg/h264 while capturing, if the camera is supported");
 
     bpo::variables_map vm;
@@ -108,6 +109,10 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args)
     else if (vm.count("record_path"))
     {
         args.record_path = vm["record_path"].as<std::string>();
+    }
+
+    if (vm.count("enable_v4l2_dma")) {
+        args.enable_v4l2_dma = vm["enable_v4l2_dma"].as<bool>();
     }
 
     if (vm.count("v4l2_format"))
