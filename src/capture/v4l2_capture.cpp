@@ -10,12 +10,21 @@
 
 #include <iostream>
 
-std::shared_ptr<V4L2Capture> V4L2Capture::Create(std::string device) {
-    return std::make_shared<V4L2Capture>(device);
+std::shared_ptr<V4L2Capture> V4L2Capture::Create(Args args) {
+    auto ptr = std::make_shared<V4L2Capture>(args);
+    ptr->Init(args.device);
+    ptr->SetFps(args.fps)
+        .SetRotation(args.rotation_angle)
+        .SetFormat(args.width, args.height, args.v4l2_format)
+        .StartCapture();
+    return ptr;
 }
 
-V4L2Capture::V4L2Capture(std::string device)
-    : buffer_count_(2) {
+V4L2Capture::V4L2Capture(Args args)
+    : buffer_count_(2),
+      is_dma_(args.enable_v4l2_dma) {}
+
+void V4L2Capture::Init(std::string device) {
     webrtc::VideoCaptureModule::DeviceInfo *device_info = webrtc::VideoCaptureFactory::CreateDeviceInfo();
     fd_ = V4l2Util::OpenDevice(device.c_str());
     camera_index_ = GetCameraIndex(device_info);
@@ -43,6 +52,14 @@ int V4L2Capture::width() const {
 
 int V4L2Capture::height() const {
     return height_;
+}
+
+bool V4L2Capture::is_dma() const {
+    return is_dma_;
+}
+
+uint32_t V4L2Capture::format() const {
+    return format_;
 }
 
 webrtc::VideoType V4L2Capture::type() {
@@ -141,11 +158,6 @@ V4L2Capture &V4L2Capture::SetRotation(int angle) {
     return *this;
 }
 
-V4L2Capture &V4L2Capture::SetCaptureFunc(std::function<bool()> capture_func) {
-    capture_func_ = std::move(capture_func);
-    return *this;
-}
-
 void V4L2Capture::CaptureImage() {
     std::lock_guard<std::mutex> lock(capture_lock_);
 
@@ -194,10 +206,6 @@ void V4L2Capture::StartCapture() {
 
     V4l2Util::StreamOn(fd_, capture_.type);
 
-    if (capture_func_ == nullptr) {
-        capture_func_ = std::bind(&V4L2Capture::CaptureImage, this);
-    }
-
-    worker_.reset(new Worker(capture_func_));
+    worker_.reset(new Worker([this]() { CaptureImage(); }));
     worker_->Run();
 }

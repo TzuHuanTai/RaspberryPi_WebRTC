@@ -33,16 +33,13 @@ int main(int argc, char *argv[]) {
               .width = 640,
               .height = 480,
               .v4l2_format = "i420"};
-    auto capture = V4L2Capture::Create(args.device);
 
     auto scaler = std::make_unique<V4l2Scaler>();
     scaler->Configure(args.width, args.height, 320, 240, false, false);
 
-    auto test = [&]() -> bool {
-        std::unique_lock<std::mutex> lock(mtx);
-        capture->CaptureImage();
-        Buffer buffer = capture->GetImage();
-
+    auto capture = V4L2Capture::Create(args);
+    auto observer = capture->AsObservable();
+    observer->Subscribe([&](Buffer buffer) {
         scaler->EmplaceBuffer(buffer, [&](Buffer scaled_buffer) {
             if (is_finished) {
                 return;
@@ -55,14 +52,7 @@ int main(int argc, char *argv[]) {
                 cond_var.notify_all();
             }
         });
-
-        return !is_finished;
-    };
-
-    (*capture).SetFormat(args.width, args.height, args.v4l2_format)
-        .SetFps(args.fps)
-        .SetCaptureFunc(test)
-        .StartCapture();
+    });
 
     std::unique_lock<std::mutex> lock(mtx);
     cond_var.wait(lock, [&] { return is_finished; });

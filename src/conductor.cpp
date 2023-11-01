@@ -53,12 +53,7 @@ bool Conductor::InitializeTracks()
 
     /* split into capture and track source*/
     auto video_track_source =  ([this]() -> rtc::scoped_refptr<rtc::AdaptedVideoTrackSource> {
-        auto video_caputre_source = V4L2Capture::Create(args.device);
-        (*video_caputre_source)
-            .SetFps(args.fps)
-            .SetRotation(args.rotation_angle)
-            .SetFormat(args.width, args.height, args.v4l2_format)
-            .StartCapture();
+        auto video_caputre_source = V4L2Capture::Create(args);
 
         if (args.v4l2_format == "h264") {
             return V4l2DmaTrackSource::Create(video_caputre_source);
