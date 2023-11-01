@@ -24,20 +24,16 @@ int main(int argc, char *argv[]) {
               .record_path = "./",
               .record_container = "mp4",
               .encoder_name = "h264_v4l2m2m"};
-    auto capture = V4L2Capture::Create(args.device);
 
     auto encoder = std::make_unique<V4l2Encoder>();
     encoder->Configure(args.width, args.height, false);
 
     auto recorder = std::make_unique<Recorder>(args);
 
-    auto test = [&]() -> bool {
-        std::unique_lock<std::mutex> lock(mtx);
-        capture->CaptureImage();
-        Buffer buffer = capture->GetImage();
-
-        encoder->EmplaceBuffer(buffer,
-        [&](Buffer encoded_buffer) {
+    auto capture = V4L2Capture::Create(args);
+    auto observer = capture->AsObservable();
+    observer->Subscribe([&](Buffer buffer) {
+        encoder->EmplaceBuffer(buffer, [&](Buffer encoded_buffer) {
             if (is_finished) {
                 return;
             }
@@ -58,13 +54,7 @@ int main(int argc, char *argv[]) {
                 cond_var.notify_all();
             }
         });
-        return !is_finished;
-    };
-
-    (*capture).SetFormat(args.width, args.height, args.v4l2_format)
-        .SetFps(args.fps)
-        .SetCaptureFunc(test)
-        .StartCapture();
+    });
 
     std::unique_lock<std::mutex> lock(mtx);
     cond_var.wait(lock, [&] { return is_finished; });

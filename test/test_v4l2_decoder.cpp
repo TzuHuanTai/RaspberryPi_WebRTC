@@ -34,18 +34,15 @@ int main(int argc, char *argv[]) {
               .width = 640,
               .height = 480,
               .v4l2_format = "h264"};
-    auto capture = V4L2Capture::Create(args.device);
 
     auto decoder = std::make_unique<V4l2Decoder>();
     decoder->Configure(args.width, args.height, true);
     auto scaler = std::make_unique<V4l2Scaler>();
     scaler->Configure(args.width, args.height, 320, 240, true, false);
 
-    auto test = [&]() -> bool {
-        std::unique_lock<std::mutex> lock(mtx);
-        capture->CaptureImage();
-        Buffer buffer = capture->GetImage();
-
+    auto capture = V4L2Capture::Create(args);
+    auto observer = capture->AsObservable();
+    observer->Subscribe([&](Buffer buffer) {
         decoder->EmplaceBuffer(buffer, [&](Buffer decoded_buffer) {
             scaler->EmplaceBuffer(decoded_buffer, [&](Buffer scaled_buffer) {
                 if (is_finished) {
@@ -60,14 +57,7 @@ int main(int argc, char *argv[]) {
                 }
             });
         });
-
-        return !is_finished;
-    };
-
-    (*capture).SetFormat(args.width, args.height, args.v4l2_format)
-        .SetFps(args.fps)
-        .SetCaptureFunc(test)
-        .StartCapture();
+    });
 
     std::unique_lock<std::mutex> lock(mtx);
     cond_var.wait(lock, [&] { return is_finished; });
