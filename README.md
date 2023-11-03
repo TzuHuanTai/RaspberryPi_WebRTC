@@ -22,7 +22,7 @@ Step of using signalr as the webrtc signaling server
 ## Summary
 * Latency is about 0.2 seconds delay.
 * Temperatures up to 60~65°C.
-* CPU is ~60% at 1280x720 30fps.
+* Using HW DMA sources minimizes CPU usage and latency.
 
 | Codec | Source format | Resolution | FPS | CPU  |  Latency  | Temperature |
 | :---: | :-----------: | :--------: | :-: | :--: | :-------: | :---------: |
@@ -35,7 +35,7 @@ Step of using signalr as the webrtc signaling server
 |  H264 |    YUV420     |  1280x720  |  15 | ~20% | 300~350ms |             |
 |  H264 |    YUV420     |   640x480  |  15 | ~20% | 200~220ms |             |
 |  H264 |    YUV420     |   320x240  |  30 | ~15% | 190~200ms |             |
-|    -  |   **H264**    |  1280x720  |  30 | ~25% | ~250ms |             |
+|  H264 |    **DMA**    |  1280x720  |  30 | ~20% |     ~50ms |             |
 
 ![latency](./doc/latency.jpg)
 ![latency](./doc/latency_chart.png)
