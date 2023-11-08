@@ -193,12 +193,11 @@ cause    *note: In contrast to the release version, debug version cause frames t
     cd boringssl
     mkdir build
     cd build
-    cmake -GNinja .. -DBUILD_SHARED_LIBS=1
+    cmake -GNinja ..
     ninja
     sudo ninja install
     sudo cp -r ../install/include/* /usr/local/include/
     sudo cp ../install/lib/*.a /usr/local/lib/
-    sudo cp ../install/lib/*.so /usr/local/lib/
     ```
 *  Install [cpprestsdk](https://github.com/Microsoft/cpprestsdk/wiki/How-to-build-for-Linux)
     ```bash
