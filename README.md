@@ -44,7 +44,7 @@ Step of using signalr as the webrtc signaling server
 
 # How to use
 ## Preparation
- * Follow [SETUP_ARM64_ENV](SETUP_ARM64_ENV.md) to prepare an arm64 env for compilation (Optional)
+ * Follow [SETUP_ARM64_ENV](./doc/SETUP_ARM64_ENV.md) to prepare an arm64 env for compilation (Optional)
  * Follow [BUILD_WEBRTC](./doc/BUILD_WEBRTC.md) to compile `libwebrtc.a` 
  * Follow [BUILD_SIGNALR_CLIENT_CPP](./doc/BUILD_SIGNALR_CLIENT_CPP.md) to compile `microsoft-signalr`
  * Install the needed packages
