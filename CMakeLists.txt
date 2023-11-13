@@ -9,7 +9,12 @@ set(BUILD_TEST "" CACHE STRING "test")
 set(WEBRTC_INCLUDE_DIR /usr/local/include/webrtc)
 set(WEBRTC_LIBRARY_DIR /usr/local/lib/libwebrtc.a)
 set(WEBRTC_LINK_LIBS X11 dl)
-set(SIGNALR_LINK_LIBS microsoft-signalr cpprest ssl crypto)
+set(SIGNALR_LINK_LIBS 
+    /usr/local/lib/libmicrosoft-signalr.a 
+    /usr/local/lib/libcpprest.a 
+    /usr/local/lib/libjsoncpp.a 
+    -lz
+)
 set(FFMPEG_LINK_LIBS avformat avcodec avutil swscale avdevice)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
