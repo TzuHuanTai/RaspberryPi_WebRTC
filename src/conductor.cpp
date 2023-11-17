@@ -256,6 +256,7 @@ void Conductor::OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnecti
     else if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kClosed)
     {
         is_ready_for_streaming = false;
+        cond_var.notify_all();
     }
 }
 
