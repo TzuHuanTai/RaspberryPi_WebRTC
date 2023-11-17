@@ -1,14 +1,14 @@
-#ifndef SIGNAL_H_
-#define SIGNAL_H_
+#ifndef SIGNALR_SERVICE_H_
+#define SIGNALR_SERVICE_H_
 
 #include "conductor.h"
+#include "signaling/signaling_service.h"
 
 #include <signalrclient/hub_connection.h>
 #include <signalrclient/hub_connection_builder.h>
 #include <signalrclient/signalr_value.h>
 
-struct SignalingTopic
-{
+struct SignalrTopic {
     std::string offer_sdp = "OfferSDP";
     std::string offer_ice = "OfferICE";
     std::string answer_sdp = "AnswerSDP";
@@ -18,38 +18,41 @@ struct SignalingTopic
     std::string join_as_server = "JoinAsServer";
 };
 
-class SignalServer : public std::enable_shared_from_this<SignalServer>
-{
+class SignalrService : public SignalingService {
 public:
-    std::string url;
-    SignalingTopic topics;
+    SignalrTopic topics;
     std::mutex mtx;
     std::condition_variable cond_var;
     bool ready = false;
 
-    SignalServer(std::string url, std::shared_ptr<Conductor> conductor);
-    ~SignalServer(){
-        std::cout << "=> ~SignalServer: destroied" << std::endl;
+    SignalrService(std::string url, std::shared_ptr<Conductor> conductor);
+    ~SignalrService() override {
+        std::cout << "=> ~SignalrService: destroied" << std::endl;
     };
 
-    SignalServer &Connect();
-    SignalServer &WithReconnect();
-    SignalServer &DisconnectWhenCompleted();
-    void Disconnect();
+    void Connect() override;
+    void Disconnect() override;
+    SignalrService &AutoReconnect();
+    SignalrService &DisconnectOnCompleted();
     void Subscribe(std::string event_name, const signalr::hub_connection::method_invoked_handler &handler);
     void JoinAsClient();
     void JoinAsServer();
+    void Start();
+
+protected:
+    void AnswerLocalSdp(std::string sdp) override;
+    void AnswerLocalIce(std::string sdp_mid,
+                                int sdp_mline_index,
+                                std::string candidate) override;
 
 private:
+    std::string url;
     std::string client_id_;
-    std::shared_ptr<Conductor> conductor_;
     signalr::hub_connection connection_;
     std::function<void()> connected_func_;
     void ListenClientId();
     void ListenOfferSdp();
     void ListenOfferIce();
-    void SetAnswerSdp();
-    void SetAnswerIce();
     void SendMessage(std::string method, std::vector<signalr::value> args);
 };
 

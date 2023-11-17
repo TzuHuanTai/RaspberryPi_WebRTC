@@ -105,9 +105,7 @@ public:
     typedef std::function<void(webrtc::RTCError)> OnFailureFunc;
     typedef std::function<void(webrtc::SessionDescriptionInterface *desc)> OnCreateSuccessFunc;
 
-    typedef std::function<void(std::string)> InvokeSdpFunc;
     typedef std::function<void(std::string, int, std::string)> InvokeIceFunc;
-    InvokeSdpFunc invoke_answer_sdp;
     InvokeIceFunc invoke_answer_ice;
     OnSetSuccessFunc complete_signaling;
 
