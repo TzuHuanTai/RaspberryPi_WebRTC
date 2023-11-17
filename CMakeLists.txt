@@ -128,6 +128,7 @@ else()
         capture
         track
         v4l2_codecs
+        signaling
     )
     target_link_libraries(${PROJECT_NAME}
         ${WEBRTC_LINK_LIBS}

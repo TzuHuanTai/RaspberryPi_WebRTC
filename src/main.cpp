@@ -7,7 +7,7 @@
 #include "args.h"
 #include "conductor.h"
 #include "parser.h"
-#include "signal_server.h"
+#include "signaling/signalr_server.h"
 
 int main(int argc, char *argv[])
 {
@@ -20,10 +20,10 @@ int main(int argc, char *argv[])
         conductor->CreatePeerConnection();
 
         std::cout << "=> main: start signalr! url: " << args.signaling_url << std::endl;
-        SignalServer signalr(args.signaling_url, conductor);
-        signalr.WithReconnect()
-                .DisconnectWhenCompleted()
-                .JoinAsServer();
+        SignalrService signalr(args.signaling_url, conductor);
+        signalr.AutoReconnect()
+                .DisconnectOnCompleted()
+                .Connect();
 
         std::cout << "=> main: wait for ready streaming!" << std::endl;
         std::unique_lock<std::mutex> lock(conductor->mtx);
