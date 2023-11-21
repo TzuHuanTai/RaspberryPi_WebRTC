@@ -20,6 +20,9 @@ struct SignalrTopic {
 
 class SignalrService : public SignalingService {
 public:
+    static std::unique_ptr<SignalrService> Create(std::string url,
+                                std::shared_ptr<Conductor> conductor);
+
     SignalrTopic topics;
     std::mutex mtx;
     std::condition_variable cond_var;

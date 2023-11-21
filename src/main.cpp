@@ -9,21 +9,16 @@
 #include "parser.h"
 #include "signaling/signalr_server.h"
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
     Args args;
     Parser::ParseArgs(argc, argv, args);
 
-    std::shared_ptr<Conductor> conductor = std::make_shared<Conductor>(args);
+    auto conductor = Conductor::Create(args);
 
     while (true) {
         conductor->CreatePeerConnection();
 
-        std::cout << "=> main: start signalr! url: " << args.signaling_url << std::endl;
-        SignalrService signalr(args.signaling_url, conductor);
-        signalr.AutoReconnect()
-                .DisconnectOnCompleted()
-                .Connect();
+        auto signal = SignalrService::Create(args.signaling_url, conductor);
 
         std::cout << "=> main: wait for ready streaming!" << std::endl;
         std::unique_lock<std::mutex> lock(conductor->mtx);

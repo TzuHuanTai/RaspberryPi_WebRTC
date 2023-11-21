@@ -31,19 +31,18 @@
 #include <rtc_base/ssl_adapter.h>
 #include <rtc_base/thread.h>
 
-Conductor::Conductor(Args args) : args(args)
-{
-    std::cout << "=> Conductor: init" << std::endl;
-    if (!InitializePeerConnection())
-    {
+std::shared_ptr<Conductor> Conductor::Create(Args args) {
+    auto ptr = std::make_shared<Conductor>(args);
+    if (!ptr->InitializePeerConnection()) {
         std::cout << "=> InitializePeerConnection: failed!" << std::endl;
     }
-
-    if (!InitializeTracks())
-    {
+    if (!ptr->InitializeTracks()) {
         std::cout << "=> InitializeTracks: failed!" << std::endl;
     }
+    return ptr;
 }
+
+Conductor::Conductor(Args args) : args(args) {}
 
 bool Conductor::InitializeTracks()
 {
