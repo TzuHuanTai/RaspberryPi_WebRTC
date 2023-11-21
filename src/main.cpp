@@ -7,7 +7,12 @@
 #include "args.h"
 #include "conductor.h"
 #include "parser.h"
+#include "signaling/signaling_service.h"
+#if USE_WEBSOCKET_SIGNALING
+#endif
+#if USE_SIGNALR_SIGNALING
 #include "signaling/signalr_server.h"
+#endif
 
 int main(int argc, char *argv[]) {
     Args args;
@@ -18,7 +23,15 @@ int main(int argc, char *argv[]) {
     while (true) {
         conductor->CreatePeerConnection();
 
-        auto signal = SignalrService::Create(args.signaling_url, conductor);
+        auto signal = ([&]() -> std::unique_ptr<SignalingService> {
+        #if USE_WEBSOCKET_SIGNALING
+            return nullptr;
+        #elif USE_SIGNALR_SIGNALING
+            return SignalrService::Create(args.signaling_url, conductor);
+        #else
+            return nullptr;
+        #endif
+        })();
 
         std::cout << "=> main: wait for ready streaming!" << std::endl;
         std::unique_lock<std::mutex> lock(conductor->mtx);

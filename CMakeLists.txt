@@ -6,15 +6,10 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 set(BUILD_TEST "" CACHE STRING "test")
+set(USE_SIGNALING "" CACHE STRING "SignalR, WebSocket or so. Default is SignalR.")
 set(WEBRTC_INCLUDE_DIR /usr/local/include/webrtc)
 set(WEBRTC_LIBRARY_DIR /usr/local/lib/libwebrtc.a)
 set(WEBRTC_LINK_LIBS X11 dl)
-set(SIGNALR_LINK_LIBS 
-    /usr/local/lib/libmicrosoft-signalr.a 
-    /usr/local/lib/libcpprest.a 
-    /usr/local/lib/libjsoncpp.a 
-    -lz
-)
 set(FFMPEG_LINK_LIBS avformat avcodec avutil swscale avdevice)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
@@ -130,9 +125,26 @@ else()
         v4l2_codecs
         signaling
     )
+
+    # Default signaling service is SignalR.
+    string(TOUPPER "${USE_SIGNALING}" USE_SIGNALING)
+    if (USE_SIGNALING STREQUAL "WEBSOCKET")
+        set(SIGNALING_LINK_LIBS )
+        add_definitions(-DUSE_WEBSOCKET_SIGNALING)
+    else()
+        set(USE_SIGNALING "SIGNALR")
+        set(SIGNALING_LINK_LIBS 
+            /usr/local/lib/libmicrosoft-signalr.a 
+            /usr/local/lib/libcpprest.a 
+            /usr/local/lib/libjsoncpp.a 
+            -lz)
+        add_definitions(-DUSE_SIGNALR_SIGNALING)
+    endif()
+    message(STATUS "USE_SIGNALING: ${USE_SIGNALING}")
+
     target_link_libraries(${PROJECT_NAME}
         ${WEBRTC_LINK_LIBS}
-        ${SIGNALR_LINK_LIBS}
+        ${SIGNALING_LINK_LIBS}
         boost_program_options
         ${FFMPEG_LINK_LIBS}
         Threads::Threads
