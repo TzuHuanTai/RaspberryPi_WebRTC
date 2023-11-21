@@ -7,6 +7,15 @@
 #include <map>
 #include <unistd.h>
 
+std::unique_ptr<SignalrService> SignalrService::Create(std::string url,
+                                    std::shared_ptr<Conductor> conductor) {
+    auto ptr = std::make_unique<SignalrService>(url, conductor);
+    ptr->AutoReconnect()
+        .DisconnectOnCompleted()
+        .Connect();
+    return ptr;
+}
+
 SignalrService::SignalrService(std::string url, std::shared_ptr<Conductor> conductor)
     : SignalingService(conductor),
       url(url),

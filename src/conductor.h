@@ -91,9 +91,10 @@ protected:
     OnFailureFunc on_failure_;
 };
 
-class Conductor : public webrtc::PeerConnectionObserver
-{
+class Conductor : public webrtc::PeerConnectionObserver {
 public:
+    static std::shared_ptr<Conductor> Create(Args args);
+
     std::mutex mtx;
     bool is_ready_for_streaming = false;
     std::condition_variable cond_var;
