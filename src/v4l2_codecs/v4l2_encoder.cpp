@@ -17,10 +17,7 @@ bool V4l2Encoder::Configure(int width, int height, bool is_drm_src) {
         return false;
     }
 
-    V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_BITRATE_MODE, V4L2_MPEG_VIDEO_BITRATE_MODE_VBR);
-    V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_HEADER_MODE, V4L2_MPEG_VIDEO_HEADER_MODE_JOINED_WITH_1ST_FRAME);
     V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_REPEAT_SEQ_HEADER, true);
-    V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_BITRATE, width * height * 2);
     V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_H264_PROFILE, V4L2_MPEG_VIDEO_H264_PROFILE_BASELINE);
     V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_H264_LEVEL, V4L2_MPEG_VIDEO_H264_LEVEL_4_0);
     V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_H264_I_PERIOD, KEY_FRAME_INTERVAL);
@@ -39,32 +36,30 @@ bool V4l2Encoder::Configure(int width, int height, bool is_drm_src) {
     return true;
 }
 
-void V4l2Encoder::SetFps(const webrtc::VideoEncoder::RateControlParameters &parameters,
-                         webrtc::BitrateAdjuster &bitrate_adjuster) {
-    if (parameters.bitrate.get_sum_bps() <= 0 || parameters.framerate_fps <= 0) {
-        return;
-    }
-
-    bitrate_adjuster.SetTargetBitrateBps(parameters.bitrate.get_sum_bps());
-    uint32_t adjusted_bitrate_bps_ = bitrate_adjuster.GetAdjustedBitrateBps();
-
-    if (adjusted_bitrate_bps_ < 300000) {
-        adjusted_bitrate_bps_ = 300000;
+void V4l2Encoder::SetBitrate(uint32_t adjusted_bitrate_bps) {
+    if (adjusted_bitrate_bps < 1000000) {
+        adjusted_bitrate_bps = 1000000;
     } else {
-        adjusted_bitrate_bps_ = (adjusted_bitrate_bps_ / 25000) * 25000;
+        adjusted_bitrate_bps = (adjusted_bitrate_bps / 25000) * 25000;
     }
 
-    if (bitrate_bps_ != adjusted_bitrate_bps_) {
-        bitrate_bps_ = adjusted_bitrate_bps_;
+    if (bitrate_bps_ != adjusted_bitrate_bps) {
+        bitrate_bps_ = adjusted_bitrate_bps;
         if (!V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_BITRATE, bitrate_bps_)) {
             printf("Encoder failed set bitrate: %d bps\n", bitrate_bps_);
         }
     }
+}
 
-    if (framerate_ != parameters.framerate_fps) {
-        framerate_ = parameters.framerate_fps;
+void V4l2Encoder::SetFps(int adjusted_fps) {
+    if (framerate_ != adjusted_fps) {
+        framerate_ = adjusted_fps;
         if (!V4l2Util::SetFps(fd_, output_.type, framerate_)) {
             printf("Encoder failed set output fps: %d\n", framerate_);
         }
     }
+}
+
+int V4l2Encoder::GetFd() {
+    return fd_;
 }

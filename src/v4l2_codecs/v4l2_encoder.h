@@ -12,8 +12,10 @@ public:
     ~V4l2Encoder() {};
 
     bool Configure(int width, int height, bool is_drm_src);
-    void SetFps(const webrtc::VideoEncoder::RateControlParameters &parameters,
-                webrtc::BitrateAdjuster &bitrate_adjuster);
+    void SetBitrate(uint32_t adjusted_bitrate_bps);
+    void SetFps(int adjusted_fps);
+    int GetFd();
+
 private:
     int framerate_;
     int bitrate_bps_;
