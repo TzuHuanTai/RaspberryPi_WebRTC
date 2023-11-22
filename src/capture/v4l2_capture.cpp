@@ -168,8 +168,8 @@ void V4L2Capture::CaptureImage() {
     FD_ZERO(&fds);
     FD_SET(fd_, &fds);
     timeval tv = {};
-    tv.tv_sec = 1;
-    tv.tv_usec = 0;
+    tv.tv_sec = 0;
+    tv.tv_usec = 100000;
     int r = select(fd_ + 1, &fds, NULL, NULL, &tv);
 
     if (r <= 0) { // timeout or failed
