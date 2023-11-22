@@ -48,12 +48,9 @@ std::unique_ptr<webrtc::VideoEncoder>
 CustomizedVideoEncoderFactory::CreateVideoEncoder(const webrtc::SdpVideoFormat &format) {
     if (absl::EqualsIgnoreCase(format.name, cricket::kH264CodecName)) {
         if (args_.enable_v4l2_dma) {
-            return std::unique_ptr<webrtc::VideoEncoder>(std::make_unique<RawBufferEncoder>(format, args_));
+            return std::unique_ptr<webrtc::VideoEncoder>(std::make_unique<RawBufferEncoder>());
         } else {
-            auto observer = data_channel_subject_->AsObservable(CommandType::RECORD);
-            auto encoder = std::make_unique<V4l2m2mEncoder>();
-            encoder->RegisterRecordingObserver(observer, args_);
-            return std::unique_ptr<webrtc::VideoEncoder>(std::move(encoder));
+            return std::unique_ptr<webrtc::VideoEncoder>(std::make_unique<V4l2m2mEncoder>());
         }
     } else if (absl::EqualsIgnoreCase(format.name, cricket::kVp8CodecName)) {
         return webrtc::VP8Encoder::Create();
