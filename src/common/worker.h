@@ -14,7 +14,7 @@ protected:
     std::function<void()> excuting_function_;
 
 private:
-    bool can_running_;
+    bool abort_;
     rtc::PlatformThread thread_;
 
     void Thread();

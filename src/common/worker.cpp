@@ -1,7 +1,7 @@
 #include "worker.h"
 
 Worker::Worker(std::function<void()> excuting_function)
-    : can_running_(true),
+    : abort_(false),
       excuting_function_(excuting_function) {}
 
 Worker::~Worker() {
@@ -9,10 +9,8 @@ Worker::~Worker() {
 }
 
 void Worker::Release() {
-    can_running_ = false;
-    if (!thread_.empty()) {
-        thread_.Finalize();
-    }
+    abort_ = true;
+    thread_.Finalize();
 }
 
 void Worker::Run() {
@@ -24,7 +22,7 @@ void Worker::Run() {
 }
 
 void Worker::Thread() {
-    while (can_running_) {
+    while (!abort_) {
         excuting_function_();
     }
 }
