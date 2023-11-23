@@ -6,7 +6,7 @@
 
 const char *ENCODER_FILE = "/dev/video11";
 const int BUFFER_NUM = 4;
-const int KEY_FRAME_INTERVAL = 12;
+const int KEY_FRAME_INTERVAL = 240;
 
 V4l2Encoder::V4l2Encoder()
     : framerate_(30),
