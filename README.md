@@ -4,8 +4,8 @@ Using v4l2_m2m hardware encoder or raw h264 camera with WebRTC reduces the CPU u
 
 Step of using signalr as the webrtc signaling server
 
-1. [Build the native webrtc](#build-the-native-webrtc-lib-libwebrtca) on Ubuntu 20.04 64bit
-2. [Build the SignalR-Client](#build-the-signalr-client-cpp-lib-microsoft-signalrso) with boringssl
+1. [Build the native webrtc](./doc/BUILD_WEBRTC.md) on Ubuntu 20.04 64bit
+2. [Build the SignalR-Client](./doc/BUILD_SIGNALR_CLIENT_CPP.md) with boringssl
 3. Create .net [signalr server hub](https://github.com/TzuHuanTai/FarmerAPI/blob/master/FarmerAPI/Hubs/SignalingServer.cs)
 4. Use signalr-client to exchange ice/sdp information with webrtc.lib.
 5. Receive camera frames via `ioctl` and send its to `AdaptedVideoTrackSource`, then `VideoEncoder` encode the frame and callback finish encoding.
