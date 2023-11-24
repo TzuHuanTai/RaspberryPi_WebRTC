@@ -22,7 +22,8 @@ std::shared_ptr<V4L2Capture> V4L2Capture::Create(Args args) {
 
 V4L2Capture::V4L2Capture(Args args)
     : buffer_count_(2),
-      is_dma_(args.enable_v4l2_dma) {}
+      is_dma_(args.enable_v4l2_dma),
+      config_(args) {}
 
 void V4L2Capture::Init(std::string device) {
     webrtc::VideoCaptureModule::DeviceInfo *device_info = webrtc::VideoCaptureFactory::CreateDeviceInfo();
@@ -62,7 +63,11 @@ uint32_t V4L2Capture::format() const {
     return format_;
 }
 
-webrtc::VideoType V4L2Capture::type() {
+Args V4L2Capture::config() const {
+    return config_;
+}
+
+webrtc::VideoType V4L2Capture::type() const {
     return video_type_;
 }
 

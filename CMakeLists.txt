@@ -40,16 +40,16 @@ add_library(common)
 target_sources(common
     PRIVATE
     src/common/v4l2_utils.cpp
-    src/common/recorder.cpp
     src/common/worker.cpp
 )
 
 if(BUILD_TEST STREQUAL "recorder")
     add_subdirectory(src/capture)
+    add_subdirectory(src/recorder)
     add_executable(test_recorder test/test_recorder.cpp)
     target_link_libraries(test_recorder
         capture
-        common
+        recorder
     )
     target_link_libraries(test_recorder
         ${WEBRTC_LINK_LIBS}
@@ -71,11 +71,12 @@ elseif(BUILD_TEST STREQUAL "v4l2_capture")
     )
 elseif(BUILD_TEST STREQUAL "v4l2_encoder")
     add_subdirectory(src/capture)
+    add_subdirectory(src/recorder)
     add_subdirectory(src/v4l2_codecs)
     add_executable(test_v4l2_encoder test/test_v4l2_encoder.cpp)
     target_link_libraries(test_v4l2_encoder
         capture
-        common
+        recorder
         v4l2_codecs
     )
     target_link_libraries(test_v4l2_encoder
