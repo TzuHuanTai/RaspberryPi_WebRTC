@@ -1,5 +1,5 @@
 #include "args.h"
-#include "common/recorder.h"
+#include "recorder/h264_recorder.h"
 #include "capture/v4l2_capture.h"
 #include "v4l2_codecs/v4l2_encoder.h"
 
@@ -21,16 +21,14 @@ int main(int argc, char *argv[]) {
               .width = 640,
               .height = 480,
               .v4l2_format = "i420",
-              .record_path = "./",
-              .record_container = "mp4",
-              .encoder_name = "h264_v4l2m2m"};
+              .record_path = "./"};
 
     auto encoder = std::make_unique<V4l2Encoder>();
     encoder->Configure(args.width, args.height, false);
 
-    auto recorder = std::make_unique<Recorder>(args);
-
     auto capture = V4L2Capture::Create(args);
+    auto recorder = H264Recorder::Create(capture);
+
     auto observer = capture->AsObservable();
     observer->Subscribe([&](Buffer buffer) {
         encoder->EmplaceBuffer(buffer, [&](Buffer encoded_buffer) {

@@ -20,7 +20,8 @@ public:
     int height() const;
     bool is_dma() const;
     uint32_t format() const;
-    webrtc::VideoType type();
+    Args config() const;
+    webrtc::VideoType type() const;
 
     // Subject
     void Next(Buffer buffer) override;
@@ -43,6 +44,7 @@ private:
     int buffer_count_;
     bool is_dma_;
     uint32_t format_;
+    Args config_;
     BufferGroup capture_;
     Buffer shared_buffer_;
     webrtc::VideoType video_type_;
