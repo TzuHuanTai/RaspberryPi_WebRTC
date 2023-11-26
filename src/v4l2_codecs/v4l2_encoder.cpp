@@ -60,6 +60,6 @@ void V4l2Encoder::SetFps(int adjusted_fps) {
     }
 }
 
-int V4l2Encoder::GetFd() {
+const int V4l2Encoder::GetFd() const {
     return fd_;
 }

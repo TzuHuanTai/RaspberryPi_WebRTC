@@ -16,7 +16,7 @@ int main(int argc, char *argv[]) {
     std::condition_variable cond_var;
     bool is_finished = false;
     int images_nb = 0;
-    int record_sec = 5;
+    int record_sec = 10;
     Args args{.fps = 15,
               .width = 1280,
               .height = 720,
