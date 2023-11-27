@@ -98,7 +98,7 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args)
         args.signaling_url = vm["signaling_url"].as<std::string>();
     }
 
-    if (!vm["record_path"].empty() && 
+    if (!vm["record_path"].as<std::string>().empty() && 
         (!((vm["record_path"].as<std::string>()).front() == '/' ||
         (vm["record_path"].as<std::string>()).front() == '.') ||
         (vm["record_path"].as<std::string>()).back() != '/'))
