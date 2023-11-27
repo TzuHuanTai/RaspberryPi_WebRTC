@@ -3,6 +3,7 @@
 
 #include "args.h"
 #include "data_channel_subject.h"
+#include "recorder/background_recorder.h"
 
 #include <iostream>
 #include <memory>
@@ -120,6 +121,7 @@ public:
 private:
     bool InitializePeerConnection();
     bool InitializeTracks();
+    bool InitializeRecorder();
     void CreateDataChannel();
     void AddTracks();
 
@@ -135,6 +137,8 @@ private:
     std::unique_ptr<rtc::Thread> network_thread_;
     std::unique_ptr<rtc::Thread> worker_thread_;
     std::unique_ptr<rtc::Thread> signaling_thread_;
+    std::unique_ptr<BackgroundRecorder> bg_recorder_;
+    std::shared_ptr<V4L2Capture> video_caputre_source_;
     rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer_connection_;
     rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> peer_connection_factory_;
     rtc::scoped_refptr<webrtc::AudioTrackInterface> audio_track_;

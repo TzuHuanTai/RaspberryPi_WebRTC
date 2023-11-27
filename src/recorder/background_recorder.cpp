@@ -21,15 +21,11 @@ BackgroundRecorder::BackgroundRecorder(
       abort_(false),
       format_(format) {}
 
+BackgroundRecorder::~BackgroundRecorder() {
+    Stop();
+}
+
 void BackgroundRecorder::Init() {
-    decoder_ = std::make_unique<V4l2Decoder>();
-    decoder_->Configure(width_, height_, capture_->format(), true);
-
-    encoder_ = std::make_unique<V4l2Encoder>();
-    encoder_->Configure(width_, height_, true);
-
-    recorder_ = CreateRecorder();
-
     auto observer = capture_->AsObservable();
     observer->Subscribe([&](Buffer buffer) {
         if (!abort_ || buffer_queue_.size() < 100) {
@@ -60,6 +56,11 @@ void BackgroundRecorder::RecordingFunction() {
 
     if (frame_count_++ % (SECOND_PER_FILE * fps_) == 0) {
         recorder_ = CreateRecorder();
+        decoder_ = std::make_unique<V4l2Decoder>();
+        decoder_->Configure(width_, height_, capture_->format(), true);
+
+        encoder_ = std::make_unique<V4l2Encoder>();
+        encoder_->Configure(width_, height_, true);
         V4l2Util::SetExtCtrl(encoder_->GetFd(), V4L2_CID_MPEG_VIDEO_FORCE_KEY_FRAME, 1);
     }
 

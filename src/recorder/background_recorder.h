@@ -13,7 +13,7 @@ public:
         std::shared_ptr<V4L2Capture> capture, RecorderFormat format);
 
     BackgroundRecorder(std::shared_ptr<V4L2Capture> capture, RecorderFormat format);
-    ~BackgroundRecorder() {};
+    ~BackgroundRecorder();
     void Start();
     void Stop();
 
