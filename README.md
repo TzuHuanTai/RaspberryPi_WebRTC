@@ -61,7 +61,9 @@ cmake .. -DCMAKE_CXX_COMPILER=/usr/bin/clang++
 make -j
 ./pi_webrtc --device=/dev/video0 --fps=30 --width=1280 --height=720 --signaling_url=http://localhost:6080/SignalingServer --v4l2_format=mjpeg --record_path=/home/pi/video/ --enable_v4l2_dma
 ```
-
+* `./pi_webrtc -h` to list all available args.
+* If `--enable_v4l2_dma` is assigned, only the h264 stream is supported.
+* If the `--record_path` is assigned, the background recorder will start immediately after running the program. But the performance of Pi 3B is limited, if the resolution is above 640x368@15fps the HW encoder will be unstable, stuck, or even crash.
 ## Run as Linux Service
 1. Set up [PulseAudio](https://wiki.archlinux.org/title/PulseAudio)
 *  Modify this line in `/etc/pulse/system.pa`
@@ -100,7 +102,7 @@ make -j
     [Service]
     Type=simple
     WorkingDirectory=/home/pi/IoT/RaspberryPi_WebRTC/build
-    ExecStart=/home/pi/IoT/RaspberryPi_WebRTC/build/pi_webrtc --fps=30 --width=1280 --height=720 --signaling_url=http://localhost:6080/SignalingServer --v4l2_format=h264 --record_path=/home/pi/video/
+    ExecStart=/home/pi/IoT/RaspberryPi_WebRTC/build/pi_webrtc --fps=30 --width=1280 --height=720 --signaling_url=http://localhost:6080/SignalingServer --v4l2_format=h264 --enable_v4l2_dma
     Restart=always
     RestartSec=10
       

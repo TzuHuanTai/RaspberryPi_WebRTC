@@ -39,25 +39,38 @@ std::shared_ptr<Conductor> Conductor::Create(Args args) {
     if (!ptr->InitializeTracks()) {
         std::cout << "=> InitializeTracks: failed!" << std::endl;
     }
+    if (!ptr->InitializeRecorder()) {
+        std::cout << "=> InitializeRecorder: Recorder is not created!" << std::endl;
+    }
     return ptr;
 }
 
 Conductor::Conductor(Args args) : args(args) {}
 
-bool Conductor::InitializeTracks()
-{
+bool Conductor::InitializeRecorder() {
+    if (args.record_path.empty()) {
+        return false;
+    }
+
+    bg_recorder_ = BackgroundRecorder::CreateBackgroundRecorder(
+        video_caputre_source_, RecorderFormat::H264);
+    bg_recorder_->Start();    
+
+    return true;
+}
+
+bool Conductor::InitializeTracks() {
     auto options = peer_connection_factory_->CreateAudioSource(cricket::AudioOptions());
     audio_track_ =
         peer_connection_factory_->CreateAudioTrack("raspberrypi_audio", options.get());
 
     /* split into capture and track source*/
+    video_caputre_source_ = V4L2Capture::Create(args);
     auto video_track_source =  ([this]() -> rtc::scoped_refptr<rtc::AdaptedVideoTrackSource> {
-        auto video_caputre_source = V4L2Capture::Create(args);
-
         if (args.enable_v4l2_dma || args.v4l2_format == "h264") {
-            return V4l2DmaTrackSource::Create(video_caputre_source);
+            return V4l2DmaTrackSource::Create(video_caputre_source_);
         } else {
-            return V4L2TrackSource::Create(video_caputre_source);
+            return V4L2TrackSource::Create(video_caputre_source_);
         }
     })();
 
@@ -341,8 +354,8 @@ void Conductor::CreateAnswer(OnCreateSuccessFunc on_success, OnFailureFunc on_fa
         webrtc::PeerConnectionInterface::RTCOfferAnswerOptions());
 }
 
-Conductor::~Conductor()
-{
+Conductor::~Conductor() {
+    bg_recorder_->Stop();
     audio_track_ = nullptr;
     video_track_ = nullptr;
     peer_connection_factory_ = nullptr;
