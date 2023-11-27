@@ -77,7 +77,7 @@ void VideoRecorder::AddVideoStream() {
     frame_rate = {.num = (int)config.fps, .den = 1};
 
     // encoder just for setting up stream->codecpar.
-    AVCodec *codec = avcodec_find_encoder_by_name(encoder_name.c_str());
+    const AVCodec *codec = avcodec_find_encoder_by_name(encoder_name.c_str());
     video_encoder = avcodec_alloc_context3(codec);
     video_encoder->codec_type = AVMEDIA_TYPE_VIDEO;
     video_encoder->width = config.width;
