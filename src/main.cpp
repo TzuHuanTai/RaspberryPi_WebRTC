@@ -34,11 +34,18 @@ int main(int argc, char *argv[]) {
         })();
 
         std::cout << "=> main: wait for signaling!" << std::endl;
-        std::unique_lock<std::mutex> lock(conductor->mtx);
-        conductor->cond_var.wait(lock, [&]{return conductor->is_ready_for_streaming;});
+        std::unique_lock<std::mutex> lock(conductor->state_mtx);
+        conductor->streaming_state.wait(lock, [&]{return conductor->IsReadyForStreaming();});
 
-        sleep(1);
-        conductor->cond_var.wait(lock, [&]{return !conductor->is_ready_for_streaming;});
+        auto f = std::async(std::launch::async, [&]() {
+            sleep(20);
+            if (conductor->IsReadyForStreaming() && !conductor->IsConnected()) {
+                conductor->SetStreamingState(false);
+            }
+        });
+
+        std::cout << "=> main: wait for closing!" << std::endl;
+        conductor->streaming_state.wait(lock, [&]{return !conductor->IsReadyForStreaming();});
     }
     
     return 0;

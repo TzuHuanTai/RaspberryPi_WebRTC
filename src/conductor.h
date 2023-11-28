@@ -96,9 +96,8 @@ class Conductor : public webrtc::PeerConnectionObserver {
 public:
     static std::shared_ptr<Conductor> Create(Args args);
 
-    std::mutex mtx;
-    bool is_ready_for_streaming = false;
-    std::condition_variable cond_var;
+    std::mutex state_mtx;
+    std::condition_variable streaming_state;
     Args args;
 
     Conductor(Args args);
@@ -117,8 +116,14 @@ public:
     void AddIceCandidate(std::string sdp_mid, int sdp_mline_index, std::string candidate);
     void CreateAnswer(OnCreateSuccessFunc on_success, OnFailureFunc on_failure);
     bool CreatePeerConnection();
+    void SetStreamingState(bool state);
+    bool IsReadyForStreaming() const;
+    bool IsConnected() const;
 
 private:
+    bool is_connected = false;
+    bool is_ready_for_streaming = false;
+
     bool InitializePeerConnection();
     bool InitializeTracks();
     bool InitializeRecorder();
@@ -127,8 +132,6 @@ private:
 
     void OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState new_state) override;
     void OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> channel) override;
-    void OnStandardizedIceConnectionChange(
-        webrtc::PeerConnectionInterface::IceConnectionState new_state) override;
     void OnIceGatheringChange(
         webrtc::PeerConnectionInterface::IceGatheringState new_state) override;
     void OnIceCandidate(const webrtc::IceCandidateInterface *candidate) override;
