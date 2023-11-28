@@ -4,6 +4,8 @@
 #include "track/v4l2dma_track_source.h"
 #include "customized_video_encoder_factory.h"
 
+#include <future>
+
 #include <api/audio_codecs/builtin_audio_decoder_factory.h>
 #include <api/audio_codecs/builtin_audio_encoder_factory.h>
 #include <api/call/call_factory_interface.h>
@@ -247,47 +249,47 @@ void Conductor::OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> c
     std::cout << "=> OnDataChannel: connected to '" << channel->label() << "'" << std::endl;
 }
 
-void Conductor::OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionState new_state)
-{
+void Conductor::OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionState new_state) {
     std::cout << "=> OnConnectionChange: " << webrtc::PeerConnectionInterface::PeerConnectionInterface::AsString(new_state) << std::endl;
-    if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kConnected)
-    {
-        std::unique_lock<std::mutex> lock(mtx);
-        is_ready_for_streaming = true;
-        cond_var.notify_all();
-
-        if (complete_signaling)
-        {
+    if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kConnected) {
+        is_connected = true;
+        if (complete_signaling) {
             complete_signaling();
         }
-    }
-    else if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kFailed)
-    {
+    } else if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kFailed) {
         peer_connection_->Close();
         data_channel_subject_->UnSubscribe();
-    }
-    else if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kClosed)
-    {
-        is_ready_for_streaming = false;
-        cond_var.notify_all();
+    } else if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kClosed) {
+        SetStreamingState(false);
+        is_connected = false;
     }
 }
 
-void Conductor::OnStandardizedIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState new_state)
-{
+void Conductor::OnIceGatheringChange(webrtc::PeerConnectionInterface::IceGatheringState new_state) {
     std::cout << "=> OnIceGatheringChange: " << webrtc::PeerConnectionInterface::PeerConnectionInterface::AsString(new_state) << std::endl;
+    if (new_state == webrtc::PeerConnectionInterface::IceGatheringState::kIceGatheringGathering) {
+        SetStreamingState(true);
+    }
 }
 
-void Conductor::OnIceGatheringChange(webrtc::PeerConnectionInterface::IceGatheringState new_state)
-{
-    std::cout << "=> OnIceGatheringChange: " << webrtc::PeerConnectionInterface::PeerConnectionInterface::AsString(new_state) << std::endl;
-}
-
-void Conductor::OnIceCandidate(const webrtc::IceCandidateInterface *candidate)
-{
+void Conductor::OnIceCandidate(const webrtc::IceCandidateInterface *candidate) {
     std::string ice;
     candidate->ToString(&ice);
     invoke_answer_ice(candidate->sdp_mid(), candidate->sdp_mline_index(), ice);
+}
+
+void Conductor::SetStreamingState(bool state) {
+    std::unique_lock<std::mutex> lock(state_mtx);
+    is_ready_for_streaming = state;
+    streaming_state.notify_all();
+}
+
+bool Conductor::IsReadyForStreaming() const {
+    return is_ready_for_streaming;
+}
+
+bool Conductor::IsConnected() const {
+    return is_connected;
 }
 
 void Conductor::SetOfferSDP(const std::string sdp,
