@@ -10,7 +10,8 @@
 
 class V4l2m2mEncoder : public webrtc::VideoEncoder {
 public:
-    V4l2m2mEncoder();
+    static std::unique_ptr<webrtc::VideoEncoder> Create(bool is_dma);
+    V4l2m2mEncoder(bool is_dma);
     ~V4l2m2mEncoder();
 
     int32_t InitEncode(const webrtc::VideoCodec *codec_settings,
@@ -27,6 +28,7 @@ protected:
     int width_;
     int height_;
     int fps_adjuster_;
+    bool is_dma_;
     std::string name_;
     webrtc::VideoCodec codec_;
     webrtc::EncodedImage encoded_image_;
