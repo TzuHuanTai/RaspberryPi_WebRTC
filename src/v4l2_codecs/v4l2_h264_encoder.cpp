@@ -1,19 +1,19 @@
-#include "v4l2_codecs/v4l2m2m_encoder.h"
+#include "v4l2_codecs/v4l2_h264_encoder.h"
 #include "v4l2_codecs/raw_buffer.h"
 
-std::unique_ptr<webrtc::VideoEncoder> V4l2m2mEncoder::Create(bool is_dma) {
-    return std::make_unique<V4l2m2mEncoder>(is_dma);
+std::unique_ptr<webrtc::VideoEncoder> V4l2H264Encoder::Create(bool is_dma) {
+    return std::make_unique<V4l2H264Encoder>(is_dma);
 }
 
-V4l2m2mEncoder::V4l2m2mEncoder(bool is_dma)
+V4l2H264Encoder::V4l2H264Encoder(bool is_dma)
     : fps_adjuster_(30),
       is_dma_(is_dma),
       bitrate_adjuster_(.85, 1),
       callback_(nullptr) {}
 
-V4l2m2mEncoder::~V4l2m2mEncoder() {}
+V4l2H264Encoder::~V4l2H264Encoder() {}
 
-int32_t V4l2m2mEncoder::InitEncode(
+int32_t V4l2H264Encoder::InitEncode(
     const webrtc::VideoCodec *codec_settings,
     const VideoEncoder::Settings &settings) {
     codec_ = *codec_settings;
@@ -34,18 +34,18 @@ int32_t V4l2m2mEncoder::InitEncode(
     return WEBRTC_VIDEO_CODEC_OK;
 }
 
-int32_t V4l2m2mEncoder::RegisterEncodeCompleteCallback(
+int32_t V4l2H264Encoder::RegisterEncodeCompleteCallback(
     webrtc::EncodedImageCallback *callback) {
     callback_ = callback;
     return WEBRTC_VIDEO_CODEC_OK;
 }
 
-int32_t V4l2m2mEncoder::Release() {
+int32_t V4l2H264Encoder::Release() {
     encoder_.reset();
     return WEBRTC_VIDEO_CODEC_OK;
 }
 
-int32_t V4l2m2mEncoder::Encode(
+int32_t V4l2H264Encoder::Encode(
     const webrtc::VideoFrame &frame,
     const std::vector<webrtc::VideoFrameType> *frame_types) {
     if (frame_types) {
@@ -81,7 +81,7 @@ int32_t V4l2m2mEncoder::Encode(
     return WEBRTC_VIDEO_CODEC_OK;
 }
 
-void V4l2m2mEncoder::SetRates(const RateControlParameters &parameters) {
+void V4l2H264Encoder::SetRates(const RateControlParameters &parameters) {
     if (parameters.bitrate.get_sum_bps() <= 0 || parameters.framerate_fps <= 0) {
         return;
     }
@@ -92,7 +92,7 @@ void V4l2m2mEncoder::SetRates(const RateControlParameters &parameters) {
     encoder_->SetBitrate(bitrate_adjuster_.GetAdjustedBitrateBps());
 }
 
-webrtc::VideoEncoder::EncoderInfo V4l2m2mEncoder::GetEncoderInfo() const {
+webrtc::VideoEncoder::EncoderInfo V4l2H264Encoder::GetEncoderInfo() const {
     EncoderInfo info;
     info.supports_native_handle = true;
     info.is_hardware_accelerated = true;
@@ -101,7 +101,7 @@ webrtc::VideoEncoder::EncoderInfo V4l2m2mEncoder::GetEncoderInfo() const {
     return info;
 }
 
-void V4l2m2mEncoder::SendFrame(const webrtc::VideoFrame &frame, Buffer &encoded_buffer) {
+void V4l2H264Encoder::SendFrame(const webrtc::VideoFrame &frame, Buffer &encoded_buffer) {
     auto encoded_image_buffer =
         webrtc::EncodedImageBuffer::Create((uint8_t *)encoded_buffer.start, encoded_buffer.length);
 
