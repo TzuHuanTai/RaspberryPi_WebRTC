@@ -1,7 +1,5 @@
 #include "v4l2_codecs/v4l2_codec.h"
 
-#include <future>
-
 V4l2Codec::~V4l2Codec() {
     ReleaseCodec();
 }
@@ -47,18 +45,11 @@ void V4l2Codec::ResetWorker() {
     worker_->Run();
 }
 
-bool V4l2Codec::EmplaceBuffer(Buffer &buffer, 
+void V4l2Codec::EmplaceBuffer(Buffer &buffer, 
                               std::function<void(Buffer)>on_capture) {
-    auto output_result = std::async(std::launch::async, 
-                                    &V4l2Codec::OutputBuffer,
-                                    this, std::ref(buffer));
-
-    bool is_output = output_result.get();
-    if(is_output) {
+    if (OutputBuffer(buffer)) {
         capturing_tasks_.push(on_capture);
     }
-
-    return is_output;
 }
 
 bool V4l2Codec::OutputBuffer(Buffer &buffer) {
@@ -81,6 +72,7 @@ bool V4l2Codec::OutputBuffer(Buffer &buffer) {
     if (!V4l2Util::QueueBuffer(fd_, &output_.buffers[index].inner)) {
         printf("error: QueueBuffer V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE. fd(%d) at index %d\n",
                fd_, index);
+        output_buffer_index_.push(index);
         return false;
     }
     return true;

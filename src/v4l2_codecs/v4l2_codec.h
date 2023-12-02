@@ -16,7 +16,7 @@ public:
                        uint32_t pix_fmt, v4l2_buf_type type,
                        v4l2_memory memory, int buffer_num, bool has_dmafd = false);
     void ResetWorker();
-    bool EmplaceBuffer(Buffer &buffer, std::function<void(Buffer)>on_capture);
+    void EmplaceBuffer(Buffer &buffer, std::function<void(Buffer)>on_capture);
     void ReleaseCodec();
 
 protected:
