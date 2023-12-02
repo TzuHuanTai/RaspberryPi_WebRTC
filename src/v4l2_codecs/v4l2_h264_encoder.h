@@ -1,5 +1,5 @@
-#ifndef V4L2M2M_ENCODER_H_
-#define V4L2M2M_ENCODER_H_
+#ifndef V4L2_H264_ENCODER_H_
+#define V4L2_H264_ENCODER_H_
 
 #include "v4l2_codecs/v4l2_encoder.h"
 
@@ -8,11 +8,11 @@
 #include <common_video/include/bitrate_adjuster.h>
 #include <modules/video_coding/codecs/h264/include/h264.h>
 
-class V4l2m2mEncoder : public webrtc::VideoEncoder {
+class V4l2H264Encoder : public webrtc::VideoEncoder {
 public:
     static std::unique_ptr<webrtc::VideoEncoder> Create(bool is_dma);
-    V4l2m2mEncoder(bool is_dma);
-    ~V4l2m2mEncoder();
+    V4l2H264Encoder(bool is_dma);
+    ~V4l2H264Encoder();
 
     int32_t InitEncode(const webrtc::VideoCodec *codec_settings,
                        const VideoEncoder::Settings &settings) override;
@@ -39,4 +39,4 @@ protected:
     virtual void SendFrame(const webrtc::VideoFrame &frame, Buffer &encoded_buffer);
 };
 
-#endif // V4L2M2M_ENCODER_H_
+#endif

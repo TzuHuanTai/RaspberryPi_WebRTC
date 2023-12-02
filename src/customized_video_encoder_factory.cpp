@@ -1,6 +1,5 @@
 #include "customized_video_encoder_factory.h"
-#include "v4l2_codecs/v4l2m2m_encoder.h"
-#include "v4l2_codecs/raw_buffer_encoder.h"
+#include "v4l2_codecs/v4l2_h264_encoder.h"
 
 #include <absl/strings/match.h>
 #include <api/video_codecs/sdp_video_format.h>
@@ -47,7 +46,7 @@ CustomizedVideoEncoderFactory::GetSupportedFormats() const {
 std::unique_ptr<webrtc::VideoEncoder>
 CustomizedVideoEncoderFactory::CreateVideoEncoder(const webrtc::SdpVideoFormat &format) {
     if (absl::EqualsIgnoreCase(format.name, cricket::kH264CodecName)) {
-        return V4l2m2mEncoder::Create(args_.enable_v4l2_dma);
+        return V4l2H264Encoder::Create(args_.enable_v4l2_dma);
     } else if (absl::EqualsIgnoreCase(format.name, cricket::kVp8CodecName)) {
         return webrtc::VP8Encoder::Create();
     } else if (absl::EqualsIgnoreCase(format.name, cricket::kVp9CodecName)) {
