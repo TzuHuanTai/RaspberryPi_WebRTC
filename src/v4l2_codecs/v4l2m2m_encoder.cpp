@@ -42,8 +42,12 @@ int32_t V4l2m2mEncoder::Release() {
 int32_t V4l2m2mEncoder::Encode(
     const webrtc::VideoFrame &frame,
     const std::vector<webrtc::VideoFrameType> *frame_types) {
-    if (frame_types &&  (*frame_types)[0] == webrtc::VideoFrameType::kVideoFrameKey) {
-        V4l2Util::SetExtCtrl(encoder_->GetFd(), V4L2_CID_MPEG_VIDEO_FORCE_KEY_FRAME, 1);
+    if (frame_types) {
+        if ((*frame_types)[0] == webrtc::VideoFrameType::kVideoFrameKey) {
+            V4l2Util::SetExtCtrl(encoder_->GetFd(), V4L2_CID_MPEG_VIDEO_FORCE_KEY_FRAME, 1);
+        } else if ((*frame_types)[0] == webrtc::VideoFrameType::kEmptyFrame) {
+            return WEBRTC_VIDEO_CODEC_OK;
+        }
     }
 
     rtc::scoped_refptr<webrtc::VideoFrameBuffer> frame_buffer =
@@ -58,13 +62,11 @@ int32_t V4l2m2mEncoder::Encode(
         .length = i420_buffer_size
     };
 
-    // skip sending task if output_result is false
-    bool is_output = encoder_->EmplaceBuffer(src_buffer,
-                [&](Buffer encoded_buffer) { 
-                    SendFrame(frame, encoded_buffer);
-                });
+    encoder_->EmplaceBuffer(src_buffer, [&](Buffer encoded_buffer) {
+        SendFrame(frame, encoded_buffer);
+    });
 
-    return is_output? WEBRTC_VIDEO_CODEC_OK : WEBRTC_VIDEO_CODEC_ERROR;
+    return WEBRTC_VIDEO_CODEC_OK;
 }
 
 void V4l2m2mEncoder::SetRates(const RateControlParameters &parameters) {
