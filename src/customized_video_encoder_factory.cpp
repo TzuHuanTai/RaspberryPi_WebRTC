@@ -47,11 +47,7 @@ CustomizedVideoEncoderFactory::GetSupportedFormats() const {
 std::unique_ptr<webrtc::VideoEncoder>
 CustomizedVideoEncoderFactory::CreateVideoEncoder(const webrtc::SdpVideoFormat &format) {
     if (absl::EqualsIgnoreCase(format.name, cricket::kH264CodecName)) {
-        if (args_.enable_v4l2_dma) {
-            return std::unique_ptr<webrtc::VideoEncoder>(std::make_unique<RawBufferEncoder>());
-        } else {
-            return std::unique_ptr<webrtc::VideoEncoder>(std::make_unique<V4l2m2mEncoder>());
-        }
+        return V4l2m2mEncoder::Create(args_.enable_v4l2_dma);
     } else if (absl::EqualsIgnoreCase(format.name, cricket::kVp8CodecName)) {
         return webrtc::VP8Encoder::Create();
     } else if (absl::EqualsIgnoreCase(format.name, cricket::kVp9CodecName)) {

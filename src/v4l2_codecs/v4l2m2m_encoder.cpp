@@ -1,9 +1,15 @@
 #include "v4l2_codecs/v4l2m2m_encoder.h"
+#include "v4l2_codecs/raw_buffer.h"
 
-V4l2m2mEncoder::V4l2m2mEncoder()
-    : callback_(nullptr),
-      fps_adjuster_(30),
-      bitrate_adjuster_(.85, 1) {}
+std::unique_ptr<webrtc::VideoEncoder> V4l2m2mEncoder::Create(bool is_dma) {
+    return std::make_unique<V4l2m2mEncoder>(is_dma);
+}
+
+V4l2m2mEncoder::V4l2m2mEncoder(bool is_dma)
+    : fps_adjuster_(30),
+      is_dma_(is_dma),
+      bitrate_adjuster_(.85, 1),
+      callback_(nullptr) {}
 
 V4l2m2mEncoder::~V4l2m2mEncoder() {}
 
@@ -23,7 +29,7 @@ int32_t V4l2m2mEncoder::InitEncode(
     }
 
     encoder_ = std::make_unique<V4l2Encoder>();
-    encoder_->Configure(width_, height_, false);
+    encoder_->Configure(width_, height_, is_dma_);
 
     return WEBRTC_VIDEO_CODEC_OK;
 }
@@ -53,14 +59,20 @@ int32_t V4l2m2mEncoder::Encode(
     rtc::scoped_refptr<webrtc::VideoFrameBuffer> frame_buffer =
         frame.video_frame_buffer();
 
-    auto i420_buffer = frame_buffer->GetI420();
-    unsigned int i420_buffer_size = (i420_buffer->StrideY() * height_) +
-                    ((i420_buffer->StrideY() + 1) / 2) * ((height_ + 1) / 2) * 2;
+    Buffer src_buffer = {};
+    if (frame_buffer->type() == webrtc::VideoFrameBuffer::Type::kNative) {
+        RawBuffer *raw_buffer = static_cast<RawBuffer *>(frame_buffer.get());
+        src_buffer = raw_buffer->GetBuffer();
+    } else {
+        auto i420_buffer = frame_buffer->GetI420();
+        unsigned int i420_buffer_size = (i420_buffer->StrideY() * height_) +
+                        ((i420_buffer->StrideY() + 1) / 2) * ((height_ + 1) / 2) * 2;
 
-    Buffer src_buffer = {
-        .start = const_cast<uint8_t*>(i420_buffer->DataY()),
-        .length = i420_buffer_size
-    };
+        src_buffer = {
+            .start = const_cast<uint8_t*>(i420_buffer->DataY()),
+            .length = i420_buffer_size
+        };
+    }
 
     encoder_->EmplaceBuffer(src_buffer, [&](Buffer encoded_buffer) {
         SendFrame(frame, encoded_buffer);
@@ -83,7 +95,9 @@ void V4l2m2mEncoder::SetRates(const RateControlParameters &parameters) {
 webrtc::VideoEncoder::EncoderInfo V4l2m2mEncoder::GetEncoderInfo() const {
     EncoderInfo info;
     info.supports_native_handle = true;
-    info.implementation_name = "h264_v4l2m2m";
+    info.is_hardware_accelerated = true;
+    info.implementation_name = std::string("V4L2 H264 Hardware Encoder") + 
+                                (is_dma_ ? "(DMA)" : "(M2M)");
     return info;
 }
 
