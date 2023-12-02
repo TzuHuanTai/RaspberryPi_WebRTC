@@ -33,8 +33,12 @@ int32_t RawBufferEncoder::InitEncode(
 int32_t RawBufferEncoder::Encode(
     const webrtc::VideoFrame &frame,
     const std::vector<webrtc::VideoFrameType> *frame_types) {
-    if (frame_types &&  (*frame_types)[0] == webrtc::VideoFrameType::kVideoFrameKey) {
-        V4l2Util::SetExtCtrl(encoder_->GetFd(), V4L2_CID_MPEG_VIDEO_FORCE_KEY_FRAME, 1);
+    if (frame_types) {
+        if ((*frame_types)[0] == webrtc::VideoFrameType::kVideoFrameKey) {
+            V4l2Util::SetExtCtrl(encoder_->GetFd(), V4L2_CID_MPEG_VIDEO_FORCE_KEY_FRAME, 1);
+        } else if ((*frame_types)[0] == webrtc::VideoFrameType::kEmptyFrame) {
+            return WEBRTC_VIDEO_CODEC_OK;
+        }
     }
 
     rtc::scoped_refptr<webrtc::VideoFrameBuffer> frame_buffer =
@@ -47,13 +51,11 @@ int32_t RawBufferEncoder::Encode(
     RawBuffer *raw_buffer = static_cast<RawBuffer *>(frame_buffer.get());
     Buffer buffer = raw_buffer->GetBuffer();
 
-    // skip sending task if output_result is false
-    bool is_output = encoder_->EmplaceBuffer(buffer,
-        [&](Buffer encoded_buffer) {
-            SendFrame(frame, encoded_buffer);
-        });
+    encoder_->EmplaceBuffer(buffer, [&](Buffer encoded_buffer) {
+        SendFrame(frame, encoded_buffer);
+    });
     
-    return is_output? WEBRTC_VIDEO_CODEC_OK : WEBRTC_VIDEO_CODEC_ERROR;
+    return WEBRTC_VIDEO_CODEC_OK;
 }
 
 webrtc::VideoEncoder::EncoderInfo RawBufferEncoder::GetEncoderInfo() const {
