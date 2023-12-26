@@ -6,6 +6,7 @@ SignalingService::SignalingService(std::shared_ptr<Conductor> conductor)
 }
 
 void SignalingService::OnRemoteSdp(std::string sdp) {
+    if (!conductor_) return;
     conductor_->SetOfferSDP(sdp, [this]() {
         conductor_->CreateAnswer([this](webrtc::SessionDescriptionInterface *desc) {
             std::string answer_sdp;
@@ -21,6 +22,7 @@ void SignalingService::OnRemoteIce(std::string sdp_mid, int sdp_mline_index, std
 }
 
 void SignalingService::InitIceCallback() {
+    if (!conductor_) return;
     conductor_->invoke_answer_ice = 
         [this](std::string sdp_mid, int sdp_mline_index, std::string candidate) {
             AnswerLocalIce(sdp_mid, sdp_mline_index, candidate);

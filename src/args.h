@@ -15,7 +15,14 @@ struct Args {
     std::string turn_url = "";
     std::string turn_username = "";
     std::string turn_password = "";
+#if USE_MQTT_SIGNALING
+    int mqtt_port = 1883;
+    std::string mqtt_host = "localhost";
+    std::string mqtt_username = "";
+    std::string mqtt_password = "";
+#elif USE_SIGNALR_SIGNALING
     std::string signaling_url = "http://localhost:5000/SignalingServer";
+#endif
     std::string record_path = "";
 };
 

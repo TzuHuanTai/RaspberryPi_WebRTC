@@ -7,8 +7,8 @@
 #include "args.h"
 #include "conductor.h"
 #include "parser.h"
-#include "signaling/signaling_service.h"
-#if USE_WEBSOCKET_SIGNALING
+#if USE_MQTT_SIGNALING
+#include "signaling/mqtt_service.h"
 #endif
 #if USE_SIGNALR_SIGNALING
 #include "signaling/signalr_server.h"
@@ -24,8 +24,8 @@ int main(int argc, char *argv[]) {
         conductor->CreatePeerConnection();
 
         auto signal = ([&]() -> std::unique_ptr<SignalingService> {
-        #if USE_WEBSOCKET_SIGNALING
-            return nullptr;
+        #if USE_MQTT_SIGNALING
+            return MqttService::Create(args, conductor);
         #elif USE_SIGNALR_SIGNALING
             return SignalrService::Create(args.signaling_url, conductor);
         #else
