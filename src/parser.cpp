@@ -19,7 +19,14 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args)
     ("turn_url", bpo::value<std::string>()->default_value(args.turn_url), "Turn server, ex: turn:xxx.xxx.xxx:3478?transport=tcp")
     ("turn_username", bpo::value<std::string>()->default_value(args.turn_username), "Turn server username")
     ("turn_password", bpo::value<std::string>()->default_value(args.turn_password), "Turn server password")
+#if USE_MQTT_SIGNALING
+    ("mqtt_port", bpo::value<uint32_t>()->default_value(args.mqtt_port), "Mqtt server port")
+    ("mqtt_host", bpo::value<std::string>()->default_value(args.mqtt_host), "Mqtt server host")
+    ("mqtt_username", bpo::value<std::string>()->default_value(args.mqtt_username), "Mqtt server username")
+    ("mqtt_password", bpo::value<std::string>()->default_value(args.mqtt_password), "Mqtt server password")
+#elif USE_SIGNALR_SIGNALING
     ("signaling_url", bpo::value<std::string>()->default_value(args.signaling_url), "Signaling server url, ref: Repository > FarmerAPI > Hubs > SignalingServer")
+#endif
     ("record_path", bpo::value<std::string>()->default_value(args.record_path), "The path to save the recording video files")
     ("enable_v4l2_dma", bpo::bool_switch()->default_value(args.enable_v4l2_dma), "Share DMA buffers between decoder/scaler/encoder, which can decrease cpu usage")
     ("v4l2_format", bpo::value<std::string>()->default_value(args.v4l2_format), "Set v4l2 input format i420/mjpeg/h264 while capturing, if the camera is supported");
@@ -87,16 +94,31 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args)
     {
         args.turn_password = vm["turn_password"].as<std::string>();
     }
-    
-    if (!vm["signaling_url"].empty() && (vm["signaling_url"].as<std::string>()).substr(0, 4) != "http")
-    {
+
+#if USE_MQTT_SIGNALING
+    if (vm.count("mqtt_port")) {
+        args.mqtt_port = vm["mqtt_port"].as<uint32_t>();
+    }
+
+    if (vm.count("mqtt_host")) {
+        args.mqtt_host = vm["mqtt_host"].as<std::string>();
+    }
+
+    if (vm.count("mqtt_username")) {
+        args.mqtt_username = vm["mqtt_username"].as<std::string>();
+    }
+
+    if (vm.count("mqtt_password")) {
+        args.mqtt_password = vm["mqtt_password"].as<std::string>();
+    }
+#elif USE_SIGNALR_SIGNALING    
+    if (!vm["signaling_url"].empty() && (vm["signaling_url"].as<std::string>()).substr(0, 4) != "http") {
         std::cout << "Signaling url should not be empty and start with \"http:\"" << std::endl;
         exit(1);
-    }
-    else if (vm.count("signaling_url"))
-    {
+    } else if (vm.count("signaling_url")) {
         args.signaling_url = vm["signaling_url"].as<std::string>();
     }
+#endif
 
     if (!vm["record_path"].as<std::string>().empty() && 
         (!((vm["record_path"].as<std::string>()).front() == '/' ||

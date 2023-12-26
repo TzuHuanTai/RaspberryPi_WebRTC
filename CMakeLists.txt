@@ -6,16 +6,34 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 set(BUILD_TEST "" CACHE STRING "test")
-set(USE_SIGNALING "" CACHE STRING "SignalR, WebSocket or so. Default is SignalR.")
+
+option(USE_MQTT_SIGNALING "Use MQTT signaling" OFF)
+option(USE_SIGNALR_SIGNALING "Use SignalR signaling" OFF)
+if(USE_MQTT_SIGNALING)
+    find_library(MOSQUITTO_LIBS NAMES mosquitto PATHS /usr/local/lib)
+    if(NOT MOSQUITTO_LIBS)
+        message(FATAL_ERROR "Mosquitto library not found")
+    endif()
+    add_definitions(-DUSE_MQTT_SIGNALING)
+elseif(USE_SIGNALR_SIGNALING)
+    set(SIGNALR_LIBS 
+        /usr/local/lib/libmicrosoft-signalr.a 
+        /usr/local/lib/libcpprest.a 
+        /usr/local/lib/libjsoncpp.a 
+        -lz)
+    add_definitions(-DUSE_SIGNALR_SIGNALING)
+endif()
+
 set(WEBRTC_INCLUDE_DIR /usr/local/include/webrtc)
-set(WEBRTC_LIBRARY_DIR /usr/local/lib/libwebrtc.a)
+set(WEBRTC_LIBRARY /usr/local/lib/libwebrtc.a)
 set(WEBRTC_LINK_LIBS X11 dl)
 set(FFMPEG_LINK_LIBS avformat avcodec avutil swscale avdevice)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
+
 message(STATUS "BUILD_TEST: ${BUILD_TEST}")
 message(STATUS "WEBRTC_INCLUDE_DIR: ${WEBRTC_INCLUDE_DIR}")
-message(STATUS "WEBRTC_LIBRARY_DIR: ${WEBRTC_LIBRARY_DIR}")
+message(STATUS "WEBRTC_LIBRARY: ${WEBRTC_LIBRARY}")
 
 add_compile_definitions(
     WEBRTC_POSIX
@@ -57,7 +75,30 @@ if(BUILD_TEST STREQUAL "recorder")
         ${WEBRTC_LINK_LIBS}
         ${FFMPEG_LINK_LIBS}
         Threads::Threads
-        ${WEBRTC_LIBRARY_DIR}
+        ${WEBRTC_LIBRARY}
+    )
+elseif(BUILD_TEST STREQUAL "mqtt")
+    add_subdirectory(src)
+    add_subdirectory(src/recorder)
+    add_executable(test_mqtt test/test_mqtt.cpp)
+
+    target_link_libraries(test_mqtt
+        signaling
+        src
+        common
+        capture
+        track
+        v4l2_codecs
+        recorder
+    )
+    target_link_libraries(test_mqtt
+        Threads::Threads
+        ${MOSQUITTO_LIBS}
+        ${WEBRTC_LINK_LIBS}
+        boost_program_options
+        ${SIGNALING_LINK_LIBS}
+        ${FFMPEG_LINK_LIBS}
+        ${WEBRTC_LIBRARY}
     )
 elseif(BUILD_TEST STREQUAL "v4l2_capture")
     add_subdirectory(src/capture)
@@ -69,7 +110,7 @@ elseif(BUILD_TEST STREQUAL "v4l2_capture")
     target_link_libraries(test_v4l2_capture
         ${WEBRTC_LINK_LIBS}
         Threads::Threads
-        ${WEBRTC_LIBRARY_DIR}
+        ${WEBRTC_LIBRARY}
     )
 elseif(BUILD_TEST STREQUAL "v4l2_encoder")
     add_subdirectory(src/capture)
@@ -85,7 +126,7 @@ elseif(BUILD_TEST STREQUAL "v4l2_encoder")
         ${WEBRTC_LINK_LIBS}
         ${FFMPEG_LINK_LIBS}
         Threads::Threads
-        ${WEBRTC_LIBRARY_DIR}
+        ${WEBRTC_LIBRARY}
     )
 elseif(BUILD_TEST STREQUAL "v4l2_decoder")
     add_subdirectory(src/capture)
@@ -100,7 +141,7 @@ elseif(BUILD_TEST STREQUAL "v4l2_decoder")
         ${WEBRTC_LINK_LIBS}
         ${FFMPEG_LINK_LIBS}
         Threads::Threads
-        ${WEBRTC_LIBRARY_DIR}
+        ${WEBRTC_LIBRARY}
     )
 elseif(BUILD_TEST STREQUAL "v4l2_scaler")
     add_subdirectory(src/capture)
@@ -115,7 +156,7 @@ elseif(BUILD_TEST STREQUAL "v4l2_scaler")
         ${WEBRTC_LINK_LIBS}
         ${FFMPEG_LINK_LIBS}
         Threads::Threads
-        ${WEBRTC_LIBRARY_DIR}
+        ${WEBRTC_LIBRARY}
     )
 else()
     add_subdirectory(src)
@@ -131,21 +172,11 @@ else()
         recorder
     )
 
-    # Default signaling service is SignalR.
-    string(TOUPPER "${USE_SIGNALING}" USE_SIGNALING)
-    if (USE_SIGNALING STREQUAL "WEBSOCKET")
-        set(SIGNALING_LINK_LIBS )
-        add_definitions(-DUSE_WEBSOCKET_SIGNALING)
-    else()
-        set(USE_SIGNALING "SIGNALR")
-        set(SIGNALING_LINK_LIBS 
-            /usr/local/lib/libmicrosoft-signalr.a 
-            /usr/local/lib/libcpprest.a 
-            /usr/local/lib/libjsoncpp.a 
-            -lz)
-        add_definitions(-DUSE_SIGNALR_SIGNALING)
+    if (USE_MQTT_SIGNALING)
+        set(SIGNALING_LINK_LIBS ${MOSQUITTO_LIBS})
+    elseif(USE_SIGNALR_SIGNALING)
+        set(SIGNALING_LINK_LIBS ${SIGNALR_LIBS})
     endif()
-    message(STATUS "USE_SIGNALING: ${USE_SIGNALING}")
 
     target_link_libraries(${PROJECT_NAME}
         ${WEBRTC_LINK_LIBS}
@@ -153,6 +184,6 @@ else()
         boost_program_options
         ${FFMPEG_LINK_LIBS}
         Threads::Threads
-        ${WEBRTC_LIBRARY_DIR}
+        ${WEBRTC_LIBRARY}
     )
 endif()
