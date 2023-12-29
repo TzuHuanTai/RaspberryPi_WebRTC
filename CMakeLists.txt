@@ -7,8 +7,6 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 set(BUILD_TEST "" CACHE STRING "test")
 
-option(USE_MQTT_SIGNALING "Use MQTT signaling" OFF)
-option(USE_SIGNALR_SIGNALING "Use SignalR signaling" OFF)
 if(USE_MQTT_SIGNALING)
     find_library(MOSQUITTO_LIBS NAMES mosquitto PATHS /usr/local/lib)
     if(NOT MOSQUITTO_LIBS)
@@ -78,27 +76,15 @@ if(BUILD_TEST STREQUAL "recorder")
         ${WEBRTC_LIBRARY}
     )
 elseif(BUILD_TEST STREQUAL "mqtt")
-    add_subdirectory(src)
-    add_subdirectory(src/recorder)
+    add_subdirectory(src/signaling)
     add_executable(test_mqtt test/test_mqtt.cpp)
 
     target_link_libraries(test_mqtt
         signaling
-        src
-        common
-        capture
-        track
-        v4l2_codecs
-        recorder
     )
     target_link_libraries(test_mqtt
         Threads::Threads
         ${MOSQUITTO_LIBS}
-        ${WEBRTC_LINK_LIBS}
-        boost_program_options
-        ${SIGNALING_LINK_LIBS}
-        ${FFMPEG_LINK_LIBS}
-        ${WEBRTC_LIBRARY}
     )
 elseif(BUILD_TEST STREQUAL "v4l2_capture")
     add_subdirectory(src/capture)

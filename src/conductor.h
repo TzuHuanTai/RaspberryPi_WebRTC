@@ -4,6 +4,7 @@
 #include "args.h"
 #include "data_channel_subject.h"
 #include "recorder/background_recorder.h"
+#include "signaling/signaling_service.h"
 
 #include <iostream>
 #include <memory>
@@ -106,15 +107,6 @@ public:
     typedef std::function<void(webrtc::RTCError)> OnFailureFunc;
     typedef std::function<void(webrtc::SessionDescriptionInterface *desc)> OnCreateSuccessFunc;
 
-    typedef std::function<void(std::string, int, std::string)> InvokeIceFunc;
-    InvokeIceFunc invoke_answer_ice;
-    OnSetSuccessFunc complete_signaling;
-
-    void SetOfferSDP(const std::string sdp,
-                     OnSetSuccessFunc on_success,
-                     OnFailureFunc on_failure);
-    void AddIceCandidate(std::string sdp_mid, int sdp_mline_index, std::string candidate);
-    void CreateAnswer(OnCreateSuccessFunc on_success, OnFailureFunc on_failure);
     bool CreatePeerConnection();
     void SetStreamingState(bool state);
     bool IsReadyForStreaming() const;
@@ -124,11 +116,18 @@ private:
     bool is_connected = false;
     bool is_ready_for_streaming = false;
 
-    bool InitializePeerConnection();
+    bool InitializePeerConnectionFactory();
     bool InitializeTracks();
+    bool InitializeSignaling();
     bool InitializeRecorder();
     void CreateDataChannel();
     void AddTracks();
+    void AddIceCandidate(std::string sdp_mid, int sdp_mline_index, std::string candidate);
+    void CreateAnswer(OnCreateSuccessFunc on_success, OnFailureFunc on_failure);
+    void SetOfferSDP(const std::string sdp,
+                     OnSetSuccessFunc on_success,
+                     OnFailureFunc on_failure);
+    
 
     void OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState new_state) override;
     void OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> channel) override;
@@ -141,6 +140,7 @@ private:
     std::unique_ptr<rtc::Thread> worker_thread_;
     std::unique_ptr<rtc::Thread> signaling_thread_;
     std::unique_ptr<BackgroundRecorder> bg_recorder_;
+    std::unique_ptr<SignalingService> signaling_service_;
     std::shared_ptr<V4L2Capture> video_caputre_source_;
     rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer_connection_;
     rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> peer_connection_factory_;

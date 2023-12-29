@@ -1,6 +1,5 @@
 #include "signaling/signalr_server.h"
 
-#include <functional>
 #include <future>
 #include <iostream>
 #include <sstream>
@@ -8,16 +7,16 @@
 #include <unistd.h>
 
 std::unique_ptr<SignalrService> SignalrService::Create(std::string url,
-                                    std::shared_ptr<Conductor> conductor) {
-    auto ptr = std::make_unique<SignalrService>(url, conductor);
+    OnRemoteSdpFunc on_remote_sdp, OnRemoteIceFunc on_remote_ice) {
+    auto ptr = std::make_unique<SignalrService>(url, on_remote_sdp, on_remote_ice);
     ptr->AutoReconnect()
-        .DisconnectOnCompleted()
         .Connect();
     return ptr;
 }
 
-SignalrService::SignalrService(std::string url, std::shared_ptr<Conductor> conductor)
-    : SignalingService(conductor),
+SignalrService::SignalrService(std::string url,
+    OnRemoteSdpFunc on_remote_sdp, OnRemoteIceFunc on_remote_ice)
+    : SignalingService(on_remote_sdp, on_remote_ice),
       url(url),
       connection_(signalr::hub_connection_builder::create(url).build()) {}
 
@@ -107,14 +106,6 @@ void SignalrService::AnswerLocalIce(std::string sdp_mid, int sdp_mline_index,
         
     std::vector<signalr::value> args{client_id_, ice_message};
     SendMessage(topics.answer_ice, args);
-}
-
-SignalrService &SignalrService::DisconnectOnCompleted() {
-    conductor_->complete_signaling = [this]() {
-        sleep(3);
-        Disconnect();
-    };
-    return *this;
 }
 
 SignalrService &SignalrService::AutoReconnect() {

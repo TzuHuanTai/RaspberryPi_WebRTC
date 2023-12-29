@@ -1,9 +1,11 @@
 #ifndef SIGNALR_SERVICE_H_
 #define SIGNALR_SERVICE_H_
 
-#include "conductor.h"
 #include "signaling/signaling_service.h"
-
+#include "args.h"
+#include <memory>
+#include <mutex>
+#include <condition_variable>
 #include <signalrclient/hub_connection.h>
 #include <signalrclient/hub_connection_builder.h>
 #include <signalrclient/signalr_value.h>
@@ -21,14 +23,15 @@ struct SignalrTopic {
 class SignalrService : public SignalingService {
 public:
     static std::unique_ptr<SignalrService> Create(std::string url,
-                                std::shared_ptr<Conductor> conductor);
+        OnRemoteSdpFunc on_remote_sdp, OnRemoteIceFunc on_remote_ice);
 
     SignalrTopic topics;
     std::mutex mtx;
     std::condition_variable cond_var;
     bool ready = false;
 
-    SignalrService(std::string url, std::shared_ptr<Conductor> conductor);
+    SignalrService(std::string url,
+        OnRemoteSdpFunc on_remote_sdp, OnRemoteIceFunc on_remote_ice);
     ~SignalrService() override {
         std::cout << "=> ~SignalrService: destroied" << std::endl;
     };
@@ -36,7 +39,6 @@ public:
     void Connect() override;
     void Disconnect() override;
     SignalrService &AutoReconnect();
-    SignalrService &DisconnectOnCompleted();
     void Subscribe(std::string event_name, const signalr::hub_connection::method_invoked_handler &handler);
     void JoinAsClient();
     void JoinAsServer();

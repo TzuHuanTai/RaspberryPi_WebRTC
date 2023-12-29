@@ -1,7 +1,13 @@
 project(signaling)
 
-aux_source_directory(${PROJECT_SOURCE_DIR} TRACK_FILES)
+if(USE_MQTT_SIGNALING)
+    set(SIGNALING_SOURCE ./mqtt_service.cpp)
+elseif(USE_SIGNALR_SIGNALING)
+    set(SIGNALING_SOURCE ./signalr_server.cpp)
+endif()
 
-add_library(${PROJECT_NAME} ${TRACK_FILES})
+add_library(${PROJECT_NAME} 
+    ./signaling_service.cpp
+    ${SIGNALING_SOURCE})
 
 target_link_libraries(${PROJECT_NAME})

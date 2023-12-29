@@ -10,14 +10,15 @@
 #include <nlohmann/json.hpp>
 
 std::unique_ptr<MqttService> MqttService::Create(Args args,
-                                    std::shared_ptr<Conductor> conductor) {
-    auto ptr = std::make_unique<MqttService>(args, conductor);
+    OnRemoteSdpFunc on_remote_sdp, OnRemoteIceFunc on_remote_ice) {
+    auto ptr = std::make_unique<MqttService>(args, on_remote_sdp, on_remote_ice);
     ptr->Connect();
     return ptr;
 }
 
-MqttService::MqttService(Args args, std::shared_ptr<Conductor> conductor)
-    : SignalingService(conductor),
+MqttService::MqttService(Args args,
+    OnRemoteSdpFunc on_remote_sdp, OnRemoteIceFunc on_remote_ice)
+    : SignalingService(on_remote_sdp, on_remote_ice),
       port_(args.mqtt_port),
       hostname_(args.mqtt_host),
       username_(args.mqtt_username),
@@ -45,7 +46,6 @@ void MqttService::ListenOfferIce(std::string message) {
 }
 
 void MqttService::AnswerLocalSdp(std::string sdp) {
-    std::unique_lock<std::mutex> lock(mtx);
     std::cout << "AnswerSDP: " << sdp << std::endl;
     nlohmann::json jsonData;
     jsonData["type"] = "answer";
@@ -60,7 +60,6 @@ void MqttService::AnswerLocalSdp(std::string sdp) {
 }
 
 void MqttService::AnswerLocalIce(std::string sdp_mid, int sdp_mline_index, std::string candidate) {
-    std::unique_lock<std::mutex> lock(mtx);
     std::cout << "AnswerICE: " << sdp_mid << ", " << sdp_mline_index << ", " << candidate << std::endl;
     nlohmann::json jsonData;
     jsonData["sdpMid"] = sdp_mid;
@@ -97,7 +96,6 @@ void MqttService::Subscribe(const std::string& topic) {
 
 void MqttService::OnConnect(struct mosquitto *mosq, void *obj, int result) {
     if (result == 0) {
-        ready = true;
         Subscribe(topics.offer_sdp);
         Subscribe(topics.offer_ice);
         std::cout << "MQTT service is ready." << std::endl;
@@ -150,7 +148,7 @@ void MqttService::Connect() {
 		fprintf(stderr, "Error: %s\n", mosquitto_strerror(rc));
 	}
 
-	rc = mosquitto_loop_start(connection_);
+	rc = mosquitto_loop_start(connection_); // already handle reconnections
 	if(rc != MOSQ_ERR_SUCCESS){
 		mosquitto_destroy(connection_);
 		fprintf(stderr, "Error: %s\n", mosquitto_strerror(rc));
