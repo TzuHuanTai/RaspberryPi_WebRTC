@@ -3,6 +3,12 @@
 #include "track/v4l2_track_source.h"
 #include "track/v4l2dma_track_source.h"
 #include "customized_video_encoder_factory.h"
+#if USE_MQTT_SIGNALING
+#include "signaling/mqtt_service.h"
+#endif
+#if USE_SIGNALR_SIGNALING
+#include "signaling/signalr_server.h"
+#endif
 
 #include <future>
 
@@ -35,19 +41,51 @@
 
 std::shared_ptr<Conductor> Conductor::Create(Args args) {
     auto ptr = std::make_shared<Conductor>(args);
-    if (!ptr->InitializePeerConnection()) {
-        std::cout << "=> InitializePeerConnection: failed!" << std::endl;
+    if (!ptr->InitializePeerConnectionFactory()) {
+        std::cout << "[Conductor] Initialize PeerConnection failed!" << std::endl;
     }
     if (!ptr->InitializeTracks()) {
-        std::cout << "=> InitializeTracks: failed!" << std::endl;
+        std::cout << "[Conductor] Initialize tracks failed!" << std::endl;
+    }
+    if (!ptr->InitializeSignaling()) {
+        std::cout << "[Conductor] Initialize signaling failed!" << std::endl;
     }
     if (!ptr->InitializeRecorder()) {
-        std::cout << "=> InitializeRecorder: Recorder is not created!" << std::endl;
+        std::cout << "[Conductor] Recorder is not created!" << std::endl;
     }
     return ptr;
 }
 
 Conductor::Conductor(Args args) : args(args) {}
+
+bool Conductor::InitializeSignaling() {
+    auto on_remote_sdp = [&](std::string sdp) {
+        SetOfferSDP(sdp, [&]() {
+            CreateAnswer([&](webrtc::SessionDescriptionInterface *desc) {
+                std::string answer_sdp;
+                desc->ToString(&answer_sdp);
+                signaling_service_->AnswerLocalSdp(answer_sdp);
+            }, nullptr);
+        }, nullptr);
+    };
+
+    auto on_remote_ice = [&](std::string sdp_mid, int sdp_mline_index, std::string candidate) {
+        // bug: Failed to apply the received candidate. connect but without datachannel!?
+        // AddIceCandidate(sdp_mid, sdp_mline_index, candidate);
+    };
+
+    signaling_service_ = ([&]() -> std::unique_ptr<SignalingService> {
+#if USE_MQTT_SIGNALING
+        return MqttService::Create(args, on_remote_sdp, on_remote_ice);
+#elif USE_SIGNALR_SIGNALING
+        return SignalrService::Create(args.signaling_url, on_remote_sdp, on_remote_ice);
+#else
+        return nullptr;
+#endif
+    })();
+
+    return signaling_service_ != nullptr;
+}
 
 bool Conductor::InitializeRecorder() {
     if (args.record_path.empty()) {
@@ -174,8 +212,7 @@ void Conductor::CreateDataChannel()
     }
 }
 
-bool Conductor::InitializePeerConnection()
-{
+bool Conductor::InitializePeerConnectionFactory() {
     rtc::InitializeSSL();
 
     network_thread_ = rtc::Thread::CreateWithSocketServer();
@@ -253,9 +290,6 @@ void Conductor::OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnecti
     std::cout << "=> OnConnectionChange: " << webrtc::PeerConnectionInterface::PeerConnectionInterface::AsString(new_state) << std::endl;
     if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kConnected) {
         is_connected = true;
-        if (complete_signaling) {
-            complete_signaling();
-        }
     } else if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kFailed) {
         peer_connection_->Close();
         data_channel_subject_->UnSubscribe();
@@ -275,7 +309,7 @@ void Conductor::OnIceGatheringChange(webrtc::PeerConnectionInterface::IceGatheri
 void Conductor::OnIceCandidate(const webrtc::IceCandidateInterface *candidate) {
     std::string ice;
     candidate->ToString(&ice);
-    invoke_answer_ice(candidate->sdp_mid(), candidate->sdp_mline_index(), ice);
+    signaling_service_->AnswerLocalIce(candidate->sdp_mid(), candidate->sdp_mline_index(), ice);
 }
 
 void Conductor::SetStreamingState(bool state) {

@@ -1,19 +1,19 @@
 #ifndef SIGNALING_SERVICE_H_
 #define SIGNALING_SERVICE_H_
 
-#include "conductor.h"
-
+#include <functional>
 #include <string>
 
 class SignalingService {
 public:
-    SignalingService(std::shared_ptr<Conductor> conductor);
+    typedef std::function<void(std::string sdp)> OnRemoteSdpFunc;
+    typedef std::function<void(std::string sdp_mid, 
+                               int sdp_mline_index, 
+                               std::string candidate)> OnRemoteIceFunc;
+
+    SignalingService(OnRemoteSdpFunc on_remote_sdp, OnRemoteIceFunc on_remote_ice);
     virtual ~SignalingService() {};
 
-protected:
-    std::shared_ptr<Conductor> conductor_;
-    void OnRemoteSdp(std::string sdp);
-    void OnRemoteIce(std::string sdp_mid, int sdp_mline_index, std::string candidate);
     virtual void AnswerLocalSdp(std::string sdp) = 0;
     virtual void AnswerLocalIce(std::string sdp_mid,
                                 int sdp_mline_index,
@@ -21,8 +21,13 @@ protected:
     virtual void Connect() = 0;
     virtual void Disconnect() = 0;
 
+protected:
+    void OnRemoteSdp(std::string sdp);
+    void OnRemoteIce(std::string sdp_mid, int sdp_mline_index, std::string candidate);
+
 private:
-    void InitIceCallback();
+    OnRemoteSdpFunc on_remote_sdp_;
+    OnRemoteIceFunc on_remote_ice_;
 };
 
 #endif

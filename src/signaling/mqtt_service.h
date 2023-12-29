@@ -1,9 +1,9 @@
 #ifndef MQTT_SERVICE_H_
 #define MQTT_SERVICE_H_
 
-#include "conductor.h"
 #include "signaling/signaling_service.h"
-
+#include "args.h"
+#include <memory>
 #include <mosquitto.h>
 
 struct MqttTopic {
@@ -16,19 +16,15 @@ struct MqttTopic {
 class MqttService : public SignalingService {
 public:
     static std::unique_ptr<MqttService> Create(Args args,
-                                std::shared_ptr<Conductor> conductor);
+        OnRemoteSdpFunc on_remote_sdp, OnRemoteIceFunc on_remote_ice);
     MqttTopic topics;
-    std::mutex mtx;
-    std::condition_variable cond_var;
-    bool ready = false;
 
-    MqttService(Args args, std::shared_ptr<Conductor> conductor);
+    MqttService(Args args, OnRemoteSdpFunc on_remote_sdp,
+        OnRemoteIceFunc on_remote_ice);
     ~MqttService() override;
 
     void Connect() override;
     void Disconnect() override;
-
-protected:
     void AnswerLocalSdp(std::string sdp) override;
     void AnswerLocalIce(std::string sdp_mid,
                                 int sdp_mline_index,
