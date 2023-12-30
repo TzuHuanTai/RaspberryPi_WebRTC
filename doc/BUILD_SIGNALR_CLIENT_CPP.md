@@ -57,7 +57,7 @@
 * Install Jsoncpp
     ```bash
     git clone https://github.com/open-source-parsers/jsoncpp.git
-    cd ./jsoncpp
+    cd jsoncpp
     mkdir -p build/debug
     cd build/debug
     cmake -DCMAKE_BUILD_TYPE=release -DBUILD_STATIC_LIBS=ON -DBUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_INCLUDEDIR=include/jsoncpp -DARCHIVE_INSTALL_DIR=. -G "Unix Makefiles" ../..
@@ -94,7 +94,7 @@
     sudo make install
     ```
 
-4. * Use scp or other ways to transfer headers and libs to the Raspberry Pi, then move them to `/usr/local`
+4. Use scp or other ways to transfer headers and libs to the Raspberry Pi, then move them to `/usr/local` like below.
     ```bash
     scp -r /usr/local/include/cpprest pi@192.168.x.x:/home/pi
     scp -r /usr/local/include/jsoncpp pi@192.168.x.x:/home/pi
