@@ -42,7 +42,7 @@ Using v4l2 dma hardware encoder with WebRTC reduces CPU usage. Both `signalr` an
 | <div style="width:200px">Command line</div> | Description | Valid values |
 | --------------------------------------------| ----------- | ------------ |
 |   -DUSE_SIGNALR_SIGNALING   | Build the project by using SignalR as signaling. | ON, OFF |
-|   -DUSE_MQTT_SIGNALING      | Build the project by using SignalR as signaling. | ON, OFF |
+|   -DUSE_MQTT_SIGNALING      | Build the project by using MOSQUITTO as signaling. | ON, OFF |
 |   -DBUILD_TEST              | Build the test codes | recorder, mqtt, v4l2_capture, v4l2_encoder, v4l2_decoder, v4l2_scaler |
 
 Build on raspberry pi and it'll output a `pi_webrtc` file in `/build`.
