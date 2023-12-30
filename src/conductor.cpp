@@ -47,9 +47,6 @@ std::shared_ptr<Conductor> Conductor::Create(Args args) {
     if (!ptr->InitializeTracks()) {
         std::cout << "[Conductor] Initialize tracks failed!" << std::endl;
     }
-    if (!ptr->InitializeSignaling()) {
-        std::cout << "[Conductor] Initialize signaling failed!" << std::endl;
-    }
     if (!ptr->InitializeRecorder()) {
         std::cout << "[Conductor] Recorder is not created!" << std::endl;
     }
@@ -174,10 +171,9 @@ bool Conductor::CreatePeerConnection()
     if (!result.ok()) {
         peer_connection_ = nullptr;
         return false;
-    }
-    else
-    {
+    } else {
         peer_connection_ = result.MoveValue();
+        InitializeSignaling();
         CreateDataChannel();
         AddTracks();
     }
@@ -276,9 +272,12 @@ bool Conductor::InitializePeerConnectionFactory() {
     return peer_connection_factory_ != nullptr;
 }
 
-void Conductor::OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState new_state)
-{
-    std::cout << "=> OnSignalingChange: " << webrtc::PeerConnectionInterface::PeerConnectionInterface::AsString(new_state) << std::endl;
+void Conductor::OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState new_state) {
+    std::cout << "[Condictor] OnSignalingChange: ";
+    std::cout << webrtc::PeerConnectionInterface::PeerConnectionInterface::AsString(new_state) << std::endl;
+    if (new_state == webrtc::PeerConnectionInterface::SignalingState::kClosed) {
+        signaling_service_.reset();
+    }
 }
 
 void Conductor::OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> channel)
@@ -289,6 +288,7 @@ void Conductor::OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> c
 void Conductor::OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionState new_state) {
     std::cout << "=> OnConnectionChange: " << webrtc::PeerConnectionInterface::PeerConnectionInterface::AsString(new_state) << std::endl;
     if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kConnected) {
+        signaling_service_.reset();
         is_connected = true;
     } else if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kFailed) {
         peer_connection_->Close();
