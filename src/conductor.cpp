@@ -326,6 +326,16 @@ bool Conductor::IsConnected() const {
     return is_connected;
 }
 
+/*
+// If webrtc can not connect within a certain number of seconds, give up and wait again.
+*/
+void Conductor::Timeout(int second) {
+    sleep(second);
+    if (IsReadyForStreaming() && !IsConnected()) {
+        SetStreamingState(false);
+    }
+}
+
 void Conductor::SetOfferSDP(const std::string sdp,
                             OnSetSuccessFunc on_success,
                             OnFailureFunc on_failure)
