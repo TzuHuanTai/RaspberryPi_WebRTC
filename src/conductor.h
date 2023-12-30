@@ -111,6 +111,7 @@ public:
     void SetStreamingState(bool state);
     bool IsReadyForStreaming() const;
     bool IsConnected() const;
+    void Timeout(int second);
 
 private:
     bool is_connected = false;

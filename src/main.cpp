@@ -1,8 +1,4 @@
 #include <iostream>
-#include <string>
-#include <unistd.h>
-#include <chrono>
-#include <ctime>
 
 #include "args.h"
 #include "conductor.h"
@@ -21,12 +17,7 @@ int main(int argc, char *argv[]) {
         std::unique_lock<std::mutex> lock(conductor->state_mtx);
         conductor->streaming_state.wait(lock, [&]{return conductor->IsReadyForStreaming();});
 
-        auto f = std::async(std::launch::async, [&]() {
-            sleep(20);
-            if (conductor->IsReadyForStreaming() && !conductor->IsConnected()) {
-                conductor->SetStreamingState(false);
-            }
-        });
+        conductor->Timeout(5);
 
         std::cout << "=> main: wait for closing!" << std::endl;
         conductor->streaming_state.wait(lock, [&]{return !conductor->IsReadyForStreaming();});
