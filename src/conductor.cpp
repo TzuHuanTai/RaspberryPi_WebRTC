@@ -7,7 +7,7 @@
 #include "signaling/mqtt_service.h"
 #endif
 #if USE_SIGNALR_SIGNALING
-#include "signaling/signalr_server.h"
+#include "signaling/signalr_service.h"
 #endif
 
 #include <future>
