@@ -54,9 +54,9 @@ void MqttService::AnswerLocalSdp(std::string sdp) {
 
     int rc = mosquitto_publish(connection_, NULL, topics.answer_sdp.c_str(), 
                             jsonString.length(), jsonString.c_str(), 2, false);
-	if (rc != MOSQ_ERR_SUCCESS) {
-		fprintf(stderr, "Error publishing: %s\n", mosquitto_strerror(rc));
-	}
+    if (rc != MOSQ_ERR_SUCCESS) {
+        fprintf(stderr, "Error publishing: %s\n", mosquitto_strerror(rc));
+    }
 }
 
 void MqttService::AnswerLocalIce(std::string sdp_mid, int sdp_mline_index, std::string candidate) {
@@ -70,8 +70,8 @@ void MqttService::AnswerLocalIce(std::string sdp_mid, int sdp_mline_index, std::
     int rc = mosquitto_publish(connection_, NULL, topics.answer_ice.c_str(), 
                             jsonString.length(), jsonString.c_str(), 2, false);
     if (rc != MOSQ_ERR_SUCCESS) {
-		fprintf(stderr, "Error publishing: %s\n", mosquitto_strerror(rc));
-	}
+        fprintf(stderr, "Error publishing: %s\n", mosquitto_strerror(rc));
+    }
 }
 
 void MqttService::Disconnect() {
@@ -119,21 +119,20 @@ void MqttService::OnMessage(struct mosquitto *mosq, void *obj, const struct mosq
 }
 
 void MqttService::Connect() {
-	mosquitto_lib_init();
+    mosquitto_lib_init();
 
-	connection_ = mosquitto_new(nullptr, true, this);
+    connection_ = mosquitto_new(nullptr, true, this);
 
     if (connection_ == nullptr){
-		fprintf(stderr, "Error: Out of memory.\n");
-	}
+        fprintf(stderr, "Error: Out of memory.\n");
+    }
 
     if (!username_.empty()) {
         mosquitto_username_pw_set(connection_, username_.c_str(), password_.c_str());
     }
 
 	/* Configure callbacks. This should be done before connecting ideally. */
-	mosquitto_connect_callback_set(connection_, 
-    [](struct mosquitto *mosq, void *obj, int result) {
+    mosquitto_connect_callback_set(connection_, [](struct mosquitto *mosq, void *obj, int result) {
         MqttService *service = static_cast<MqttService*>(obj);
         service->OnConnect(mosq, obj, result);
     });
@@ -142,15 +141,15 @@ void MqttService::Connect() {
         service->OnMessage(mosq, obj, message);
     });
 
-	int rc = mosquitto_connect_async(connection_, hostname_.c_str(), port_, 60);
-	if(rc != MOSQ_ERR_SUCCESS){
-		mosquitto_destroy(connection_);
-		fprintf(stderr, "Error: %s\n", mosquitto_strerror(rc));
-	}
+    int rc = mosquitto_connect_async(connection_, hostname_.c_str(), port_, 60);
+    if(rc != MOSQ_ERR_SUCCESS){
+        mosquitto_destroy(connection_);
+        fprintf(stderr, "Error: %s\n", mosquitto_strerror(rc));
+    }
 
-	rc = mosquitto_loop_start(connection_); // already handle reconnections
-	if(rc != MOSQ_ERR_SUCCESS){
-		mosquitto_destroy(connection_);
-		fprintf(stderr, "Error: %s\n", mosquitto_strerror(rc));
-	}	
+    rc = mosquitto_loop_start(connection_); // already handle reconnections
+    if(rc != MOSQ_ERR_SUCCESS){
+        mosquitto_destroy(connection_);
+        fprintf(stderr, "Error: %s\n", mosquitto_strerror(rc));
+    }	
 }
