@@ -4,6 +4,7 @@ add_subdirectory(capture)
 add_subdirectory(track)
 add_subdirectory(v4l2_codecs)
 add_subdirectory(signaling)
+add_subdirectory(recorder)
 
 add_library(${PROJECT_NAME})
 target_sources(${PROJECT_NAME}
@@ -14,4 +15,4 @@ target_sources(${PROJECT_NAME}
     parser.cpp
 )
 
-target_link_libraries(${PROJECT_NAME} capture track v4l2_codecs signaling)
+target_link_libraries(${PROJECT_NAME} capture track v4l2_codecs signaling recorder)
