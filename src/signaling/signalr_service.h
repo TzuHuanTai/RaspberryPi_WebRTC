@@ -22,16 +22,15 @@ struct SignalrTopic {
 
 class SignalrService : public SignalingService {
 public:
-    static std::unique_ptr<SignalrService> Create(std::string url,
-        OnRemoteSdpFunc on_remote_sdp, OnRemoteIceFunc on_remote_ice);
+    static std::unique_ptr<SignalrService> Create(
+        Args args, SignalingMessageObserver* callback);
 
     SignalrTopic topics;
     std::mutex mtx;
     std::condition_variable cond_var;
     bool ready = false;
 
-    SignalrService(std::string url,
-        OnRemoteSdpFunc on_remote_sdp, OnRemoteIceFunc on_remote_ice);
+    SignalrService(Args args, SignalingMessageObserver* callback);
     ~SignalrService() override {
         std::cout << "=> ~SignalrService: destroied" << std::endl;
     };

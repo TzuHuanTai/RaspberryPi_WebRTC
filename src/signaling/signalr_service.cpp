@@ -6,18 +6,17 @@
 #include <map>
 #include <unistd.h>
 
-std::unique_ptr<SignalrService> SignalrService::Create(std::string url,
-    OnRemoteSdpFunc on_remote_sdp, OnRemoteIceFunc on_remote_ice) {
-    auto ptr = std::make_unique<SignalrService>(url, on_remote_sdp, on_remote_ice);
+std::unique_ptr<SignalrService> SignalrService::Create(
+    Args args, SignalingMessageObserver* callback) {
+    auto ptr = std::make_unique<SignalrService>(args, callback);
     ptr->AutoReconnect()
         .Connect();
     return ptr;
 }
 
-SignalrService::SignalrService(std::string url,
-    OnRemoteSdpFunc on_remote_sdp, OnRemoteIceFunc on_remote_ice)
-    : SignalingService(on_remote_sdp, on_remote_ice),
-      url(url),
+SignalrService::SignalrService(Args args, SignalingMessageObserver* callback)
+    : SignalingService(callback),
+      url(args.signaling_url),
       connection_(signalr::hub_connection_builder::create(url).build()) {}
 
 void SignalrService::ListenClientId() {
@@ -48,7 +47,7 @@ void SignalrService::ListenOfferSdp() {
                 sdp = s.second.as_string();
             }
         }
-        OnRemoteSdp(sdp);
+        callback_->OnRemoteSdp(sdp);
     });
 }
 
@@ -72,7 +71,7 @@ void SignalrService::ListenOfferIce() {
         }
         std::cout << "=> OfferICE: " << sdp_mline_index << ", " << sdp_mid << ", " << candidate << std::endl;
 
-        OnRemoteIce(sdp_mid, sdp_mline_index, candidate);
+        callback_->OnRemoteIce(sdp_mid, sdp_mline_index, candidate);
     });
 }
 
