@@ -15,8 +15,7 @@
 
 #include <api/peer_connection_interface.h>
 
-class SetSessionDescription : public webrtc::SetSessionDescriptionObserver
-{
+class SetSessionDescription : public webrtc::SetSessionDescriptionObserver {
 public:
     typedef std::function<void()> OnSuccessFunc;
     typedef std::function<void(webrtc::RTCError)> OnFailureFunc;
@@ -25,27 +24,24 @@ public:
         : on_success_(std::move(on_success)),
           on_failure_(std::move(on_failure)) {}
 
-    static SetSessionDescription *Create(OnSuccessFunc on_success, OnFailureFunc on_failure)
-    {
-        return new rtc::RefCountedObject<SetSessionDescription>(std::move(on_success), std::move(on_failure));
+    static rtc::scoped_refptr<SetSessionDescription> Create(
+        OnSuccessFunc on_success, OnFailureFunc on_failure) {
+        return rtc::make_ref_counted<SetSessionDescription>(
+            std::move(on_success), std::move(on_failure));
     }
 
 protected:
-    void OnSuccess() override
-    {
-        std::cout << "=> Set OnSuccess: " << std::endl;
+    void OnSuccess() override {
+        std::cout << "=> Set sdp success!" << std::endl;
         auto f = std::move(on_success_);
-        if (f)
-        {
+        if (f) {
             f();
         }
     }
-    void OnFailure(webrtc::RTCError error) override
-    {
-        std::cout << "=> Set OnFailure: " << error.message() << std::endl;
+    void OnFailure(webrtc::RTCError error) override {
+        std::cout << "=> Set sdp failed! " << error.message() << std::endl;
         auto f = std::move(on_failure_);
-        if (f)
-        {
+        if (f) {
             f(error);
         }
     }
@@ -55,7 +51,8 @@ protected:
 };
 
 class Conductor : public webrtc::PeerConnectionObserver,
-                  public webrtc::CreateSessionDescriptionObserver {
+                  public webrtc::CreateSessionDescriptionObserver,
+                  public SignalingMessageObserver {
 public:
     static rtc::scoped_refptr<Conductor> Create(Args args);
 
@@ -91,6 +88,10 @@ protected:
     void OnSuccess(webrtc::SessionDescriptionInterface* desc) override;
     void OnFailure(webrtc::RTCError error) override;
 
+    // SignalingMessageObserver implementation.
+    void OnRemoteSdp(std::string sdp) override;
+    void OnRemoteIce(std::string sdp_mid, int sdp_mline_index, std::string candidate) override;
+
 private:
     bool is_connected = false;
     bool is_ready_for_streaming = false;
@@ -101,10 +102,6 @@ private:
     bool InitializeRecorder();
     void CreateDataChannel();
     void AddTracks();
-    void AddIceCandidate(std::string sdp_mid, int sdp_mline_index, std::string candidate);
-    void SetOfferSDP(const std::string sdp,
-                     OnSetSuccessFunc on_success,
-                     OnFailureFunc on_failure);
 
     std::unique_ptr<rtc::Thread> network_thread_;
     std::unique_ptr<rtc::Thread> worker_thread_;

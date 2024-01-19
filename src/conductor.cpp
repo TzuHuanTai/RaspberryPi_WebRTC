@@ -56,23 +56,11 @@ rtc::scoped_refptr<Conductor> Conductor::Create(Args args) {
 Conductor::Conductor(Args args) : args(args) {}
 
 bool Conductor::InitializeSignaling() {
-    auto on_remote_sdp = [&](std::string sdp) {
-        SetOfferSDP(sdp, [&]() {
-            peer_connection_->CreateAnswer(
-                this, webrtc::PeerConnectionInterface::RTCOfferAnswerOptions());
-        }, nullptr);
-    };
-
-    auto on_remote_ice = [&](std::string sdp_mid, int sdp_mline_index, std::string candidate) {
-        // bug: Failed to apply the received candidate. connect but without datachannel!?
-        // AddIceCandidate(sdp_mid, sdp_mline_index, candidate);
-    };
-
     signaling_service_ = ([&]() -> std::unique_ptr<SignalingService> {
 #if USE_MQTT_SIGNALING
-        return MqttService::Create(args, on_remote_sdp, on_remote_ice);
+        return MqttService::Create(args, this);
 #elif USE_SIGNALR_SIGNALING
-        return SignalrService::Create(args.signaling_url, on_remote_sdp, on_remote_ice);
+        return SignalrService::Create(args, this);
 #else
         return nullptr;
 #endif
@@ -333,54 +321,48 @@ void Conductor::Timeout(int second) {
     }
 }
 
-void Conductor::SetOfferSDP(const std::string sdp,
-                            OnSetSuccessFunc on_success,
-                            OnFailureFunc on_failure)
-{
-    std::cout << "=> SetOfferSDP: start" << std::endl;
-
+void Conductor::OnRemoteSdp(std::string sdp) {
     webrtc::SdpParseError error;
     std::unique_ptr<webrtc::SessionDescriptionInterface> session_description =
         webrtc::CreateSessionDescription(webrtc::SdpType::kOffer, sdp, &error);
-    if (!session_description)
-    {
-        RTC_LOG(LS_ERROR) << __FUNCTION__
-                          << "Failed to create session description: "
-                          << error.description.c_str()
-                          << "\nline: " << error.line.c_str();
+    if (!session_description) {
+        std::cout << "Can't parse received session description message. \n"
+                  << error.description.c_str() << std::endl;
         return;
     }
+
     peer_connection_->SetRemoteDescription(
-        SetSessionDescription::Create(std::move(on_success), std::move(on_failure)),
+        SetSessionDescription::Create(nullptr, nullptr).get(),
         session_description.release());
+
+    peer_connection_->CreateAnswer(
+        this, webrtc::PeerConnectionInterface::RTCOfferAnswerOptions());
 }
 
-void Conductor::AddIceCandidate(std::string sdp_mid, int sdp_mline_index, std::string sdp)
-{
-    std::cout << "=> AddIceCandidate: start creating" << std::endl;
+void Conductor::OnRemoteIce(std::string sdp_mid, int sdp_mline_index, std::string sdp) {
+    // bug: Failed to apply the received candidate. connect but without datachannel!?
+
     webrtc::SdpParseError error;
     std::unique_ptr<webrtc::IceCandidateInterface> candidate(
         webrtc::CreateIceCandidate(sdp_mid, sdp_mline_index, sdp, &error));
-    if (!candidate.get())
-    {
-        RTC_LOG(LS_ERROR) << "Can't parse received candidate message: "
-                          << error.description.c_str()
-                          << "\nline: " << error.line.c_str();
+    if (!candidate.get()) {
+        std::cout << "Can't parse received candidate message. \n"
+                  << error.description.c_str() << std::endl;
         return;
     }
-    std::cout << "=> AddIceCandidate: add candidated" << std::endl;
-    peer_connection_->AddIceCandidate(
-        std::move(candidate), [sdp](webrtc::RTCError error)
-        { RTC_LOG(LS_WARNING)
-              << __FUNCTION__ << " Failed to apply the received candidate. type="
-              << webrtc::ToString(error.type()) << " message=" << error.message()
-              << " sdp=" << sdp; });
-    std::cout << "=> AddIceCandidate: end" << std::endl;
+
+    if (!peer_connection_->AddIceCandidate(candidate.get())) {
+        std::cout << "Failed to apply the received candidate" << std::endl;
+        return;
+    }
+
+    std::cout << "Received candidate :" << sdp_mid <<", " << sdp_mline_index 
+              << ", " << sdp << ", " << std::endl;
 }
 
 void Conductor::OnSuccess(webrtc::SessionDescriptionInterface* desc) {
     peer_connection_->SetLocalDescription(
-        SetSessionDescription::Create(nullptr, nullptr), desc);
+        SetSessionDescription::Create(nullptr, nullptr).get(), desc);
 
     std::string sdp;
     desc->ToString(&sdp);
@@ -396,9 +378,6 @@ Conductor::~Conductor() {
     audio_track_ = nullptr;
     video_track_ = nullptr;
     peer_connection_factory_ = nullptr;
-    network_thread_->Stop();
-    worker_thread_->Stop();
-    signaling_thread_->Stop();
     rtc::CleanupSSL();
     std::cout << "=> ~Conductor: destroied" << std::endl;
 }

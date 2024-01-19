@@ -15,12 +15,11 @@ struct MqttTopic {
 
 class MqttService : public SignalingService {
 public:
-    static std::unique_ptr<MqttService> Create(Args args,
-        OnRemoteSdpFunc on_remote_sdp, OnRemoteIceFunc on_remote_ice);
+    static std::unique_ptr<MqttService> Create(
+        Args args, SignalingMessageObserver* callback);
     MqttTopic topics;
 
-    MqttService(Args args, OnRemoteSdpFunc on_remote_sdp,
-        OnRemoteIceFunc on_remote_ice);
+    MqttService(Args args, SignalingMessageObserver* callback);
     ~MqttService() override;
 
     void Connect() override;

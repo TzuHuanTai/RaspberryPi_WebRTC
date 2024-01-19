@@ -9,16 +9,15 @@
 #include <unistd.h>
 #include <nlohmann/json.hpp>
 
-std::unique_ptr<MqttService> MqttService::Create(Args args,
-    OnRemoteSdpFunc on_remote_sdp, OnRemoteIceFunc on_remote_ice) {
-    auto ptr = std::make_unique<MqttService>(args, on_remote_sdp, on_remote_ice);
+std::unique_ptr<MqttService> MqttService::Create(
+    Args args, SignalingMessageObserver* callback) {
+    auto ptr = std::make_unique<MqttService>(args, callback);
     ptr->Connect();
     return ptr;
 }
 
-MqttService::MqttService(Args args,
-    OnRemoteSdpFunc on_remote_sdp, OnRemoteIceFunc on_remote_ice)
-    : SignalingService(on_remote_sdp, on_remote_ice),
+MqttService::MqttService(Args args, SignalingMessageObserver* callback)
+    : SignalingService(callback),
       port_(args.mqtt_port),
       hostname_(args.mqtt_host),
       username_(args.mqtt_username),
@@ -33,7 +32,7 @@ void MqttService::ListenOfferSdp(std::string message) {
     nlohmann::json jsonObj = nlohmann::json::parse(message);
     std::string sdp = jsonObj["sdp"];
     std::cout << "Received OfferSDP: " << sdp << std::endl;
-    OnRemoteSdp(sdp);
+    callback_->OnRemoteSdp(sdp);
 }
 
 void MqttService::ListenOfferIce(std::string message) {
@@ -42,7 +41,7 @@ void MqttService::ListenOfferIce(std::string message) {
     int sdp_mline_index = jsonObj["sdpMLineIndex"];
     std::string candidate = jsonObj["candidate"];
     std::cout << "Receive OfferICE: " << sdp_mline_index << ", " << sdp_mid << ", " << candidate << std::endl;
-    OnRemoteIce(sdp_mid, sdp_mline_index, candidate);
+    callback_->OnRemoteIce(sdp_mid, sdp_mline_index, candidate);
 }
 
 void MqttService::AnswerLocalSdp(std::string sdp) {

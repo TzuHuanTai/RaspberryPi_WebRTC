@@ -17,7 +17,6 @@ elseif(USE_SIGNALR_SIGNALING)
 endif()
 
 add_library(${PROJECT_NAME} 
-    ./signaling_service.cpp
     ${SIGNALING_SOURCE})
 
 target_link_libraries(${PROJECT_NAME} PUBLIC ${SIGNALING_LIBS})
