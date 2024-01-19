@@ -54,48 +54,10 @@ protected:
     OnFailureFunc on_failure_;
 };
 
-class CreateSessionDescription : public webrtc::CreateSessionDescriptionObserver
-{
+class Conductor : public webrtc::PeerConnectionObserver,
+                  public webrtc::CreateSessionDescriptionObserver {
 public:
-    typedef std::function<void(webrtc::SessionDescriptionInterface *desc)> OnSuccessFunc;
-    typedef std::function<void(webrtc::RTCError)> OnFailureFunc;
-
-    CreateSessionDescription(OnSuccessFunc on_success, OnFailureFunc on_failure)
-        : on_success_(std::move(on_success)),
-          on_failure_(std::move(on_failure)) {}
-
-    static CreateSessionDescription *Create(OnSuccessFunc on_success, OnFailureFunc on_failure)
-    {
-        return new rtc::RefCountedObject<CreateSessionDescription>(std::move(on_success), std::move(on_failure));
-    }
-
-protected:
-    void OnSuccess(webrtc::SessionDescriptionInterface *desc) override
-    {
-        std::cout << "=> Set OnSuccess: " << std::endl;
-        auto f = std::move(on_success_);
-        if (f)
-        {
-            f(desc);
-        }
-    }
-    void OnFailure(webrtc::RTCError error) override
-    {
-        std::cout << "=> Set OnFailure: " << error.message() << std::endl;
-        auto f = std::move(on_failure_);
-        if (f)
-        {
-            f(error);
-        }
-    }
-
-    OnSuccessFunc on_success_;
-    OnFailureFunc on_failure_;
-};
-
-class Conductor : public webrtc::PeerConnectionObserver {
-public:
-    static std::shared_ptr<Conductor> Create(Args args);
+    static rtc::scoped_refptr<Conductor> Create(Args args);
 
     std::mutex state_mtx;
     std::condition_variable streaming_state;
@@ -113,6 +75,22 @@ public:
     bool IsConnected() const;
     void Timeout(int second);
 
+protected:
+    // PeerConnectionObserver implementation.
+    void OnSignalingChange(
+        webrtc::PeerConnectionInterface::SignalingState new_state) override;
+    void OnDataChannel(
+        rtc::scoped_refptr<webrtc::DataChannelInterface> channel) override;
+    void OnIceGatheringChange(
+        webrtc::PeerConnectionInterface::IceGatheringState new_state) override;
+    void OnConnectionChange(
+        webrtc::PeerConnectionInterface::PeerConnectionState new_state) override;
+    void OnIceCandidate(const webrtc::IceCandidateInterface *candidate) override;
+
+    // CreateSessionDescriptionObserver implementation.
+    void OnSuccess(webrtc::SessionDescriptionInterface* desc) override;
+    void OnFailure(webrtc::RTCError error) override;
+
 private:
     bool is_connected = false;
     bool is_ready_for_streaming = false;
@@ -124,18 +102,9 @@ private:
     void CreateDataChannel();
     void AddTracks();
     void AddIceCandidate(std::string sdp_mid, int sdp_mline_index, std::string candidate);
-    void CreateAnswer(OnCreateSuccessFunc on_success, OnFailureFunc on_failure);
     void SetOfferSDP(const std::string sdp,
                      OnSetSuccessFunc on_success,
                      OnFailureFunc on_failure);
-    
-
-    void OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState new_state) override;
-    void OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> channel) override;
-    void OnIceGatheringChange(
-        webrtc::PeerConnectionInterface::IceGatheringState new_state) override;
-    void OnIceCandidate(const webrtc::IceCandidateInterface *candidate) override;
-    void OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionState new_state) override;
 
     std::unique_ptr<rtc::Thread> network_thread_;
     std::unique_ptr<rtc::Thread> worker_thread_;
