@@ -39,8 +39,8 @@
 #include <rtc_base/ssl_adapter.h>
 #include <rtc_base/thread.h>
 
-std::shared_ptr<Conductor> Conductor::Create(Args args) {
-    auto ptr = std::make_shared<Conductor>(args);
+rtc::scoped_refptr<Conductor> Conductor::Create(Args args) {
+    auto ptr = rtc::make_ref_counted<Conductor>(args);
     if (!ptr->InitializePeerConnectionFactory()) {
         std::cout << "[Conductor] Initialize PeerConnection failed!" << std::endl;
     }
@@ -58,11 +58,8 @@ Conductor::Conductor(Args args) : args(args) {}
 bool Conductor::InitializeSignaling() {
     auto on_remote_sdp = [&](std::string sdp) {
         SetOfferSDP(sdp, [&]() {
-            CreateAnswer([&](webrtc::SessionDescriptionInterface *desc) {
-                std::string answer_sdp;
-                desc->ToString(&answer_sdp);
-                signaling_service_->AnswerLocalSdp(answer_sdp);
-            }, nullptr);
+            peer_connection_->CreateAnswer(
+                this, webrtc::PeerConnectionInterface::RTCOfferAnswerOptions());
         }, nullptr);
     };
 
@@ -381,23 +378,17 @@ void Conductor::AddIceCandidate(std::string sdp_mid, int sdp_mline_index, std::s
     std::cout << "=> AddIceCandidate: end" << std::endl;
 }
 
-void Conductor::CreateAnswer(OnCreateSuccessFunc on_success, OnFailureFunc on_failure)
-{
-    auto with_set_local_desc = [this, on_success = std::move(on_success)](
-                                   webrtc::SessionDescriptionInterface *desc)
-    {
-        std::string sdp;
-        desc->ToString(&sdp);
-        peer_connection_->SetLocalDescription(
-            SetSessionDescription::Create(nullptr, nullptr), desc);
-        if (on_success)
-        {
-            on_success(desc);
-        }
-    };
-    peer_connection_->CreateAnswer(
-        CreateSessionDescription::Create(std::move(with_set_local_desc), std::move(on_failure)),
-        webrtc::PeerConnectionInterface::RTCOfferAnswerOptions());
+void Conductor::OnSuccess(webrtc::SessionDescriptionInterface* desc) {
+    peer_connection_->SetLocalDescription(
+        SetSessionDescription::Create(nullptr, nullptr), desc);
+
+    std::string sdp;
+    desc->ToString(&sdp);
+    signaling_service_->AnswerLocalSdp(sdp);
+}
+
+void Conductor::OnFailure(webrtc::RTCError error) {
+    std::cout << ToString(error.type()) << ": " << error.message() << std::endl;
 }
 
 Conductor::~Conductor() {
