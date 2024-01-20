@@ -21,6 +21,11 @@
 #include <api/rtc_event_log/rtc_event_log_factory.h>
 #include <api/transport/field_trial_based_config.h>
 #include <api/task_queue/default_task_queue_factory.h>
+#if WEBRTC_USE_H264
+#include "api/video_codecs/video_encoder_factory.h"
+#include "api/video_codecs/video_encoder_factory_template.h"
+#include "api/video_codecs/video_encoder_factory_template_open_h264_adapter.h"
+#endif
 #include "api/video_codecs/video_decoder_factory.h"
 #include "api/video_codecs/video_decoder_factory_template.h"
 #include "api/video_codecs/video_decoder_factory_template_dav1d_adapter.h"
@@ -235,8 +240,14 @@ bool Conductor::InitializePeerConnectionFactory() {
     media_dependencies.audio_decoder_factory = webrtc::CreateBuiltinAudioDecoderFactory();
     media_dependencies.audio_processing = webrtc::AudioProcessingBuilder().Create();
     media_dependencies.audio_mixer = nullptr;
+#if WEBRTC_USE_H264
+    media_dependencies.video_encoder_factory = std::make_unique<webrtc::VideoEncoderFactoryTemplate<
+          webrtc::OpenH264EncoderTemplateAdapter>>();
+#else
     media_dependencies.video_encoder_factory = CreateCustomizedVideoEncoderFactory(args, data_channel_subject_);
+#endif
     media_dependencies.video_decoder_factory = std::make_unique<webrtc::VideoDecoderFactoryTemplate<
+          webrtc::OpenH264DecoderTemplateAdapter,
           webrtc::LibvpxVp8DecoderTemplateAdapter,
           webrtc::LibvpxVp9DecoderTemplateAdapter,
           webrtc::Dav1dDecoderTemplateAdapter>>();
