@@ -6,7 +6,7 @@
 
 class SignalingMessageObserver {
 public:
-    virtual void OnRemoteSdp(std::string sdp) = 0;
+    virtual void OnRemoteSdp(std::string sdp, std::string type) = 0;
     virtual void OnRemoteIce(std::string sdp_mid,
                              int sdp_mline_index,
                              std::string candidate) = 0;
@@ -17,7 +17,7 @@ public:
     SignalingService(SignalingMessageObserver* callback) : callback_(callback) {};
     virtual ~SignalingService() {};
 
-    virtual void AnswerLocalSdp(std::string sdp) = 0;
+    virtual void AnswerLocalSdp(std::string sdp, std::string type) = 0;
     virtual void AnswerLocalIce(std::string sdp_mid,
                                 int sdp_mline_index,
                                 std::string candidate) = 0;

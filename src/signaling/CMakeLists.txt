@@ -16,7 +16,6 @@ elseif(USE_SIGNALR_SIGNALING)
         -lz)
 endif()
 
-add_library(${PROJECT_NAME} 
-    ${SIGNALING_SOURCE})
+add_library(${PROJECT_NAME} ${SIGNALING_SOURCE})
 
 target_link_libraries(${PROJECT_NAME} PUBLIC ${SIGNALING_LIBS})

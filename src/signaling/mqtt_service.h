@@ -9,8 +9,6 @@
 struct MqttTopic {
     std::string offer_sdp = "OfferSDP";
     std::string offer_ice = "OfferICE";
-    std::string answer_sdp = "AnswerSDP";
-    std::string answer_ice = "AnswerICE";
 };
 
 class MqttService : public SignalingService {
@@ -24,7 +22,7 @@ public:
 
     void Connect() override;
     void Disconnect() override;
-    void AnswerLocalSdp(std::string sdp) override;
+    void AnswerLocalSdp(std::string sdp, std::string type) override;
     void AnswerLocalIce(std::string sdp_mid,
                                 int sdp_mline_index,
                                 std::string candidate) override;

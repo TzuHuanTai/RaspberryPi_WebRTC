@@ -11,7 +11,7 @@
 #endif
 
 #include <future>
-
+#include "absl/types/optional.h"
 #include <api/audio_codecs/builtin_audio_decoder_factory.h>
 #include <api/audio_codecs/builtin_audio_encoder_factory.h>
 #include <api/call/call_factory_interface.h>
@@ -49,9 +49,9 @@ rtc::scoped_refptr<Conductor> Conductor::Create(Args args) {
     if (!ptr->InitializePeerConnectionFactory()) {
         std::cout << "[Conductor] Initialize PeerConnection failed!" << std::endl;
     }
-    if (!ptr->InitializeTracks()) {
-        std::cout << "[Conductor] Initialize tracks failed!" << std::endl;
-    }
+
+    ptr->InitializeTracks();
+
     if (!ptr->InitializeRecorder()) {
         std::cout << "[Conductor] Recorder is not created!" << std::endl;
     }
@@ -86,11 +86,14 @@ bool Conductor::InitializeRecorder() {
     return true;
 }
 
-bool Conductor::InitializeTracks() {
+void Conductor::InitializeTracks() {
     auto options = peer_connection_factory_->CreateAudioSource(cricket::AudioOptions());
     audio_track_ =
-        peer_connection_factory_->CreateAudioTrack("raspberrypi_audio", options.get());
+        peer_connection_factory_->CreateAudioTrack("audio_track", options.get());
 
+    if (args.device.empty()) {
+            return;
+    }
     /* split into capture and track source*/
     video_caputre_source_ = V4L2Capture::Create(args);
     auto video_track_source =  ([this]() -> rtc::scoped_refptr<rtc::AdaptedVideoTrackSource> {
@@ -105,15 +108,11 @@ bool Conductor::InitializeTracks() {
         webrtc::VideoTrackSourceProxy::Create(
             signaling_thread_.get(), worker_thread_.get(), video_track_source);
     video_track_ =
-        peer_connection_factory_->CreateVideoTrack(video_source, "raspberrypi_video");
-
-    return video_track_ != nullptr && audio_track_ != nullptr;
+        peer_connection_factory_->CreateVideoTrack(video_source, "video_track");
 }
 
-void Conductor::AddTracks()
-{
-    if (!peer_connection_->GetSenders().empty())
-    {
+void Conductor::AddTracks() {
+    if (!peer_connection_->GetSenders().empty()) {
         std::cout << "=> AddTracks: already add tracks." << std::endl;
         return;
     }
@@ -121,14 +120,15 @@ void Conductor::AddTracks()
     std::string stream_id = "test_stream_id";
 
     auto audio_res = peer_connection_->AddTrack(audio_track_, {stream_id});
-    if (!audio_res.ok())
-    {
+    if (!audio_res.ok()) {
         std::cout << "=> AddTracks: audio_track_ failed" << audio_res.error().message() << std::endl;
     }
 
+    if (!video_track_) {
+        return;
+    }
     auto video_res = peer_connection_->AddTrack(video_track_, {stream_id});
-    if (!video_res.ok())
-    {
+    if (!video_res.ok()) {
         std::cout << "=> AddTracks: video_track_ failed" << video_res.error().message() << std::endl;
     }
 
@@ -138,16 +138,14 @@ void Conductor::AddTracks()
     video_sender_->SetParameters(parameters);
 }
 
-bool Conductor::CreatePeerConnection()
-{
+bool Conductor::CreatePeerConnection() {
     webrtc::PeerConnectionInterface::RTCConfiguration config;
     config.sdp_semantics = webrtc::SdpSemantics::kUnifiedPlan;
     webrtc::PeerConnectionInterface::IceServer server;
     server.uri = args.stun_url;
     config.servers.push_back(server);
 
-    if (!args.turn_url.empty())
-    {
+    if (!args.turn_url.empty()) {
         webrtc::PeerConnectionInterface::IceServer turn_server;
         turn_server.uri = args.turn_url;
         turn_server.username = args.turn_username;
@@ -169,6 +167,18 @@ bool Conductor::CreatePeerConnection()
     }
   
     return peer_connection_ != nullptr;
+}
+
+rtc::scoped_refptr<webrtc::PeerConnectionInterface> Conductor::GetPeer() const {
+    if (!peer_connection_) {
+        std::cout << "failed: peer connection is not found!" << std::endl;
+        return nullptr;
+    }
+    return peer_connection_;
+}
+
+void Conductor::SetSink(rtc::VideoSinkInterface<webrtc::VideoFrame> *video_sink_obj) {
+    custom_video_sink_ = std::move(video_sink_obj);
 }
 
 void Conductor::CreateDataChannel()
@@ -205,16 +215,13 @@ bool Conductor::InitializePeerConnectionFactory() {
     worker_thread_ = rtc::Thread::Create();
     signaling_thread_ = rtc::Thread::Create();
 
-    if (network_thread_->Start())
-    {
+    if (network_thread_->Start()) {
         std::cout << "=> network thread start: success!" << std::endl;
     }
-    if (worker_thread_->Start())
-    {
+    if (worker_thread_->Start()) {
         std::cout << "=> worker thread start: success!" << std::endl;
     }
-    if (signaling_thread_->Start())
-    {
+    if (signaling_thread_->Start()) {
         std::cout << "=> signaling thread start: success!" << std::endl;
     }
 
@@ -240,32 +247,41 @@ bool Conductor::InitializePeerConnectionFactory() {
     media_dependencies.audio_decoder_factory = webrtc::CreateBuiltinAudioDecoderFactory();
     media_dependencies.audio_processing = webrtc::AudioProcessingBuilder().Create();
     media_dependencies.audio_mixer = nullptr;
-#if WEBRTC_USE_H264
+#if USE_BUILT_IN_H264
     media_dependencies.video_encoder_factory = std::make_unique<webrtc::VideoEncoderFactoryTemplate<
           webrtc::OpenH264EncoderTemplateAdapter>>();
+    media_dependencies.video_decoder_factory = std::make_unique<webrtc::VideoDecoderFactoryTemplate<
+          webrtc::OpenH264DecoderTemplateAdapter>>();
 #else
     media_dependencies.video_encoder_factory = CreateCustomizedVideoEncoderFactory(args, data_channel_subject_);
-#endif
     media_dependencies.video_decoder_factory = std::make_unique<webrtc::VideoDecoderFactoryTemplate<
           webrtc::OpenH264DecoderTemplateAdapter,
           webrtc::LibvpxVp8DecoderTemplateAdapter,
           webrtc::LibvpxVp9DecoderTemplateAdapter,
           webrtc::Dav1dDecoderTemplateAdapter>>();
+#endif
     media_dependencies.trials = dependencies.trials.get();
     dependencies.media_engine = cricket::CreateMediaEngine(std::move(media_dependencies));
 
     peer_connection_factory_ = CreateModularPeerConnectionFactory(std::move(dependencies));
 
-    if (!peer_connection_factory_)
-    {
+    if (!peer_connection_factory_) {
         std::cout << "=> peer_connection_factory: failed" << std::endl;
-    }
-    else
-    {
+    } else {
         std::cout << "=> peer_connection_factory: success!" << std::endl;
     }
 
     return peer_connection_factory_ != nullptr;
+}
+
+void Conductor::OnTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver) {
+    if (transceiver->receiver()->media_type() == cricket::MediaType::MEDIA_TYPE_VIDEO
+        && custom_video_sink_) {
+        auto track = transceiver->receiver()->track();
+        auto remote_video_track = static_cast<webrtc::VideoTrackInterface*>(track.get());
+        std::cout << "OnTrack: custom sink is added!" << std::endl;
+        remote_video_track->AddOrUpdateSink(custom_video_sink_, rtc::VideoSinkWants());
+    }
 }
 
 void Conductor::OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState new_state) {
@@ -332,10 +348,18 @@ void Conductor::Timeout(int second) {
     }
 }
 
-void Conductor::OnRemoteSdp(std::string sdp) {
+void Conductor::OnRemoteSdp(std::string sdp, std::string sdp_type) {
+    absl::optional<webrtc::SdpType> type_maybe =
+        webrtc::SdpTypeFromString(sdp_type);
+    if (!type_maybe) {
+      std::cout << "Unknown SDP type: " << sdp_type << std::endl;
+      return;
+    }
+    webrtc::SdpType type = *type_maybe;
+
     webrtc::SdpParseError error;
     std::unique_ptr<webrtc::SessionDescriptionInterface> session_description =
-        webrtc::CreateSessionDescription(webrtc::SdpType::kOffer, sdp, &error);
+        webrtc::CreateSessionDescription(type, sdp, &error);
     if (!session_description) {
         std::cout << "Can't parse received session description message. \n"
                   << error.description.c_str() << std::endl;
@@ -346,13 +370,13 @@ void Conductor::OnRemoteSdp(std::string sdp) {
         SetSessionDescription::Create(nullptr, nullptr).get(),
         session_description.release());
 
-    peer_connection_->CreateAnswer(
-        this, webrtc::PeerConnectionInterface::RTCOfferAnswerOptions());
+    if (type == webrtc::SdpType::kOffer) {
+        peer_connection_->CreateAnswer(
+            this, webrtc::PeerConnectionInterface::RTCOfferAnswerOptions());
+    }
 }
 
 void Conductor::OnRemoteIce(std::string sdp_mid, int sdp_mline_index, std::string sdp) {
-    // bug: Failed to apply the received candidate. connect but without datachannel!?
-
     webrtc::SdpParseError error;
     std::unique_ptr<webrtc::IceCandidateInterface> candidate(
         webrtc::CreateIceCandidate(sdp_mid, sdp_mline_index, sdp, &error));
@@ -366,9 +390,6 @@ void Conductor::OnRemoteIce(std::string sdp_mid, int sdp_mline_index, std::strin
         std::cout << "Failed to apply the received candidate" << std::endl;
         return;
     }
-
-    std::cout << "Received candidate :" << sdp_mid <<", " << sdp_mline_index 
-              << ", " << sdp << ", " << std::endl;
 }
 
 void Conductor::OnSuccess(webrtc::SessionDescriptionInterface* desc) {
@@ -377,7 +398,8 @@ void Conductor::OnSuccess(webrtc::SessionDescriptionInterface* desc) {
 
     std::string sdp;
     desc->ToString(&sdp);
-    signaling_service_->AnswerLocalSdp(sdp);
+    std::string type = webrtc::SdpTypeToString(desc->GetType());
+    signaling_service_->AnswerLocalSdp(sdp, type);
 }
 
 void Conductor::OnFailure(webrtc::RTCError error) {
@@ -388,6 +410,7 @@ Conductor::~Conductor() {
     bg_recorder_->Stop();
     audio_track_ = nullptr;
     video_track_ = nullptr;
+    peer_connection_ = nullptr;
     peer_connection_factory_ = nullptr;
     rtc::CleanupSSL();
     std::cout << "=> ~Conductor: destroied" << std::endl;

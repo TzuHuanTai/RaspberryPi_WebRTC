@@ -8,6 +8,7 @@
 #include <map>
 #include <unistd.h>
 #include <nlohmann/json.hpp>
+#include <mqtt_protocol.h>
 
 std::unique_ptr<MqttService> MqttService::Create(
     Args args, SignalingMessageObserver* callback) {
@@ -31,8 +32,9 @@ MqttService::~MqttService() {
 void MqttService::ListenOfferSdp(std::string message) {
     nlohmann::json jsonObj = nlohmann::json::parse(message);
     std::string sdp = jsonObj["sdp"];
-    std::cout << "Received OfferSDP: " << sdp << std::endl;
-    callback_->OnRemoteSdp(sdp);
+    std::string type = jsonObj["type"];
+    std::cout << "Received remote [" << type << "] SDP:\n" << sdp << std::endl;
+    callback_->OnRemoteSdp(sdp, type);
 }
 
 void MqttService::ListenOfferIce(std::string message) {
@@ -40,18 +42,18 @@ void MqttService::ListenOfferIce(std::string message) {
     std::string sdp_mid = jsonObj["sdpMid"];
     int sdp_mline_index = jsonObj["sdpMLineIndex"];
     std::string candidate = jsonObj["candidate"];
-    std::cout << "Receive OfferICE: " << sdp_mline_index << ", " << sdp_mid << ", " << candidate << std::endl;
+    std::cout << "Received remote ICE: " << sdp_mline_index << ", " << sdp_mid << ", " << candidate << std::endl;
     callback_->OnRemoteIce(sdp_mid, sdp_mline_index, candidate);
 }
 
-void MqttService::AnswerLocalSdp(std::string sdp) {
-    std::cout << "AnswerSDP: " << sdp << std::endl;
+void MqttService::AnswerLocalSdp(std::string sdp, std::string type) {
+    std::cout << "Answer local [" << type << "] SDP:\n" << sdp << std::endl;
     nlohmann::json jsonData;
-    jsonData["type"] = "answer";
+    jsonData["type"] = type;
     jsonData["sdp"] = sdp;
     std::string jsonString = jsonData.dump();
 
-    int rc = mosquitto_publish(connection_, NULL, topics.answer_sdp.c_str(), 
+    int rc = mosquitto_publish(connection_, NULL, topics.offer_sdp.c_str(), 
                             jsonString.length(), jsonString.c_str(), 2, false);
     if (rc != MOSQ_ERR_SUCCESS) {
         fprintf(stderr, "Error publishing: %s\n", mosquitto_strerror(rc));
@@ -59,14 +61,14 @@ void MqttService::AnswerLocalSdp(std::string sdp) {
 }
 
 void MqttService::AnswerLocalIce(std::string sdp_mid, int sdp_mline_index, std::string candidate) {
-    std::cout << "AnswerICE: " << sdp_mid << ", " << sdp_mline_index << ", " << candidate << std::endl;
+    std::cout << "Sent local ICE: " << sdp_mid << ", " << sdp_mline_index << ", " << candidate << std::endl;
     nlohmann::json jsonData;
     jsonData["sdpMid"] = sdp_mid;
     jsonData["sdpMLineIndex"] = sdp_mline_index;
     jsonData["candidate"] = candidate;
     std::string jsonString = jsonData.dump();
 
-    int rc = mosquitto_publish(connection_, NULL, topics.answer_ice.c_str(), 
+    int rc = mosquitto_publish(connection_, NULL, topics.offer_ice.c_str(), 
                             jsonString.length(), jsonString.c_str(), 2, false);
     if (rc != MOSQ_ERR_SUCCESS) {
         fprintf(stderr, "Error publishing: %s\n", mosquitto_strerror(rc));
@@ -85,7 +87,8 @@ void MqttService::Disconnect() {
 };
 
 void MqttService::Subscribe(const std::string& topic) {
-    int subscribe_result = mosquitto_subscribe(connection_, nullptr, topic.c_str(), 0);
+    int subscribe_result = mosquitto_subscribe_v5(
+        connection_, nullptr, topic.c_str(), 0, MQTT_SUB_OPT_NO_LOCAL, nullptr);
     if (subscribe_result == MOSQ_ERR_SUCCESS) {
         std::cout << "Successfully subscribed to topic: " << topic << std::endl;
     } else {
@@ -121,6 +124,7 @@ void MqttService::Connect() {
     mosquitto_lib_init();
 
     connection_ = mosquitto_new(nullptr, true, this);
+    mosquitto_int_option(connection_, MOSQ_OPT_PROTOCOL_VERSION, MQTT_PROTOCOL_V5);
 
     if (connection_ == nullptr){
         fprintf(stderr, "Error: Out of memory.\n");

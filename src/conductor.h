@@ -14,6 +14,7 @@
 #include <condition_variable>
 
 #include <api/peer_connection_interface.h>
+#include <api/video/video_sink_interface.h>
 
 class SetSessionDescription : public webrtc::SetSessionDescriptionObserver {
 public:
@@ -67,6 +68,8 @@ public:
     typedef std::function<void(webrtc::SessionDescriptionInterface *desc)> OnCreateSuccessFunc;
 
     bool CreatePeerConnection();
+    rtc::scoped_refptr<webrtc::PeerConnectionInterface> GetPeer() const;
+    void SetSink(rtc::VideoSinkInterface<webrtc::VideoFrame> *video_sink_obj);
     void SetStreamingState(bool state);
     bool IsReadyForStreaming() const;
     bool IsConnected() const;
@@ -83,13 +86,14 @@ protected:
     void OnConnectionChange(
         webrtc::PeerConnectionInterface::PeerConnectionState new_state) override;
     void OnIceCandidate(const webrtc::IceCandidateInterface *candidate) override;
+    void OnTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver) override;
 
     // CreateSessionDescriptionObserver implementation.
     void OnSuccess(webrtc::SessionDescriptionInterface* desc) override;
     void OnFailure(webrtc::RTCError error) override;
 
     // SignalingMessageObserver implementation.
-    void OnRemoteSdp(std::string sdp) override;
+    void OnRemoteSdp(std::string sdp, std::string type) override;
     void OnRemoteIce(std::string sdp_mid, int sdp_mline_index, std::string candidate) override;
 
 private:
@@ -97,7 +101,7 @@ private:
     bool is_ready_for_streaming = false;
 
     bool InitializePeerConnectionFactory();
-    bool InitializeTracks();
+    void InitializeTracks();
     bool InitializeSignaling();
     bool InitializeRecorder();
     void CreateDataChannel();
@@ -109,6 +113,7 @@ private:
     std::unique_ptr<BackgroundRecorder> bg_recorder_;
     std::unique_ptr<SignalingService> signaling_service_;
     std::shared_ptr<V4L2Capture> video_caputre_source_;
+    rtc::VideoSinkInterface<webrtc::VideoFrame> *custom_video_sink_;
     rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer_connection_;
     rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> peer_connection_factory_;
     rtc::scoped_refptr<webrtc::AudioTrackInterface> audio_track_;
