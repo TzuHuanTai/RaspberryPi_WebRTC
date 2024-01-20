@@ -2,12 +2,10 @@ cmake_minimum_required(VERSION 3.18)
 project(pi_webrtc)
 
 set(CMAKE_CXX_STANDARD 17)
-if(NOT CMAKE_BUILD_TYPE)
-  set(CMAKE_BUILD_TYPE Release)
-endif()
 set(BUILD_TEST "" CACHE STRING "test")
 
 if(USE_BUILT_IN_H264)
+    add_definitions(-DUSE_BUILT_IN_H264)
     add_compile_definitions(WEBRTC_USE_H264)
 endif()
 
@@ -29,6 +27,7 @@ message(STATUS "WEBRTC_INCLUDE_DIR: ${WEBRTC_INCLUDE_DIR}")
 message(STATUS "WEBRTC_LIBRARY: ${WEBRTC_LIBRARY}")
 
 add_compile_definitions(
+    NDEBUG
     WEBRTC_POSIX
     WEBRTC_LINUX
     USE_CPPRESTSDK

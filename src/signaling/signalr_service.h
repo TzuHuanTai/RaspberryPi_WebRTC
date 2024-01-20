@@ -44,7 +44,7 @@ public:
     void Start();
 
 protected:
-    void AnswerLocalSdp(std::string sdp) override;
+    void AnswerLocalSdp(std::string sdp, std::string type) override;
     void AnswerLocalIce(std::string sdp_mid,
                                 int sdp_mline_index,
                                 std::string candidate) override;

@@ -41,13 +41,16 @@ void SignalrService::ListenOfferSdp() {
         const std::map<std::string, signalr::value> object = m[0].as_map();
 
         std::string sdp;
+        std::string type;
         for (const auto &s : object) {
             std::cout << "=> key: " << s.first << ", value: " << s.second.as_string() << std::endl;
             if (s.first == "sdp") {
                 sdp = s.second.as_string();
+            } else if (s.first == "type") {
+                type = s.second.as_string();
             }
         }
-        callback_->OnRemoteSdp(sdp);
+        callback_->OnRemoteSdp(sdp, type);
     });
 }
 
@@ -75,12 +78,12 @@ void SignalrService::ListenOfferIce() {
     });
 }
 
-void SignalrService::AnswerLocalSdp(std::string sdp) {
+void SignalrService::AnswerLocalSdp(std::string sdp, std::string type) {
     std::unique_lock<std::mutex> lock(mtx);
     std::cout << "[SignalR] Invoke AnswerSDP: " << sdp << std::endl;
     std::map<std::string, signalr::value> sdp_message = {
             {"sdp", sdp},
-            {"type", "answer"}};
+            {"type", type}};
 
     std::cout << "[SignalR] Invoke AnswerSDP: wait!" << std::endl;
     cond_var.wait(lock, [this]{ return ready; });
