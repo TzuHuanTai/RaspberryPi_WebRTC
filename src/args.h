@@ -10,7 +10,7 @@ struct Args {
     int rotation_angle = 0;
     bool enable_v4l2_dma = false;
     std::string v4l2_format = "mjpeg";
-    std::string device = "/dev/video0";
+    std::string device = "";
     std::string stun_url = "stun:stun.l.google.com:19302";
     std::string turn_url = "";
     std::string turn_username = "";
