@@ -28,7 +28,8 @@ int main(int argc, char *argv[]) {
     bool is_finished = false;
     int i = 0;
     int images_nb = 10;
-    Args args{.fps = 15,
+    Args args{.device = "/dev/video0",
+              .fps = 15,
               .width = 1280,
               .height = 720,
               .v4l2_format = "mjpeg"};
