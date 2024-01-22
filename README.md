@@ -30,7 +30,7 @@ Using v4l2 dma hardware encoder with WebRTC reduces CPU usage. Both `signalr` an
     * Follow [BUILD_MOSQUITTO](doc/BUILD_MOSQUITTO.md) to compile `mosquitto`
 4. Install the needed packages on pi
     ```bash
-    sudo apt install libboost-program-options-dev libavformat-dev libavcodec-dev libavutil-dev libavdevice-dev libswscale-dev
+    sudo apt install libboost-program-options-dev libavformat-dev libavcodec-dev libavutil-dev libswscale-dev libpulse-dev libasound2-dev libx11-dev
     ```
 5. Copy the [nlohmann/json.hpp](https://github.com/nlohmann/json/blob/develop/single_include/nlohmann/json.hpp) to `/usr/local/include` 
 6. Run signaling server
