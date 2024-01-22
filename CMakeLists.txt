@@ -16,7 +16,6 @@ endif()
 set(WEBRTC_INCLUDE_DIR /usr/local/include/webrtc)
 set(WEBRTC_LIBRARY /usr/local/lib/libwebrtc.a)
 set(WEBRTC_LINK_LIBS X11 dl)
-set(FFMPEG_LINK_LIBS avformat avcodec avutil swscale avdevice)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
@@ -62,7 +61,6 @@ if(BUILD_TEST STREQUAL "recorder")
     )
     target_link_libraries(test_recorder
         ${WEBRTC_LINK_LIBS}
-        ${FFMPEG_LINK_LIBS}
         Threads::Threads
         ${WEBRTC_LIBRARY}
     )
@@ -101,7 +99,6 @@ elseif(BUILD_TEST STREQUAL "v4l2_encoder")
     )
     target_link_libraries(test_v4l2_encoder
         ${WEBRTC_LINK_LIBS}
-        ${FFMPEG_LINK_LIBS}
         Threads::Threads
         ${WEBRTC_LIBRARY}
     )
@@ -116,7 +113,6 @@ elseif(BUILD_TEST STREQUAL "v4l2_decoder")
     )
     target_link_libraries(test_v4l2_decoder
         ${WEBRTC_LINK_LIBS}
-        ${FFMPEG_LINK_LIBS}
         Threads::Threads
         ${WEBRTC_LIBRARY}
     )
@@ -131,7 +127,6 @@ elseif(BUILD_TEST STREQUAL "v4l2_scaler")
     )
     target_link_libraries(test_v4l2_scaler
         ${WEBRTC_LINK_LIBS}
-        ${FFMPEG_LINK_LIBS}
         Threads::Threads
         ${WEBRTC_LIBRARY}
     )
@@ -151,7 +146,6 @@ else()
     target_link_libraries(${PROJECT_NAME}
         ${WEBRTC_LINK_LIBS}
         boost_program_options
-        ${FFMPEG_LINK_LIBS}
         Threads::Threads
         ${WEBRTC_LIBRARY}
     )
