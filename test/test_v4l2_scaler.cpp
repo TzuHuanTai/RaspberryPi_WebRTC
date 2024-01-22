@@ -29,7 +29,8 @@ int main(int argc, char *argv[]) {
     bool is_finished = false;
     int images_nb = 0;
     int record_sec = 3;
-    Args args{.fps = 15,
+    Args args{.device = "/dev/video0",
+              .fps = 15,
               .width = 640,
               .height = 480,
               .v4l2_format = "i420"};
