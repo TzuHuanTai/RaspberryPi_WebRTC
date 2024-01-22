@@ -42,13 +42,6 @@ include_directories(
     ${WEBRTC_INCLUDE_DIR}/tools/json_schema_compiler
 )
 
-add_library(common)
-target_sources(common
-    PRIVATE
-    src/common/v4l2_utils.cpp
-    src/common/worker.cpp
-)
-
 if(BUILD_TEST STREQUAL "recorder")
     add_subdirectory(src/capture)
     add_subdirectory(src/recorder)
@@ -135,12 +128,6 @@ else()
     add_executable(${PROJECT_NAME} src/main.cpp)
     target_link_libraries(${PROJECT_NAME}
         src
-        common
-        capture
-        track
-        v4l2_codecs
-        signaling
-        recorder
     )
 
     target_link_libraries(${PROJECT_NAME}
