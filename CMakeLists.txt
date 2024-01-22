@@ -8,17 +8,8 @@ endif()
 set(BUILD_TEST "" CACHE STRING "test")
 
 if(USE_MQTT_SIGNALING)
-    find_library(MOSQUITTO_LIBS NAMES mosquitto PATHS /usr/local/lib)
-    if(NOT MOSQUITTO_LIBS)
-        message(FATAL_ERROR "Mosquitto library not found")
-    endif()
     add_definitions(-DUSE_MQTT_SIGNALING)
 elseif(USE_SIGNALR_SIGNALING)
-    set(SIGNALR_LIBS 
-        /usr/local/lib/libmicrosoft-signalr.a 
-        /usr/local/lib/libcpprest.a 
-        /usr/local/lib/libjsoncpp.a 
-        -lz)
     add_definitions(-DUSE_SIGNALR_SIGNALING)
 endif()
 
@@ -157,15 +148,8 @@ else()
         recorder
     )
 
-    if (USE_MQTT_SIGNALING)
-        set(SIGNALING_LINK_LIBS ${MOSQUITTO_LIBS})
-    elseif(USE_SIGNALR_SIGNALING)
-        set(SIGNALING_LINK_LIBS ${SIGNALR_LIBS})
-    endif()
-
     target_link_libraries(${PROJECT_NAME}
         ${WEBRTC_LINK_LIBS}
-        ${SIGNALING_LINK_LIBS}
         boost_program_options
         ${FFMPEG_LINK_LIBS}
         Threads::Threads
