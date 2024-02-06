@@ -10,22 +10,12 @@
 #include "signaling/signalr_service.h"
 #endif
 
-#include <future>
-#include "absl/types/optional.h"
 #include <api/audio_codecs/builtin_audio_decoder_factory.h>
 #include <api/audio_codecs/builtin_audio_encoder_factory.h>
-#include <api/call/call_factory_interface.h>
 #include <api/create_peerconnection_factory.h>
 #include <api/data_channel_interface.h>
-#include <api/peer_connection_interface.h>
 #include <api/rtc_event_log/rtc_event_log_factory.h>
-#include <api/transport/field_trial_based_config.h>
 #include <api/task_queue/default_task_queue_factory.h>
-#if WEBRTC_USE_H264
-#include "api/video_codecs/video_encoder_factory.h"
-#include "api/video_codecs/video_encoder_factory_template.h"
-#include "api/video_codecs/video_encoder_factory_template_open_h264_adapter.h"
-#endif
 #include "api/video_codecs/video_decoder_factory.h"
 #include "api/video_codecs/video_decoder_factory_template.h"
 #include "api/video_codecs/video_decoder_factory_template_dav1d_adapter.h"
@@ -38,9 +28,7 @@
 #include <modules/audio_device/include/audio_device_factory.h>
 #include <modules/audio_device/linux/audio_device_alsa_linux.h>
 #include <modules/audio_device/linux/audio_device_pulse_linux.h>
-#include <modules/audio_device/linux/latebindingsymboltable_linux.h>
 #include <modules/audio_processing/include/audio_processing.h>
-#include <rtc_base/logging.h>
 #include <rtc_base/ssl_adapter.h>
 #include <rtc_base/thread.h>
 
@@ -247,19 +235,12 @@ bool Conductor::InitializePeerConnectionFactory() {
     media_dependencies.audio_decoder_factory = webrtc::CreateBuiltinAudioDecoderFactory();
     media_dependencies.audio_processing = webrtc::AudioProcessingBuilder().Create();
     media_dependencies.audio_mixer = nullptr;
-#if USE_BUILT_IN_H264
-    media_dependencies.video_encoder_factory = std::make_unique<webrtc::VideoEncoderFactoryTemplate<
-          webrtc::OpenH264EncoderTemplateAdapter>>();
-    media_dependencies.video_decoder_factory = std::make_unique<webrtc::VideoDecoderFactoryTemplate<
-          webrtc::OpenH264DecoderTemplateAdapter>>();
-#else
-    media_dependencies.video_encoder_factory = CreateCustomizedVideoEncoderFactory(args, data_channel_subject_);
+    media_dependencies.video_encoder_factory = CreateCustomizedVideoEncoderFactory(args);
     media_dependencies.video_decoder_factory = std::make_unique<webrtc::VideoDecoderFactoryTemplate<
           webrtc::OpenH264DecoderTemplateAdapter,
           webrtc::LibvpxVp8DecoderTemplateAdapter,
           webrtc::LibvpxVp9DecoderTemplateAdapter,
           webrtc::Dav1dDecoderTemplateAdapter>>();
-#endif
     media_dependencies.trials = dependencies.trials.get();
     dependencies.media_engine = cricket::CreateMediaEngine(std::move(media_dependencies));
 
