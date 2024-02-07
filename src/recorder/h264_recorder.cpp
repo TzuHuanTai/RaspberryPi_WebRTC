@@ -45,6 +45,7 @@ void H264Recorder::ResetCodecs() {
     decoder_->Configure(config.width, config.height, capture->format(), true);
 
     encoder_ = std::make_unique<V4l2Encoder>();
+    encoder_->SetProfile(V4L2_MPEG_VIDEO_H264_PROFILE_HIGH);
     encoder_->Configure(config.width, config.height, true);
     V4l2Util::SetExtCtrl(encoder_->GetFd(), V4L2_CID_MPEG_VIDEO_FORCE_KEY_FRAME, 1);
 }

@@ -12,6 +12,7 @@ public:
     ~V4l2Encoder() {};
 
     bool Configure(int width, int height, bool is_drm_src);
+    void SetProfile(uint32_t h264_profile);
     void SetBitrate(uint32_t adjusted_bitrate_bps);
     void SetFps(int adjusted_fps);
     const int GetFd() const;
@@ -19,6 +20,7 @@ public:
 private:
     int framerate_;
     int bitrate_bps_;
+    uint32_t h264_profile_;
 };
 
 #endif // V4L2_ENCODER_H_
