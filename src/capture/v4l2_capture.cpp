@@ -73,7 +73,7 @@ webrtc::VideoType V4L2Capture::type() const {
 
 void V4L2Capture::Next(Buffer buffer) {
     for (auto observer : observers_) {
-        if (observer->subscribed_func_ != nullptr) {
+        if (observer && observer->subscribed_func_ != nullptr) {
             observer->subscribed_func_(buffer);
         }
     }
