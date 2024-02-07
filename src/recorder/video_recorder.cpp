@@ -10,7 +10,10 @@ VideoRecorder::VideoRecorder(std::shared_ptr<V4L2Capture> capture, std::string e
     : encoder_name(encoder_name),
       config(capture->config()),
       video_frame_count(0),
-      wait_first_keyframe(false) {}
+      is_recording(false),
+      abort(false),
+      wait_first_keyframe(false),
+      capture(capture) {}
 
 std::string VideoRecorder::PrefixZero(int src, int digits) {
     std::string str = std::to_string(src);
@@ -37,7 +40,7 @@ std::string VideoRecorder::GenerateFilename() {
     return filename;
 }
 
-bool VideoRecorder::Initialize() {
+bool VideoRecorder::InitializeContainer() {
     std::string container = "";
     if (encoder_name == "libvpx") {
         container = "webm";
@@ -92,24 +95,33 @@ void VideoRecorder::AddVideoStream() {
     avcodec_parameters_from_context(video_st->codecpar, video_encoder);
 }
 
+void VideoRecorder::SubscribeBufferSource() {
+    observer = capture->AsObservable();
+    observer->Subscribe([&](Buffer buffer) {
+        if (!abort || raw_buffer_queue.size() < 100) {
+            raw_buffer_queue.push(buffer);
+        }
+    });
+}
+
 void VideoRecorder::PushEncodedBuffer(Buffer encoded_buffer) {
-    if (buffer_queue.size() < config.fps * 10) {
+    if (encoded_buffer_queue.size() < config.fps * 10) {
         Buffer buf = {.start = malloc(encoded_buffer.length),
                       .length = encoded_buffer.length,
                       .flags = encoded_buffer.flags};
         memcpy(buf.start, encoded_buffer.start, encoded_buffer.length);
 
-        buffer_queue.push(buf);
+        encoded_buffer_queue.push(buf);
     }
 }
 
 void VideoRecorder::ConsumeBuffer() {
     while (is_recording) {
-        while (!buffer_queue.empty()) {
-            Write(buffer_queue.front());
-            buffer_queue.pop();
+        while (!encoded_buffer_queue.empty()) {
+            Write(encoded_buffer_queue.front());
+            encoded_buffer_queue.pop();
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 }
 
@@ -143,10 +155,13 @@ bool VideoRecorder::Write(Buffer buffer) {
     return true;
 }
 
-void VideoRecorder::Finish() {
+void VideoRecorder::FinishFile() {
+    video_frame_count = 0;
     is_recording = false;
 
-    consumer.wait();
+    if (consumer.valid()) {
+        consumer.wait();
+    }
 
     if (fmt_ctx) {
         av_write_trailer(fmt_ctx);
@@ -157,5 +172,8 @@ void VideoRecorder::Finish() {
 }
 
 VideoRecorder::~VideoRecorder() {
-    Finish();
+    abort = true;
+    observer->Subscribe(nullptr);
+    observer = nullptr;
+    FinishFile();
 }
