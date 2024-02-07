@@ -29,16 +29,21 @@ public:
     VideoRecorder(std::shared_ptr<V4L2Capture> capture, std::string encoder_name);
     ~VideoRecorder();
 
-    void PushEncodedBuffer(Buffer buffer);
+    virtual void RecordingLoop() = 0;
+    
 
 protected:
     Args config;
     int video_frame_count;
     bool is_recording;
+    bool abort;
     bool wait_first_keyframe;
     std::string encoder_name;
     std::future<void> consumer;
-    std::queue<Buffer> buffer_queue;
+    std::queue<Buffer> raw_buffer_queue;
+    std::queue<Buffer> encoded_buffer_queue;
+    std::shared_ptr<V4L2Capture> capture;
+    std::shared_ptr<Observable<Buffer>> observer;
 
     AVCodecContext *video_encoder;
     AVFormatContext *fmt_ctx;
@@ -48,12 +53,14 @@ protected:
     std::string PrefixZero(int stc, int digits);
     std::string GenerateFilename();
 
-    bool Initialize();
+    bool InitializeContainer();
     void AddVideoStream();
+    void SubscribeBufferSource();
     void ConsumeBuffer();
+    void PushEncodedBuffer(Buffer buffer);
     void AsyncWriteFileBackground();
     bool Write(Buffer buffer);
-    void Finish();
+    void FinishFile();
 };
 
 #endif // RECODER_H_
