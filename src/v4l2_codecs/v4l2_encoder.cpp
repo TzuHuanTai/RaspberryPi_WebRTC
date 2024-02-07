@@ -10,7 +10,8 @@ const int KEY_FRAME_INTERVAL = 240;
 
 V4l2Encoder::V4l2Encoder()
     : framerate_(30),
-      bitrate_bps_(10000000) {}
+      bitrate_bps_(10000000),
+      h264_profile_(V4L2_MPEG_VIDEO_H264_PROFILE_BASELINE) {}
 
 bool V4l2Encoder::Configure(int width, int height, bool is_drm_src) {
     if (!Open(ENCODER_FILE)) {
@@ -18,7 +19,7 @@ bool V4l2Encoder::Configure(int width, int height, bool is_drm_src) {
     }
 
     V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_REPEAT_SEQ_HEADER, true);
-    V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_H264_PROFILE, V4L2_MPEG_VIDEO_H264_PROFILE_BASELINE);
+    V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_H264_PROFILE, h264_profile_);
     V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_H264_LEVEL, V4L2_MPEG_VIDEO_H264_LEVEL_4_0);
     V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_H264_I_PERIOD, KEY_FRAME_INTERVAL);
 
@@ -34,6 +35,10 @@ bool V4l2Encoder::Configure(int width, int height, bool is_drm_src) {
     ResetWorker();
 
     return true;
+}
+
+void V4l2Encoder::SetProfile(uint32_t h264_profile) {
+    h264_profile_ = h264_profile;
 }
 
 void V4l2Encoder::SetBitrate(uint32_t adjusted_bitrate_bps) {
