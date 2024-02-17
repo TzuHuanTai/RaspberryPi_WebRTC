@@ -18,6 +18,7 @@ protected:
     void Init() override;
 
 private:
+    bool has_first_keyframe_;
     std::unique_ptr<V4l2Scaler> scaler_;
     std::unique_ptr<V4l2Decoder> decoder_;
 };
