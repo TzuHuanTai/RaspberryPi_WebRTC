@@ -1,6 +1,6 @@
 #include "recorder/background_recorder.h"
 #include "recorder/h264_recorder.h"
-// #include "recorder/raw_h264_recorder.h"
+#include "recorder/raw_h264_recorder.h"
 
 std::unique_ptr<BackgroundRecorder> BackgroundRecorder::CreateBackgroundRecorder(
     std::shared_ptr<V4L2Capture> capture, RecorderFormat format) {
@@ -20,7 +20,11 @@ BackgroundRecorder::~BackgroundRecorder() {
 std::unique_ptr<VideoRecorder> BackgroundRecorder::CreateRecorder() {
     switch (format_) {
         case RecorderFormat::H264:
-            return H264Recorder::Create(capture_);
+            if (capture_->format() == V4L2_PIX_FMT_H264) {
+                return RawH264Recorder::Create(capture_);
+            } else {
+                return H264Recorder::Create(capture_);
+            }
         case RecorderFormat::VP8:
         case RecorderFormat::AV1:
         default:

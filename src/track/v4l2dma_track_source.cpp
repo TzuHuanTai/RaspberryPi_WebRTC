@@ -17,7 +17,8 @@ rtc::scoped_refptr<V4l2DmaTrackSource> V4l2DmaTrackSource::Create(
 }
 
 V4l2DmaTrackSource::V4l2DmaTrackSource(std::shared_ptr<V4L2Capture> capture)
-    : V4L2TrackSource(capture) {}
+    : V4L2TrackSource(capture),
+      has_first_keyframe_(false) {}
 
 void V4l2DmaTrackSource::Init() {
     auto s = std::async(std::launch::async, [&]() {
@@ -52,6 +53,14 @@ void V4l2DmaTrackSource::OnFrameCaptured(Buffer buffer) {
         if (capture_->format() == V4L2_PIX_FMT_MJPEG) {
             decoder_->ReleaseCodec();
             decoder_->Configure(width_, height_, capture_->format(), true);
+        }
+    }
+
+    if (capture_->format() == V4L2_PIX_FMT_H264 && !has_first_keyframe_) {
+        if (buffer.flags & V4L2_BUF_FLAG_KEYFRAME) {
+            has_first_keyframe_ = true;
+        } else {
+            return;
         }
     }
 
