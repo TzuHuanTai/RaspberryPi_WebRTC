@@ -27,7 +27,7 @@ enum class RecorderFormat {
 class VideoRecorder {
 public:
     VideoRecorder(std::shared_ptr<V4L2Capture> capture, std::string encoder_name);
-    ~VideoRecorder();
+    virtual ~VideoRecorder();
 
     virtual void RecordingLoop() = 0;
     
