@@ -14,6 +14,7 @@ public:
 
 private:
     int frame_count_;
+    bool has_first_keyframe_;
 };
 
 #endif
