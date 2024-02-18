@@ -111,14 +111,16 @@ void VideoRecorder::PushEncodedBuffer(Buffer encoded_buffer) {
                       .flags = encoded_buffer.flags};
         memcpy(buf.start, encoded_buffer.start, encoded_buffer.length);
 
-        encoded_buffer_queue.push(buf);
+        encoded_buffer_queue.push(std::move(buf));
     }
 }
 
 void VideoRecorder::ConsumeBuffer() {
     while (is_recording) {
         while (!encoded_buffer_queue.empty()) {
-            Write(encoded_buffer_queue.front());
+            auto buffer = encoded_buffer_queue.front();
+            Write(buffer);
+            free(buffer.start);
             encoded_buffer_queue.pop();
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
