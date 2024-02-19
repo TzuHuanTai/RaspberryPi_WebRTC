@@ -9,6 +9,7 @@
 #include <modules/video_capture/video_capture_factory.h>
 
 #include <iostream>
+#include <future>
 
 std::shared_ptr<V4L2Capture> V4L2Capture::Create(Args args) {
     auto ptr = std::make_shared<V4L2Capture>(args);
@@ -72,9 +73,9 @@ webrtc::VideoType V4L2Capture::type() const {
 }
 
 void V4L2Capture::Next(Buffer buffer) {
-    for (auto observer : observers_) {
+    for (auto &observer : observers_) {
         if (observer && observer->subscribed_func_ != nullptr) {
-            observer->subscribed_func_(buffer);
+            auto task = std::async(std::launch::async, observer->subscribed_func_, buffer);
         }
     }
 }

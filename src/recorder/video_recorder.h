@@ -26,11 +26,10 @@ enum class RecorderFormat {
 
 class VideoRecorder {
 public:
+    static std::unique_ptr<VideoRecorder> CreateRecorder(std::shared_ptr<V4L2Capture> capture,
+                                                         RecorderFormat format);
     VideoRecorder(std::shared_ptr<V4L2Capture> capture, std::string encoder_name);
-    virtual ~VideoRecorder();
-
-    virtual void RecordingLoop() = 0;
-    
+    virtual ~VideoRecorder(); 
 
 protected:
     Args config;
@@ -52,6 +51,8 @@ protected:
 
     std::string PrefixZero(int stc, int digits);
     std::string GenerateFilename();
+
+    virtual void Encode(Buffer buffer) = 0;
 
     bool InitializeContainer();
     void AddVideoStream();

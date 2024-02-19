@@ -17,15 +17,7 @@ H264Recorder::~H264Recorder() {
     encoder_.reset();
 }
 
-void H264Recorder::RecordingLoop() {
-    if(abort || raw_buffer_queue.empty()) {
-        usleep(1000);
-        return;
-    }
-
-    auto buffer = raw_buffer_queue.front();
-    raw_buffer_queue.pop();
-
+void H264Recorder::Encode(Buffer buffer) {
     if (frame_count_++ % (SECOND_PER_FILE * config.fps) == 0) {
         FinishFile();
         InitializeContainer();

@@ -1,6 +1,4 @@
 #include "recorder/background_recorder.h"
-#include "recorder/h264_recorder.h"
-#include "recorder/raw_h264_recorder.h"
 
 #include <iostream>
 #include <filesystem>
@@ -22,22 +20,7 @@ BackgroundRecorder::~BackgroundRecorder() {
     Stop();
 }
 
-std::unique_ptr<VideoRecorder> BackgroundRecorder::CreateRecorder() {
-    switch (format_) {
-        case RecorderFormat::H264:
-            if (capture_->format() == V4L2_PIX_FMT_H264) {
-                return RawH264Recorder::Create(capture_);
-            } else {
-                return H264Recorder::Create(capture_);
-            }
-        case RecorderFormat::VP8:
-        case RecorderFormat::AV1:
-        default:
-            return nullptr;
-    }
-}
-
-bool BackgroundRecorder::createVideoFolder(const std::string& folder_path) {
+bool BackgroundRecorder::CreateVideoFolder(const std::string& folder_path) {
     if (!std::filesystem::exists(folder_path)) {
         if (!std::filesystem::create_directory(folder_path)) {
             std::cerr << "Failed to create directory: " << folder_path << std::endl;
@@ -47,7 +30,6 @@ bool BackgroundRecorder::createVideoFolder(const std::string& folder_path) {
     } else {
         std::cout << "Directory already exists: " << folder_path << std::endl;
     }
-
     return true;
 }
 
@@ -75,18 +57,15 @@ void BackgroundRecorder::RotateFiles() {
             std::cout << "Deleted file: " << files[i] << std::endl;
         }
     }
-
     sleep(60);
 }
 
 void BackgroundRecorder::Start() {
-    if (createVideoFolder(capture_->config().record_path)) {
-        recorder_ = CreateRecorder();
-        worker_.reset(new Worker([&]() { recorder_->RecordingLoop();}));
-        worker_->Run();
+    if (CreateVideoFolder(capture_->config().record_path)) {
+        recorder_ = VideoRecorder::CreateRecorder(capture_, format_);
 
-        rotational_worker_.reset(new Worker([&]() { RotateFiles();}));
-        rotational_worker_->Run();
+        worker_.reset(new Worker([&]() { RotateFiles();}));
+        worker_->Run();
     } else {
         std::cout << "Background recorder is not started!" << std::endl;
     }

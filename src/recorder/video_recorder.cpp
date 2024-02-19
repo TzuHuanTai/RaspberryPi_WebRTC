@@ -1,10 +1,28 @@
 #include "recorder/video_recorder.h"
+#include "recorder/h264_recorder.h"
+#include "recorder/raw_h264_recorder.h"
 
 #include <chrono>
 #include <thread>
 #include <iostream>
 #include <sstream>
 #include <unistd.h>
+
+std::unique_ptr<VideoRecorder> VideoRecorder::CreateRecorder(std::shared_ptr<V4L2Capture> capture,
+                                                             RecorderFormat format) {
+    switch (format) {
+        case RecorderFormat::H264:
+            if (capture->format() == V4L2_PIX_FMT_H264) {
+                return RawH264Recorder::Create(capture);
+            } else {
+                return H264Recorder::Create(capture);
+            }
+        case RecorderFormat::VP8:
+        case RecorderFormat::AV1:
+        default:
+            return nullptr;
+    }
+}
 
 VideoRecorder::VideoRecorder(std::shared_ptr<V4L2Capture> capture, std::string encoder_name)
     : encoder_name(encoder_name),
@@ -98,8 +116,8 @@ void VideoRecorder::AddVideoStream() {
 void VideoRecorder::SubscribeBufferSource() {
     observer = capture->AsObservable();
     observer->Subscribe([&](Buffer buffer) {
-        if (!abort || raw_buffer_queue.size() < 100) {
-            raw_buffer_queue.push(buffer);
+        if (!abort) {
+            Encode(buffer);
         }
     });
 }
