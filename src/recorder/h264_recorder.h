@@ -8,11 +8,11 @@
 class H264Recorder : public VideoRecorder {
 public:
     static std::unique_ptr<H264Recorder> Create(std::shared_ptr<V4L2Capture> capture);
-
     H264Recorder(std::shared_ptr<V4L2Capture> capture, std::string encoder_name);
     ~H264Recorder();
 
-    void RecordingLoop() override;
+protected:
+    void Encode(Buffer buffer) override;
 
 private:
     int frame_count_;
