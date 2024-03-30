@@ -36,6 +36,7 @@ add_compile_definitions(
 add_compile_options(
     -pipe
     -fdeclspec
+    -g
 )
 
 include_directories(
@@ -60,6 +61,23 @@ if(BUILD_TEST STREQUAL "recorder")
         ${WEBRTC_LINK_LIBS}
         Threads::Threads
         ${WEBRTC_LIBRARY}
+    )
+elseif(BUILD_TEST STREQUAL "pulseaudio")
+    add_executable(test_pulseaudio test/test_pulseaudio.cpp)
+
+    target_link_libraries(test_pulseaudio
+        pulse-simple pulse
+    )
+elseif(BUILD_TEST STREQUAL "audio_recorder")
+    add_subdirectory(src/recorder)
+    add_subdirectory(src/v4l2_codecs)
+    add_subdirectory(src/common)
+    add_executable(test_audio_recorder test/test_audio_recorder.cpp)
+
+    target_link_libraries(test_audio_recorder
+        recorder
+        Threads::Threads
+        pulse-simple pulse avformat avcodec swscale avutil
     )
 elseif(BUILD_TEST STREQUAL "mqtt")
     add_subdirectory(src/signaling)
