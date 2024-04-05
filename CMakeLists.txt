@@ -69,15 +69,20 @@ elseif(BUILD_TEST STREQUAL "pulseaudio")
         pulse-simple pulse
     )
 elseif(BUILD_TEST STREQUAL "audio_recorder")
+    add_subdirectory(src/common)
+    add_subdirectory(src/capture)
     add_subdirectory(src/recorder)
     add_subdirectory(src/v4l2_codecs)
-    add_subdirectory(src/common)
     add_executable(test_audio_recorder test/test_audio_recorder.cpp)
 
     target_link_libraries(test_audio_recorder
+        capture
+        common
         recorder
         Threads::Threads
+        ${WEBRTC_LINK_LIBS}
         pulse-simple pulse avformat avcodec swscale avutil
+        ${WEBRTC_LIBRARY}
     )
 elseif(BUILD_TEST STREQUAL "mqtt")
     add_subdirectory(src/signaling)
