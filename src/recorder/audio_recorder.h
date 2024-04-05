@@ -1,52 +1,38 @@
 #ifndef AUDIO_RECODER_H_
 #define AUDIO_RECODER_H_
-
-#include <pulse/simple.h>
-#include <pulse/error.h>
+#include "capture/pa_capture.h"
+#include "recorder/recorder.h"
 
 #include <string>
 #include <future>
-#include <queue>
 #include <memory>
 
 extern "C"
 {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
-#include <libswscale/swscale.h>
 #include <libavutil/audio_fifo.h>
 }
 
-class AudioRecorder {
+class AudioRecorder : public Recorder<PaBuffer> {
 public:
-    static std::unique_ptr<AudioRecorder> CreateRecorder(std::string record_path);
-    AudioRecorder(std::string record_path);
-    ~AudioRecorder();
-    int PushAudioBuffer(float *buffer, int total_samples, int channels);
-    void WriteFile();
+    static std::unique_ptr<AudioRecorder> CreateRecorder(
+        std::shared_ptr<PaCapture> capture);
+    AudioRecorder(std::shared_ptr<PaCapture> capture);
+    ~AudioRecorder() {};
+    void OnBuffer(PaBuffer buffer) override;
 
-protected:
-    double t = 0;
-    std::string record_path;
-    unsigned int frame_count;
+private:
     std::string encoder_name;
-
-    AVCodecContext *encoder;
-    AVFormatContext *fmt_ctx;
-    AVStream *st;
     AVAudioFifo* fifo_buffer;
     AVFrame *frame;
-    AVPacket pkt;
 
-    std::string PrefixZero(int stc, int digits);
-    std::string GenerateFilename();
-
-    void Encode();
-    bool InitializeContainer();
-    void InitializeFifoBuffer();
-    void InitializeFrame();
-    void AddAudioStream();
-    void FinishFile();
+    void Encode(int stream_index);
+    void InitializeFrame(AVCodecContext *encoder);
+    void InitializeFifoBuffer(AVCodecContext *encoder);
+    void CleanBuffer() override;
+    void WriteFile() override;
+    AVCodecContext *InitializeEncoder() override;
 };
 
 #endif

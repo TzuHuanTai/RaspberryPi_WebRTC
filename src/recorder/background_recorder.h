@@ -1,7 +1,7 @@
 #ifndef BACKGROUND_RECODER_H_
 #define BACKGROUND_RECODER_H_
 
-#include "recorder/video_recorder.h"
+#include "recorder/recorder_manager.h"
 
 class BackgroundRecorder {
 public:
@@ -16,8 +16,9 @@ public:
 private:
     RecorderFormat format_;
     std::unique_ptr<Worker> worker_;
-    std::shared_ptr<V4L2Capture> capture_;
-    std::unique_ptr<VideoRecorder> recorder_;
+    std::shared_ptr<PaCapture> audio_capture_;
+    std::shared_ptr<V4L2Capture> video_capture_;
+    std::unique_ptr<RecorderManager> recorder_mgr_;
 
     bool CreateVideoFolder(const std::string& folder_path);
     void RotateFiles();
