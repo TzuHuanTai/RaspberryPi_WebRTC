@@ -13,7 +13,8 @@ std::unique_ptr<BackgroundRecorder> BackgroundRecorder::CreateBackgroundRecorder
 BackgroundRecorder::BackgroundRecorder(
     std::shared_ptr<V4L2Capture> capture,
     RecorderFormat format) 
-    : video_capture_(capture),
+    : args_(capture->config()),
+      video_capture_(capture),
       format_(format) {}
 
 BackgroundRecorder::~BackgroundRecorder() {
@@ -34,8 +35,8 @@ bool BackgroundRecorder::CreateVideoFolder(const std::string& folder_path) {
 }
 
 void BackgroundRecorder::RotateFiles() {
-    auto folder_path = video_capture_->config().record_path;
-    const int max_files = video_capture_->config().max_files;
+    auto folder_path = args_.record_path;
+    const int max_files = args_.max_files;
 
     std::vector<std::filesystem::path> files;
     for (const auto& entry : std::filesystem::directory_iterator(folder_path)) {
@@ -61,11 +62,10 @@ void BackgroundRecorder::RotateFiles() {
 }
 
 void BackgroundRecorder::Start() {
-    if (CreateVideoFolder(video_capture_->config().record_path)) {
-        audio_capture_ = PaCapture::Create();
+    if (CreateVideoFolder(args_.record_path)) {
+        audio_capture_ = PaCapture::Create(args_);
         recorder_mgr_ = RecorderManager::Create(video_capture_, audio_capture_, 
-                                                video_capture_->config().record_path);
-        // recorder_mgr_->Start();
+                                                args_.record_path);
         worker_.reset(new Worker([&]() { RotateFiles();}));
         worker_->Run();
     } else {

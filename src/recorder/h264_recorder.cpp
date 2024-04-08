@@ -1,15 +1,13 @@
 #include "recorder/h264_recorder.h"
 
-std::unique_ptr<H264Recorder> H264Recorder::Create(
-    std::shared_ptr<V4L2Capture> capture) {
-    auto ptr = std::make_unique<H264Recorder>(capture, "h264_v4l2m2m");
+std::unique_ptr<H264Recorder> H264Recorder::Create(Args config) {
+    auto ptr = std::make_unique<H264Recorder>(config, "h264_v4l2m2m");
     ptr->Initialize();
     return ptr;
 }
 
-H264Recorder::H264Recorder(
-    std::shared_ptr<V4L2Capture> capture, std::string encoder_name)
-    : VideoRecorder(capture, encoder_name) {};
+H264Recorder::H264Recorder(Args config, std::string encoder_name)
+    : VideoRecorder(config, encoder_name) {};
 
 H264Recorder::~H264Recorder() {
     decoder_.reset();

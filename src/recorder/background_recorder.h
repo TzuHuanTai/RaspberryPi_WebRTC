@@ -14,6 +14,7 @@ public:
     void Stop();
 
 private:
+    Args args_;
     RecorderFormat format_;
     std::unique_ptr<Worker> worker_;
     std::shared_ptr<PaCapture> audio_capture_;

@@ -7,10 +7,8 @@
 
 class H264Recorder : public VideoRecorder {
 public:
-    static std::unique_ptr<H264Recorder> Create(
-        std::shared_ptr<V4L2Capture> capture);
-    H264Recorder(std::shared_ptr<V4L2Capture> capture, 
-                 std::string encoder_name);
+    static std::unique_ptr<H264Recorder> Create(Args config);
+    H264Recorder(Args config, std::string encoder_name);
     ~H264Recorder();
 
 protected:
