@@ -2,14 +2,16 @@
 
 #define BUFSIZE 1024
 #define CHANNELS 2
-#define SAMPLE_RATE 48000
 
-std::shared_ptr<PaCapture> PaCapture::Create() {
-    auto ptr = std::make_shared<PaCapture>();
-    ptr->CreateFloat32Source();
+std::shared_ptr<PaCapture> PaCapture::Create(Args args) {
+    auto ptr = std::make_shared<PaCapture>(args);
+    ptr->CreateFloat32Source(args.sample_rate);
     ptr->StartCapture();
     return ptr;
 }
+
+PaCapture::PaCapture(Args args) 
+    : config_(args) {}
 
 PaCapture::~PaCapture() {
     worker_.reset();
@@ -18,12 +20,16 @@ PaCapture::~PaCapture() {
     }
 }
 
-void PaCapture::CreateFloat32Source() {
+Args PaCapture::config() const {
+    return config_;
+}
+
+void PaCapture::CreateFloat32Source(int sample_rate) {
     int error;
     pa_sample_spec ss;
     ss.format = PA_SAMPLE_FLOAT32LE;
     ss.channels = CHANNELS;
-    ss.rate = SAMPLE_RATE;
+    ss.rate = sample_rate;
 
     src = pa_simple_new(nullptr, "Microphone", PA_STREAM_RECORD, nullptr, 
                         "record", &ss, nullptr, nullptr, &error);

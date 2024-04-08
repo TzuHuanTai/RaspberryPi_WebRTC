@@ -1,32 +1,46 @@
 #include "recorder/audio_recorder.h"
 
-std::unique_ptr<AudioRecorder> AudioRecorder::CreateRecorder(
-    std::shared_ptr<PaCapture> capture) {
-    auto ptr = std::make_unique<AudioRecorder>(capture);
+std::unique_ptr<AudioRecorder> AudioRecorder::Create(Args config) {
+    auto ptr = std::make_unique<AudioRecorder>(config);
     ptr->Initialize();
     return ptr;
 }
 
-AudioRecorder::AudioRecorder(std::shared_ptr<PaCapture> capture)
-    : Recorder(capture),
+AudioRecorder::AudioRecorder(Args config)
+    : Recorder(),
+      config(config),
       encoder_name("aac") { }
 
-AVCodecContext *AudioRecorder::InitializeEncoder() {
-    const AVCodec *codec = avcodec_find_encoder_by_name(encoder_name.c_str());
-    auto encoder = avcodec_alloc_context3(codec);
-    encoder->codec_type = AVMEDIA_TYPE_AUDIO;
-    encoder->sample_fmt = AV_SAMPLE_FMT_FLTP;
-    encoder->bit_rate = 128000;
-    encoder->sample_rate = 48000;
-    encoder->channel_layout = AV_CH_LAYOUT_STEREO;
-    encoder->channels = av_get_channel_layout_nb_channels(encoder->channel_layout);
-    encoder->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
-    avcodec_open2(encoder, codec, nullptr);
+AudioRecorder::~AudioRecorder() {}
 
+void AudioRecorder::Initialize() {
+    InitializeEncoder();
     InitializeFrame(encoder);
     InitializeFifoBuffer(encoder);
+}
 
-    return encoder;
+void AudioRecorder::CloseCodec() {
+    if (encoder) {
+        avcodec_close(encoder);
+        avcodec_free_context(&encoder);
+    }
+}
+
+void AudioRecorder::InitializeEncoder() {
+    std::lock_guard<std::mutex> lock(codec_mux);
+    CloseCodec();
+    const AVCodec *codec = avcodec_find_encoder_by_name(encoder_name.c_str());
+    encoder = avcodec_alloc_context3(codec);
+    encoder->codec_type = AVMEDIA_TYPE_AUDIO;
+    encoder->sample_fmt = sample_fmt;
+    encoder->bit_rate = 128000;
+    encoder->sample_rate = config.sample_rate;
+    encoder->channel_layout = AV_CH_LAYOUT_STEREO;
+
+    channels = av_get_channel_layout_nb_channels(encoder->channel_layout);
+    encoder->channels = channels;
+    encoder->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
+    avcodec_open2(encoder, codec, nullptr);
 }
 
 void AudioRecorder::InitializeFrame(AVCodecContext *encoder) {
@@ -50,8 +64,16 @@ void AudioRecorder::InitializeFifoBuffer(AVCodecContext *encoder) {
 }
 
 void AudioRecorder::Encode(int stream_index) {
+    std::lock_guard<std::mutex> lock(codec_mux);
     AVPacket pkt;
     av_init_packet(&pkt);
+
+    if(av_audio_fifo_read(fifo_buffer, (void**)&frame->data, encoder->frame_size) < 0) {
+        printf("Read fifo fail");
+    }
+
+    frame->pts = av_rescale_q(frame_count++ * frame->nb_samples, 
+                              encoder->time_base, st->time_base);
 
     int ret = avcodec_send_frame(encoder, frame);
     if (ret < 0 || ret == AVERROR_EOF) {
@@ -78,11 +100,11 @@ void AudioRecorder::OnBuffer(PaBuffer buffer) {
     uint8_t **converted_input_samples = nullptr;
     int samples_per_channel = buffer.length / buffer.channels;
     av_samples_alloc_array_and_samples(&converted_input_samples, nullptr, 
-        encoder->channels, samples_per_channel, encoder->sample_fmt, 0);
+        channels, samples_per_channel, sample_fmt, 0);
 
     auto data = (float*)buffer.start;
     for (int i = 0; i < buffer.length; i++) {
-        if (i % buffer.channels >= encoder->channels) {
+        if (i % buffer.channels >= channels) {
             continue;
         }
         reinterpret_cast<float*>(converted_input_samples[i % buffer.channels])
@@ -90,22 +112,8 @@ void AudioRecorder::OnBuffer(PaBuffer buffer) {
     }
 
     av_audio_fifo_write(fifo_buffer, (void**)converted_input_samples, samples_per_channel);
-}
 
-void AudioRecorder::WriteFile() {
-    while (av_audio_fifo_size(fifo_buffer) >= encoder->frame_size) {
-        if(av_audio_fifo_read(fifo_buffer, (void**)&frame->data, encoder->frame_size) < 0) {
-            printf("Read fifo fail");
-        }
-
-        frame->pts = av_rescale_q(frame_count++ * frame->nb_samples, encoder->time_base, st->time_base);
-
+    while (encoder && st && av_audio_fifo_size(fifo_buffer) >= encoder->frame_size) {
         Encode(st->index);
-    }
-}
-
-void AudioRecorder::CleanBuffer() {
-    if (av_audio_fifo_size(fifo_buffer) > 0) {
-        av_audio_fifo_drain(fifo_buffer, av_audio_fifo_size(fifo_buffer));
     }
 }
