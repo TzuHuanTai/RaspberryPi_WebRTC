@@ -8,7 +8,7 @@ struct Args {
     int width = 640;
     int height = 480;
     int rotation_angle = 0;
-    int sample_rate = 48000;
+    int sample_rate = 44100;
     bool enable_v4l2_dma = false;
     std::string v4l2_format = "mjpeg";
     std::string device = "";

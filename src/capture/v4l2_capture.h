@@ -23,11 +23,6 @@ public:
     Args config() const;
     webrtc::VideoType type() const;
 
-    // Subject
-    void Next(Buffer buffer) override;
-    std::shared_ptr<Observable<Buffer>> AsObservable() override;
-    void UnSubscribe() override;
-
     static std::shared_ptr<V4L2Capture> Create(Args args);
     V4L2Capture &SetFormat(int width, int height, std::string video_type);
     V4L2Capture &SetFps(int fps = 30);

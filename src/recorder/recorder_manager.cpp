@@ -78,7 +78,7 @@ void RecorderManager::SubscribeAudioSource(std::shared_ptr<PaCapture> audio_src)
     audio_observer->Subscribe([&](PaBuffer buffer) {
         if (has_first_keyframe && audio_recorder) {
             audio_recorder->OnBuffer(buffer);
-        }        
+        }
     });
 }
 

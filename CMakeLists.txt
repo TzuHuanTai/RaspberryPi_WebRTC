@@ -36,7 +36,6 @@ add_compile_definitions(
 add_compile_options(
     -pipe
     -fdeclspec
-    -g
 )
 
 include_directories(
@@ -47,41 +46,25 @@ include_directories(
     ${WEBRTC_INCLUDE_DIR}/tools/json_schema_compiler
 )
 
-if(BUILD_TEST STREQUAL "recorder")
-    add_subdirectory(src/capture)
-    add_subdirectory(src/recorder)
-    add_subdirectory(src/v4l2_codecs)
-    add_executable(test_recorder test/test_recorder.cpp)
-    target_link_libraries(test_recorder
-        capture
-        recorder
-        v4l2_codecs
-    )
-    target_link_libraries(test_recorder
-        ${WEBRTC_LINK_LIBS}
-        Threads::Threads
-        ${WEBRTC_LIBRARY}
-    )
-elseif(BUILD_TEST STREQUAL "pulseaudio")
+if(BUILD_TEST STREQUAL "pulseaudio")
     add_executable(test_pulseaudio test/test_pulseaudio.cpp)
 
     target_link_libraries(test_pulseaudio
         pulse-simple pulse
     )
-elseif(BUILD_TEST STREQUAL "audio_recorder")
+elseif(BUILD_TEST STREQUAL "recorder")
     add_subdirectory(src/common)
     add_subdirectory(src/capture)
     add_subdirectory(src/recorder)
     add_subdirectory(src/v4l2_codecs)
-    add_executable(test_audio_recorder test/test_audio_recorder.cpp)
+    add_executable(test_recorder test/test_recorder.cpp)
 
-    target_link_libraries(test_audio_recorder
+    target_link_libraries(test_recorder
         capture
         common
         recorder
         Threads::Threads
         ${WEBRTC_LINK_LIBS}
-        pulse-simple pulse avformat avcodec swscale avutil
         ${WEBRTC_LIBRARY}
     )
 elseif(BUILD_TEST STREQUAL "mqtt")
