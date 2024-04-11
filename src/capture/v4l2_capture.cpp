@@ -72,29 +72,6 @@ webrtc::VideoType V4L2Capture::type() const {
     return video_type_;
 }
 
-void V4L2Capture::Next(Buffer buffer) {
-    for (auto &observer : observers_) {
-        if (observer && observer->subscribed_func_ != nullptr) {
-            auto task = std::async(std::launch::async, observer->subscribed_func_, buffer);
-        }
-    }
-}
-
-std::shared_ptr<Observable<Buffer>> V4L2Capture::AsObservable() {
-    auto observer = std::make_shared<Observable<Buffer>>();
-    observers_.push_back(observer);
-    return observer;
-}
-
-void V4L2Capture::UnSubscribe() {
-    auto it = observers_.begin();
-    while (it != observers_.end())
-    {
-        it->reset();
-        it = observers_.erase(it);
-    }
-}
-
 bool V4L2Capture::CheckMatchingDevice(std::string unique_name) {
     struct v4l2_capability cap;
     if (V4l2Util::QueryCapabilities(fd_, &cap) && cap.bus_info[0] != 0
