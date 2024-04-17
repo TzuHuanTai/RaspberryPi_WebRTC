@@ -10,16 +10,15 @@ public:
     static std::unique_ptr<H264Recorder> Create(Args config);
     H264Recorder(Args config, std::string encoder_name);
     ~H264Recorder();
+    void ResetCodecs() override;
 
 protected:
     void Encode(Buffer buffer) override;
 
 private:
-    int frame_count_;
+    bool is_ready_;
     std::unique_ptr<V4l2Decoder> decoder_;
     std::unique_ptr<V4l2Encoder> encoder_;
-
-    void ResetCodecs();
 };
 
 #endif

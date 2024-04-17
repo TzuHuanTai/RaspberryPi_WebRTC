@@ -26,6 +26,8 @@ public:
         InitializeEncoder();
     }
 
+    virtual void ResetCodecs() {}
+
     bool AddStream(AVFormatContext *output_fmt_ctx) {
         frame_count = 0;
         InitializeEncoder();
