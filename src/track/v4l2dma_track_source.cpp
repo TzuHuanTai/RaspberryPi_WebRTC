@@ -64,8 +64,8 @@ void V4l2DmaTrackSource::OnFrameCaptured(Buffer buffer) {
         }
     }
 
-    decoder_->EmplaceBuffer(buffer, [&](Buffer decoded_buffer) {
-        scaler_->EmplaceBuffer(decoded_buffer, [&](Buffer scaled_buffer) {
+    decoder_->EmplaceBuffer(buffer, [this, translated_timestamp_us](Buffer decoded_buffer) {
+        scaler_->EmplaceBuffer(decoded_buffer, [this, translated_timestamp_us](Buffer scaled_buffer) {
             rtc::scoped_refptr<webrtc::VideoFrameBuffer> dst_buffer = nullptr;
 
             if (!capture_->is_dma()) {
