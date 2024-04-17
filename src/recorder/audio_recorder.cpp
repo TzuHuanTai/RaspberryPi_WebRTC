@@ -116,4 +116,7 @@ void AudioRecorder::OnBuffer(PaBuffer buffer) {
     while (encoder && st && av_audio_fifo_size(fifo_buffer) >= encoder->frame_size) {
         Encode(st->index);
     }
+
+    av_freep(&converted_input_samples[0]);
+    av_freep(&converted_input_samples);
 }
