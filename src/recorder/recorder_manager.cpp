@@ -119,6 +119,12 @@ void RecorderManager::Stop() {
     }
     fmt_ctx = nullptr;
     frame_count = 0;
+    if (video_recorder) {
+        video_recorder->ResetCodecs();
+    }
+    if (audio_recorder) {
+        audio_recorder->ResetCodecs();
+    }
 }
 
 RecorderManager::~RecorderManager() {
