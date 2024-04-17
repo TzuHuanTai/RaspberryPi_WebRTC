@@ -85,7 +85,8 @@ void RecorderManager::SubscribeAudioSource(std::shared_ptr<PaCapture> audio_src)
 void RecorderManager::WriteIntoFile(AVPacket *pkt) {
     std::lock_guard<std::mutex> lock(ctx_mux);
     int ret;
-    if (fmt_ctx && (ret = av_interleaved_write_frame(fmt_ctx, pkt)) < 0) {
+    if (fmt_ctx && fmt_ctx->nb_streams > pkt->stream_index &&
+        (ret = av_interleaved_write_frame(fmt_ctx, pkt)) < 0) {
         char err_buf[AV_ERROR_MAX_STRING_SIZE];
         av_strerror(ret, err_buf, sizeof(err_buf));
         fprintf(stderr, "Error occurred: %s\n", err_buf);
