@@ -25,7 +25,7 @@ std::unique_ptr<RecorderManager> RecorderManager::Create(
 void RecorderManager::CreateVideoRecorder(
     std::shared_ptr<V4L2Capture> capture) {
     fps = capture->fps();
-    video_recorder = ([&, capture]() -> std::unique_ptr<VideoRecorder> {
+    video_recorder = ([capture]() -> std::unique_ptr<VideoRecorder> {
         if (capture->format() == V4L2_PIX_FMT_H264) {
             return RawH264Recorder::Create(capture->config());
         } else {
@@ -35,7 +35,7 @@ void RecorderManager::CreateVideoRecorder(
 }
 
 void RecorderManager::CreateAudioRecorder(std::shared_ptr<PaCapture> capture) {
-    audio_recorder = ([&]() -> std::unique_ptr<AudioRecorder> {
+    audio_recorder = ([capture]() -> std::unique_ptr<AudioRecorder> {
         return AudioRecorder::Create(capture->config());
     })();
 }
@@ -52,7 +52,7 @@ RecorderManager::RecorderManager(std::shared_ptr<V4L2Capture> video_src,
 
 void RecorderManager::SubscribeVideoSource(std::shared_ptr<V4L2Capture> video_src) {
     video_observer = video_src->AsObservable();
-    video_observer->Subscribe([&](Buffer buffer) {
+    video_observer->Subscribe([this](Buffer buffer) {
         // waiting first keyframe to start recorders.
         if (!has_first_keyframe && frame_count == 0 &&
             buffer.flags & V4L2_BUF_FLAG_KEYFRAME) {
@@ -75,7 +75,7 @@ void RecorderManager::SubscribeVideoSource(std::shared_ptr<V4L2Capture> video_sr
 
 void RecorderManager::SubscribeAudioSource(std::shared_ptr<PaCapture> audio_src) {
     audio_observer = audio_src->AsObservable();
-    audio_observer->Subscribe([&](PaBuffer buffer) {
+    audio_observer->Subscribe([this](PaBuffer buffer) {
         if (has_first_keyframe && audio_recorder) {
             audio_recorder->OnBuffer(buffer);
         }

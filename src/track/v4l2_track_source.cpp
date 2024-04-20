@@ -33,7 +33,7 @@ void V4L2TrackSource::StartTrack() {
     Init();
 
     auto observer = capture_->AsObservable();
-    observer->Subscribe([&](Buffer buffer) {
+    observer->Subscribe([this](Buffer buffer) {
         OnFrameCaptured(buffer);
     });
 }

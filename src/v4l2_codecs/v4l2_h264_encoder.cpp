@@ -74,7 +74,7 @@ int32_t V4l2H264Encoder::Encode(
         };
     }
 
-    encoder_->EmplaceBuffer(src_buffer, [&](Buffer encoded_buffer) {
+    encoder_->EmplaceBuffer(src_buffer, [this, frame](Buffer encoded_buffer) {
         SendFrame(frame, encoded_buffer);
     });
 

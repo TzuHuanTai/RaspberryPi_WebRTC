@@ -21,12 +21,12 @@ V4l2DmaTrackSource::V4l2DmaTrackSource(std::shared_ptr<V4L2Capture> capture)
       has_first_keyframe_(false) {}
 
 void V4l2DmaTrackSource::Init() {
-    auto s = std::async(std::launch::async, [&]() {
+    auto s = std::async(std::launch::async, [this]() {
         scaler_ = std::make_unique<V4l2Scaler>();
         scaler_->Configure(width_, height_, width_, height_, true, capture_->is_dma());
     });
 
-    auto d = std::async(std::launch::async, [&]() {
+    auto d = std::async(std::launch::async, [this]() {
         decoder_ = std::make_unique<V4l2Decoder>();
         decoder_->Configure(width_, height_, capture_->format(), true);
     });

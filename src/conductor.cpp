@@ -49,7 +49,7 @@ rtc::scoped_refptr<Conductor> Conductor::Create(Args args) {
 Conductor::Conductor(Args args) : args(args) {}
 
 bool Conductor::InitializeSignaling() {
-    signaling_service_ = ([&]() -> std::unique_ptr<SignalingService> {
+    signaling_service_ = ([this]() -> std::unique_ptr<SignalingService> {
 #if USE_MQTT_SIGNALING
         return MqttService::Create(args, this);
 #elif USE_SIGNALR_SIGNALING
@@ -181,7 +181,7 @@ void Conductor::CreateDataChannel()
         std::cout << "Succeeds to create data channel" << std::endl;
         data_channel_subject_->SetDataChannel(result.MoveValue());
         auto observer = data_channel_subject_->AsObservable(CommandType::CONNECT);
-        observer->Subscribe([&](char *message) {
+        observer->Subscribe([this](char *message) {
             std::cout << "[OnDataChannel]: received msg => " << message << std::endl;
             if (strcmp(message, "false") == 0)
             {
