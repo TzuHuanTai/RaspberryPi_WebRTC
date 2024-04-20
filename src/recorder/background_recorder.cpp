@@ -66,7 +66,7 @@ void BackgroundRecorder::Start() {
         audio_capture_ = PaCapture::Create(args_);
         recorder_mgr_ = RecorderManager::Create(video_capture_, audio_capture_, 
                                                 args_.record_path);
-        worker_.reset(new Worker([&]() { RotateFiles();}));
+        worker_.reset(new Worker([this]() { RotateFiles();}));
         worker_->Run();
     } else {
         std::cout << "Background recorder is not started!" << std::endl;
