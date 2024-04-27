@@ -1,4 +1,4 @@
-#include "v4l2_track_source.h"
+#include "track/swscale_track_source.h"
 
 #include <cmath>
 
@@ -10,14 +10,15 @@
 
 static const int kBufferAlignment = 64;
 
-rtc::scoped_refptr<V4L2TrackSource> V4L2TrackSource::Create(
+rtc::scoped_refptr<SwScaleTrackSource> SwScaleTrackSource::Create(
     std::shared_ptr<V4L2Capture> capture) {
-    auto obj = rtc::make_ref_counted<V4L2TrackSource>(std::move(capture));
+    auto obj = rtc::make_ref_counted<SwScaleTrackSource>(std::move(capture));
+    obj->Init();
     obj->StartTrack();
     return obj;
 }
 
-V4L2TrackSource::V4L2TrackSource(std::shared_ptr<V4L2Capture> capture)
+SwScaleTrackSource::SwScaleTrackSource(std::shared_ptr<V4L2Capture> capture)
     : capture_(capture),
       width_(capture->width()),
       height_(capture->height()),
@@ -25,12 +26,12 @@ V4L2TrackSource::V4L2TrackSource(std::shared_ptr<V4L2Capture> capture)
       config_height_(capture->height()),
       src_video_type_(capture->type()) {}
 
-V4L2TrackSource::~V4L2TrackSource() {
+SwScaleTrackSource::~SwScaleTrackSource() {
     // todo: tell capture unsubscribe observer.
 }
 
-void V4L2TrackSource::StartTrack() {
-    Init();
+void SwScaleTrackSource::StartTrack() {
+    
 
     auto observer = capture_->AsObservable();
     observer->Subscribe([this](Buffer buffer) {
@@ -38,7 +39,7 @@ void V4L2TrackSource::StartTrack() {
     });
 }
 
-void V4L2TrackSource::OnFrameCaptured(Buffer buffer) {
+void SwScaleTrackSource::OnFrameCaptured(Buffer buffer) {
     rtc::scoped_refptr<webrtc::VideoFrameBuffer> dst_buffer = nullptr;
     rtc::TimestampAligner timestamp_aligner_;
     const int64_t timestamp_us = rtc::TimeMicros();
@@ -80,18 +81,18 @@ void V4L2TrackSource::OnFrameCaptured(Buffer buffer) {
             .build());
 }
 
-webrtc::MediaSourceInterface::SourceState V4L2TrackSource::state() const {
+webrtc::MediaSourceInterface::SourceState SwScaleTrackSource::state() const {
     return SourceState::kLive;
 }
 
-bool V4L2TrackSource::remote() const {
+bool SwScaleTrackSource::remote() const {
     return false;
 }
 
-bool V4L2TrackSource::is_screencast() const {
+bool SwScaleTrackSource::is_screencast() const {
     return false;
 }
 
-absl::optional<bool> V4L2TrackSource::needs_denoising() const {
+absl::optional<bool> SwScaleTrackSource::needs_denoising() const {
     return false;
 }
