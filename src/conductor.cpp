@@ -1,6 +1,6 @@
 #include "conductor.h"
 #include "capture/v4l2_capture.h"
-#include "track/v4l2_track_source.h"
+#include "track/swscale_track_source.h"
 #include "track/v4l2dma_track_source.h"
 #include "customized_video_encoder_factory.h"
 #if USE_MQTT_SIGNALING
@@ -88,7 +88,7 @@ void Conductor::InitializeTracks() {
         if (args.enable_v4l2_dma || args.v4l2_format == "h264") {
             return V4l2DmaTrackSource::Create(video_caputre_source_);
         } else {
-            return V4L2TrackSource::Create(video_caputre_source_);
+            return SwScaleTrackSource::Create(video_caputre_source_);
         }
     })();
 

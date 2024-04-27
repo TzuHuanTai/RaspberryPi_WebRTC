@@ -12,13 +12,19 @@
 rtc::scoped_refptr<V4l2DmaTrackSource> V4l2DmaTrackSource::Create(
     std::shared_ptr<V4L2Capture> capture) {
     auto obj = rtc::make_ref_counted<V4l2DmaTrackSource>(std::move(capture));
+    obj->Init();
     obj->StartTrack();
     return obj;
 }
 
 V4l2DmaTrackSource::V4l2DmaTrackSource(std::shared_ptr<V4L2Capture> capture)
-    : V4L2TrackSource(capture),
+    : SwScaleTrackSource(capture),
       has_first_keyframe_(false) {}
+
+V4l2DmaTrackSource::~V4l2DmaTrackSource() {
+    scaler_.reset();
+    decoder_.reset();
+}
 
 void V4l2DmaTrackSource::Init() {
     auto s = std::async(std::launch::async, [this]() {
