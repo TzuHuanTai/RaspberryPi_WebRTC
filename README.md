@@ -44,6 +44,7 @@ Using v4l2 dma hardware encoder with WebRTC reduces CPU usage. Both `signalr` an
 |   -DUSE_SIGNALR_SIGNALING   | Build the project by using SignalR as signaling. | ON, OFF |
 |   -DUSE_MQTT_SIGNALING      | Build the project by using MOSQUITTO as signaling. | ON, OFF |
 |   -DBUILD_TEST              | Build the test codes | recorder, mqtt, v4l2_capture, v4l2_encoder, v4l2_decoder, v4l2_scaler |
+|   -DUSE_BUILT_IN_H264       | Use the built-in openh264 software encoder | ON, OFF |
 
 Build on raspberry pi and it'll output a `pi_webrtc` file in `/build`.
 ```bash
@@ -78,9 +79,10 @@ Set `pi_webrtc` to run as a daemon.
     [Service]
     Type=simple
     WorkingDirectory=/home/pi/IoT/RaspberryPi_WebRTC/build
-    ExecStart=/home/pi/IoT/RaspberryPi_WebRTC/build/pi_webrtc --fps=30 --width=1280 --height=720 --signaling_url=http://localhost:6080/SignalingServer --v4l2_format=h264 --enable_v4l2_dma
+    ExecStartPre=/bin/sleep 60
+    ExecStart=/home/pi/IoT/RaspberryPi_WebRTC/build/pi_webrtc --fps=30 --width=1280 --height=720 --v4l2_format=h264 --enable_v4l2_dma --mqtt_username=hakunamatata --mqtt_password=wonderful --record_path=/home/pi/video/
     Restart=always
-    RestartSec=10
+    RestartSec=20
       
     [Install]
     WantedBy=multi-user.target
