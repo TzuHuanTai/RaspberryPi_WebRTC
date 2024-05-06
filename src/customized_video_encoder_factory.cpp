@@ -38,9 +38,9 @@ CustomizedVideoEncoderFactory::GetSupportedFormats() const {
                             std::end(supported_h264_formats));
 #else
     supported_codecs.push_back(CreateH264Format(webrtc::H264Profile::kProfileBaseline,
-                               webrtc::H264Level::kLevel3_1, "1"));
+                               webrtc::H264Level::kLevel4, "1"));
     supported_codecs.push_back(CreateH264Format(webrtc::H264Profile::kProfileBaseline,
-                               webrtc::H264Level::kLevel3_1, "0"));
+                               webrtc::H264Level::kLevel4, "0"));
 #endif
     return supported_codecs;
 }
