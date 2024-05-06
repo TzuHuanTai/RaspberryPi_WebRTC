@@ -75,28 +75,27 @@ bool Conductor::InitializeRecorder() {
 }
 
 void Conductor::InitializeTracks() {
-    auto options = peer_connection_factory_->CreateAudioSource(cricket::AudioOptions());
-    audio_track_ =
-        peer_connection_factory_->CreateAudioTrack("audio_track", options.get());
-
-    if (args.device.empty()) {
-            return;
+    if (audio_track_ == nullptr) {
+        auto options = peer_connection_factory_->CreateAudioSource(cricket::AudioOptions());
+        audio_track_ = peer_connection_factory_->CreateAudioTrack("audio_track", options.get());
     }
-    /* split into capture and track source*/
-    video_caputre_source_ = V4L2Capture::Create(args);
-    auto video_track_source =  ([this]() -> rtc::scoped_refptr<rtc::AdaptedVideoTrackSource> {
-        if (args.enable_v4l2_dma || args.v4l2_format == "h264") {
-            return V4l2DmaTrackSource::Create(video_caputre_source_);
-        } else {
-            return SwScaleTrackSource::Create(video_caputre_source_);
-        }
-    })();
 
-    rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> video_source =
-        webrtc::VideoTrackSourceProxy::Create(
-            signaling_thread_.get(), worker_thread_.get(), video_track_source);
-    video_track_ =
-        peer_connection_factory_->CreateVideoTrack(video_source, "video_track");
+    if (video_track_ == nullptr && !args.device.empty()) {
+        video_caputre_source_ = V4L2Capture::Create(args);
+        auto video_track_source =  ([this]() -> rtc::scoped_refptr<rtc::AdaptedVideoTrackSource> {
+            if (args.enable_v4l2_dma || args.v4l2_format == "h264") {
+                return V4l2DmaTrackSource::Create(video_caputre_source_);
+            } else {
+                return SwScaleTrackSource::Create(video_caputre_source_);
+            }
+        })();
+
+        rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> video_source =
+            webrtc::VideoTrackSourceProxy::Create(signaling_thread_.get(),
+                                                  worker_thread_.get(),
+                                                  video_track_source);
+        video_track_ = peer_connection_factory_->CreateVideoTrack(video_source, "video_track");
+    }
 }
 
 void Conductor::AddTracks() {
@@ -107,23 +106,26 @@ void Conductor::AddTracks() {
 
     std::string stream_id = "test_stream_id";
 
-    auto audio_res = peer_connection_->AddTrack(audio_track_, {stream_id});
-    if (!audio_res.ok()) {
-        std::cout << "=> AddTracks: audio_track_ failed" << audio_res.error().message() << std::endl;
+    if (audio_track_) {
+        auto audio_res = peer_connection_->AddTrack(audio_track_, {stream_id});
+        if (!audio_res.ok()) {
+            std::cout << "=> AddTracks: audio_track_ failed"
+                      << audio_res.error().message() << std::endl;
+        }
     }
 
-    if (!video_track_) {
-        return;
-    }
-    auto video_res = peer_connection_->AddTrack(video_track_, {stream_id});
-    if (!video_res.ok()) {
-        std::cout << "=> AddTracks: video_track_ failed" << video_res.error().message() << std::endl;
-    }
+    if (video_track_) {
+        auto video_res = peer_connection_->AddTrack(video_track_, {stream_id});
+        if (!video_res.ok()) {
+            std::cout << "=> AddTracks: video_track_ failed"
+                      << video_res.error().message() << std::endl;
+        }
 
-    video_sender_ = video_res.value();
-    webrtc::RtpParameters parameters = video_sender_->GetParameters();
-    parameters.degradation_preference = webrtc::DegradationPreference::MAINTAIN_FRAMERATE;
-    video_sender_->SetParameters(parameters);
+        video_sender_ = video_res.value();
+        webrtc::RtpParameters parameters = video_sender_->GetParameters();
+        parameters.degradation_preference = webrtc::DegradationPreference::MAINTAIN_FRAMERATE;
+        video_sender_->SetParameters(parameters);
+    }
 }
 
 bool Conductor::CreatePeerConnection() {
