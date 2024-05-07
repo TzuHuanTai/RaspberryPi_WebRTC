@@ -112,7 +112,7 @@ private:
     std::unique_ptr<rtc::Thread> signaling_thread_;
     std::unique_ptr<BackgroundRecorder> bg_recorder_;
     std::unique_ptr<SignalingService> signaling_service_;
-    std::shared_ptr<V4L2Capture> video_caputre_source_;
+    std::shared_ptr<V4L2Capture> video_capture_source_;
     rtc::VideoSinkInterface<webrtc::VideoFrame> *custom_video_sink_;
     rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer_connection_;
     rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> peer_connection_factory_;
