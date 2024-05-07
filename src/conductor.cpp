@@ -68,7 +68,7 @@ bool Conductor::InitializeRecorder() {
     }
 
     bg_recorder_ = BackgroundRecorder::CreateBackgroundRecorder(
-        video_caputre_source_, RecorderFormat::H264);
+        video_capture_source_, RecorderFormat::H264);
     bg_recorder_->Start();    
 
     return true;
@@ -81,12 +81,12 @@ void Conductor::InitializeTracks() {
     }
 
     if (video_track_ == nullptr && !args.device.empty()) {
-        video_caputre_source_ = V4L2Capture::Create(args);
+        video_capture_source_ = V4L2Capture::Create(args);
         auto video_track_source =  ([this]() -> rtc::scoped_refptr<rtc::AdaptedVideoTrackSource> {
             if (args.enable_v4l2_dma || args.v4l2_format == "h264") {
-                return V4l2DmaTrackSource::Create(video_caputre_source_);
+                return V4l2DmaTrackSource::Create(video_capture_source_);
             } else {
-                return SwScaleTrackSource::Create(video_caputre_source_);
+                return SwScaleTrackSource::Create(video_capture_source_);
             }
         })();
 
@@ -268,7 +268,7 @@ void Conductor::OnTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> tran
 }
 
 void Conductor::OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState new_state) {
-    std::cout << "[Condictor] OnSignalingChange: ";
+    std::cout << "[Conductor] OnSignalingChange: ";
     std::cout << webrtc::PeerConnectionInterface::PeerConnectionInterface::AsString(new_state) << std::endl;
     if (new_state == webrtc::PeerConnectionInterface::SignalingState::kClosed) {
         signaling_service_.reset();
@@ -393,6 +393,8 @@ Conductor::~Conductor() {
     bg_recorder_->Stop();
     audio_track_ = nullptr;
     video_track_ = nullptr;
+    video_capture_source_ = nullptr;
+    custom_video_sink_ = nullptr;
     peer_connection_ = nullptr;
     peer_connection_factory_ = nullptr;
     rtc::CleanupSSL();
