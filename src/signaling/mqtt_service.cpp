@@ -10,15 +10,14 @@
 #include <nlohmann/json.hpp>
 #include <mqtt_protocol.h>
 
-std::unique_ptr<MqttService> MqttService::Create(
-    Args args, SignalingMessageObserver* callback) {
-    auto ptr = std::make_unique<MqttService>(args, callback);
+std::shared_ptr<MqttService> MqttService::Create(Args args) {
+    auto ptr = std::make_shared<MqttService>(args);
     ptr->Connect();
     return ptr;
 }
 
-MqttService::MqttService(Args args, SignalingMessageObserver* callback)
-    : SignalingService(callback),
+MqttService::MqttService(Args args)
+    : SignalingService(),
       port_(args.mqtt_port),
       hostname_(args.mqtt_host),
       username_(args.mqtt_username),
@@ -34,7 +33,9 @@ void MqttService::ListenOfferSdp(std::string message) {
     std::string sdp = jsonObj["sdp"];
     std::string type = jsonObj["type"];
     std::cout << "Received remote [" << type << "] SDP:\n" << sdp << std::endl;
-    callback_->OnRemoteSdp(sdp, type);
+    if (callback_) {
+        callback_->OnRemoteSdp(sdp, type);
+    }
 }
 
 void MqttService::ListenOfferIce(std::string message) {
@@ -43,7 +44,9 @@ void MqttService::ListenOfferIce(std::string message) {
     int sdp_mline_index = jsonObj["sdpMLineIndex"];
     std::string candidate = jsonObj["candidate"];
     std::cout << "Received remote ICE: " << sdp_mline_index << ", " << sdp_mid << ", " << candidate << std::endl;
-    callback_->OnRemoteIce(sdp_mid, sdp_mline_index, candidate);
+    if (callback_) {
+        callback_->OnRemoteIce(sdp_mid, sdp_mline_index, candidate);
+    }
 }
 
 void MqttService::AnswerLocalSdp(std::string sdp, std::string type) {

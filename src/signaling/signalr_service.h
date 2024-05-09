@@ -22,15 +22,14 @@ struct SignalrTopic {
 
 class SignalrService : public SignalingService {
 public:
-    static std::unique_ptr<SignalrService> Create(
-        Args args, SignalingMessageObserver* callback);
+    static std::shared_ptr<SignalrService> Create(Args args);
 
     SignalrTopic topics;
     std::mutex mtx;
     std::condition_variable cond_var;
     bool ready = false;
 
-    SignalrService(Args args, SignalingMessageObserver* callback);
+    SignalrService(Args args);
     ~SignalrService() override {
         std::cout << "=> ~SignalrService: destroied" << std::endl;
     };

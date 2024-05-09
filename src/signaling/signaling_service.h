@@ -14,8 +14,15 @@ public:
 
 class SignalingService {
 public:
-    SignalingService(SignalingMessageObserver* callback) : callback_(callback) {};
+    SignalingService() : callback_(nullptr) {};
     virtual ~SignalingService() {};
+
+    void ResetCallback(SignalingMessageObserver* callback) {
+        callback_ = callback;
+    };
+    void ResetCallback() {
+        callback_ = nullptr;
+    };
 
     virtual void AnswerLocalSdp(std::string sdp, std::string type) = 0;
     virtual void AnswerLocalIce(std::string sdp_mid,

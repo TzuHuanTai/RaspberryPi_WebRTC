@@ -13,11 +13,10 @@ struct MqttTopic {
 
 class MqttService : public SignalingService {
 public:
-    static std::unique_ptr<MqttService> Create(
-        Args args, SignalingMessageObserver* callback);
+    static std::shared_ptr<MqttService> Create(Args args);
     MqttTopic topics;
 
-    MqttService(Args args, SignalingMessageObserver* callback);
+    MqttService(Args args);
     ~MqttService() override;
 
     void Connect() override;

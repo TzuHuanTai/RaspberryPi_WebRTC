@@ -13,13 +13,13 @@ int main(int argc, char *argv[]) {
     while (true) {
         conductor->CreatePeerConnection();
 
-        std::cout << "=> main: wait for signaling!" << std::endl;
+        std::cout << "[main] wait for signaling!" << std::endl;
         std::unique_lock<std::mutex> lock(conductor->state_mtx);
         conductor->streaming_state.wait(lock, [&]{return conductor->IsReadyForStreaming();});
 
+        std::cout << "[main] timeout waiting..." << std::endl;
         conductor->Timeout(5);
 
-        std::cout << "=> main: wait for closing!" << std::endl;
         conductor->streaming_state.wait(lock, [&]{return !conductor->IsReadyForStreaming();});
     }
     

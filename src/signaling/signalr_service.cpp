@@ -6,16 +6,15 @@
 #include <map>
 #include <unistd.h>
 
-std::unique_ptr<SignalrService> SignalrService::Create(
-    Args args, SignalingMessageObserver* callback) {
-    auto ptr = std::make_unique<SignalrService>(args, callback);
+std::shared_ptr<SignalrService> SignalrService::Create(Args args) {
+    auto ptr = std::make_shared<SignalrService>(args);
     ptr->AutoReconnect()
         .Connect();
     return ptr;
 }
 
-SignalrService::SignalrService(Args args, SignalingMessageObserver* callback)
-    : SignalingService(callback),
+SignalrService::SignalrService(Args args)
+    : SignalingService(),
       url(args.signaling_url),
       connection_(signalr::hub_connection_builder::create(url).build()) {}
 
@@ -50,7 +49,9 @@ void SignalrService::ListenOfferSdp() {
                 type = s.second.as_string();
             }
         }
-        callback_->OnRemoteSdp(sdp, type);
+        if (callback_) {
+            callback_->OnRemoteSdp(sdp, type);
+        }
     });
 }
 
@@ -73,8 +74,9 @@ void SignalrService::ListenOfferIce() {
             }
         }
         std::cout << "=> OfferICE: " << sdp_mline_index << ", " << sdp_mid << ", " << candidate << std::endl;
-
-        callback_->OnRemoteIce(sdp_mid, sdp_mline_index, candidate);
+        if (callback_) {
+            callback_->OnRemoteIce(sdp_mid, sdp_mline_index, candidate);
+        }
     });
 }
 
