@@ -12,7 +12,6 @@
 #include <functional>
 #include <mutex>
 #include <condition_variable>
-// #include <map>
 
 #include <rtc_base/thread.h>
 #include <api/peer_connection_interface.h>
@@ -22,7 +21,7 @@ public:
     static std::shared_ptr<Conductor> Create(Args args);
 
     std::mutex state_mtx;
-    std::condition_variable streaming_state;
+    std::condition_variable ready_state;
     Args args;
 
     Conductor(Args args);
@@ -31,21 +30,21 @@ public:
     bool CreatePeerConnection();
     rtc::scoped_refptr<webrtc::PeerConnectionInterface> GetPeer() const;
     void SetSink(rtc::VideoSinkInterface<webrtc::VideoFrame> *video_sink_obj);
-    void SetStreamingReadyState(bool state);
-    bool IsReadyForStreaming() const;
+    bool IsReady() const;
     void Timeout(int second);
 
 private:
     int peers_idx = 0;
-    bool is_connected = false;
-    bool is_ready_for_streaming = false;
-    std::map<int, rtc::scoped_refptr<RtcPeer>> peers_map;
+    bool is_ready = false;
+    std::unordered_map<int, rtc::scoped_refptr<RtcPeer>> peers_map;
 
     bool InitializePeerConnectionFactory();
     void InitializeTracks();
     bool InitializeSignaling(Args args);
     bool InitializeRecorder();
     void AddTracks(rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer_connection);
+    void RefreshPeerList();
+    void SetPeerReadyState(bool state);
 
     std::unique_ptr<rtc::Thread> network_thread_;
     std::unique_ptr<rtc::Thread> worker_thread_;

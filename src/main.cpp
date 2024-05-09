@@ -15,12 +15,12 @@ int main(int argc, char *argv[]) {
 
         std::cout << "[main] wait for signaling!" << std::endl;
         std::unique_lock<std::mutex> lock(conductor->state_mtx);
-        conductor->streaming_state.wait(lock, [&]{return conductor->IsReadyForStreaming();});
+        conductor->ready_state.wait(lock, [&]{return conductor->IsReady();});
 
         std::cout << "[main] timeout waiting..." << std::endl;
         conductor->Timeout(5);
 
-        conductor->streaming_state.wait(lock, [&]{return !conductor->IsReadyForStreaming();});
+        conductor->ready_state.wait(lock, [&]{return !conductor->IsReady();});
     }
     
     return 0;
