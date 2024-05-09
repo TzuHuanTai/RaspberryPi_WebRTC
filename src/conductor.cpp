@@ -13,7 +13,6 @@
 #include <api/audio_codecs/builtin_audio_decoder_factory.h>
 #include <api/audio_codecs/builtin_audio_encoder_factory.h>
 #include <api/create_peerconnection_factory.h>
-#include <api/data_channel_interface.h>
 #include <api/rtc_event_log/rtc_event_log_factory.h>
 #include <api/task_queue/default_task_queue_factory.h>
 #include "api/video_codecs/video_decoder_factory.h"
@@ -30,15 +29,15 @@
 #include <modules/audio_device/linux/audio_device_pulse_linux.h>
 #include <modules/audio_processing/include/audio_processing.h>
 #include <rtc_base/ssl_adapter.h>
-#include <rtc_base/thread.h>
 
-rtc::scoped_refptr<Conductor> Conductor::Create(Args args) {
-    auto ptr = rtc::make_ref_counted<Conductor>(args);
+std::shared_ptr<Conductor> Conductor::Create(Args args) {
+    auto ptr = std::make_shared<Conductor>(args);
     if (!ptr->InitializePeerConnectionFactory()) {
         std::cout << "[Conductor] Initialize PeerConnection failed!" << std::endl;
     }
 
     ptr->InitializeTracks();
+    ptr->InitializeSignaling(args);
 
     if (!ptr->InitializeRecorder()) {
         std::cout << "[Conductor] Recorder is not created!" << std::endl;
@@ -48,12 +47,12 @@ rtc::scoped_refptr<Conductor> Conductor::Create(Args args) {
 
 Conductor::Conductor(Args args) : args(args) {}
 
-bool Conductor::InitializeSignaling() {
-    signaling_service_ = ([this]() -> std::unique_ptr<SignalingService> {
+bool Conductor::InitializeSignaling(Args args) {
+    signaling_service_ = ([args]() -> std::shared_ptr<SignalingService> {
 #if USE_MQTT_SIGNALING
-        return MqttService::Create(args, this);
+        return MqttService::Create(args);
 #elif USE_SIGNALR_SIGNALING
-        return SignalrService::Create(args, this);
+        return SignalrService::Create(args);
 #else
         return nullptr;
 #endif
@@ -98,8 +97,8 @@ void Conductor::InitializeTracks() {
     }
 }
 
-void Conductor::AddTracks() {
-    if (!peer_connection_->GetSenders().empty()) {
+void Conductor::AddTracks(rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer_connection) {
+    if (!peer_connection->GetSenders().empty()) {
         std::cout << "=> AddTracks: already add tracks." << std::endl;
         return;
     }
@@ -107,7 +106,7 @@ void Conductor::AddTracks() {
     std::string stream_id = "test_stream_id";
 
     if (audio_track_) {
-        auto audio_res = peer_connection_->AddTrack(audio_track_, {stream_id});
+        auto audio_res = peer_connection->AddTrack(audio_track_, {stream_id});
         if (!audio_res.ok()) {
             std::cout << "=> AddTracks: audio_track_ failed"
                       << audio_res.error().message() << std::endl;
@@ -115,13 +114,13 @@ void Conductor::AddTracks() {
     }
 
     if (video_track_) {
-        auto video_res = peer_connection_->AddTrack(video_track_, {stream_id});
+        auto video_res = peer_connection->AddTrack(video_track_, {stream_id});
         if (!video_res.ok()) {
             std::cout << "=> AddTracks: video_track_ failed"
                       << video_res.error().message() << std::endl;
         }
 
-        video_sender_ = video_res.value();
+        auto video_sender_ = video_res.value();
         webrtc::RtpParameters parameters = video_sender_->GetParameters();
         parameters.degradation_preference = webrtc::DegradationPreference::MAINTAIN_FRAMERATE;
         video_sender_->SetParameters(parameters);
@@ -129,6 +128,7 @@ void Conductor::AddTracks() {
 }
 
 bool Conductor::CreatePeerConnection() {
+    std::cout << "[Conductor] Start to create a peer connection." << std::endl;
     webrtc::PeerConnectionInterface::RTCConfiguration config;
     config.sdp_semantics = webrtc::SdpSemantics::kUnifiedPlan;
     webrtc::PeerConnectionInterface::IceServer server;
@@ -143,59 +143,31 @@ bool Conductor::CreatePeerConnection() {
         config.servers.push_back(turn_server);
     }
 
+    peer_ = RtcPeer::Create(args);
     auto result = peer_connection_factory_->CreatePeerConnectionOrError(
-        config, webrtc::PeerConnectionDependencies(this));
+        config, webrtc::PeerConnectionDependencies(peer_.get()));
 
-    if (!result.ok()) {
-        peer_connection_ = nullptr;
-        return false;
-    } else {
-        peer_connection_ = result.MoveValue();
-        InitializeSignaling();
-        CreateDataChannel();
-        AddTracks();
+    if (result.ok()) {
+        peer_->SetPeer(result.MoveValue());
+        peer_->CreateDataChannel();
+        peer_->SetSignalingService(signaling_service_);
+        peer_->OnStreamingState([this](bool state) {
+            SetStreamingReadyState(state);
+        });
+        AddTracks(peer_->GetPeer());
+        std::cout << "[Conductor] Peer connection is created!" << std::endl;
+        return true;
     }
-  
-    return peer_connection_ != nullptr;
+    std::cout << "[Conductor] Peer connection is failed to create!" << std::endl;
+    return false;
 }
 
 rtc::scoped_refptr<webrtc::PeerConnectionInterface> Conductor::GetPeer() const {
-    if (!peer_connection_) {
-        std::cout << "failed: peer connection is not found!" << std::endl;
-        return nullptr;
-    }
-    return peer_connection_;
+    return peer_->GetPeer();
 }
 
 void Conductor::SetSink(rtc::VideoSinkInterface<webrtc::VideoFrame> *video_sink_obj) {
-    custom_video_sink_ = std::move(video_sink_obj);
-}
-
-void Conductor::CreateDataChannel()
-{
-    struct webrtc::DataChannelInit init;
-    init.ordered = true;
-    init.reliable = true;
-    init.id = 0;
-    auto result = peer_connection_->CreateDataChannelOrError("cmd_channel", &init);
-
-    if (result.ok()) {
-        std::cout << "Succeeds to create data channel" << std::endl;
-        data_channel_subject_->SetDataChannel(result.MoveValue());
-        auto observer = data_channel_subject_->AsObservable(CommandType::CONNECT);
-        observer->Subscribe([this](char *message) {
-            std::cout << "[OnDataChannel]: received msg => " << message << std::endl;
-            if (strcmp(message, "false") == 0)
-            {
-                peer_connection_->Close();
-                data_channel_subject_->UnSubscribe();
-            }
-        });
-    }
-    else
-    {
-        std::cout << "Fails to create data channel" << std::endl;
-    }
+    peer_->SetSink(std::move(video_sink_obj));
 }
 
 bool Conductor::InitializePeerConnectionFactory() {
@@ -214,8 +186,6 @@ bool Conductor::InitializePeerConnectionFactory() {
     if (signaling_thread_->Start()) {
         std::cout << "=> signaling thread start: success!" << std::endl;
     }
-
-    data_channel_subject_ = std::make_shared<DataChannelSubject>();
 
     webrtc::PeerConnectionFactoryDependencies dependencies;
     dependencies.network_thread = network_thread_.get();;
@@ -257,68 +227,20 @@ bool Conductor::InitializePeerConnectionFactory() {
     return peer_connection_factory_ != nullptr;
 }
 
-void Conductor::OnTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver) {
-    if (transceiver->receiver()->media_type() == cricket::MediaType::MEDIA_TYPE_VIDEO
-        && custom_video_sink_) {
-        auto track = transceiver->receiver()->track();
-        auto remote_video_track = static_cast<webrtc::VideoTrackInterface*>(track.get());
-        std::cout << "OnTrack: custom sink is added!" << std::endl;
-        remote_video_track->AddOrUpdateSink(custom_video_sink_, rtc::VideoSinkWants());
-    }
-}
-
-void Conductor::OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState new_state) {
-    std::cout << "[Conductor] OnSignalingChange: ";
-    std::cout << webrtc::PeerConnectionInterface::PeerConnectionInterface::AsString(new_state) << std::endl;
-    if (new_state == webrtc::PeerConnectionInterface::SignalingState::kClosed) {
-        signaling_service_.reset();
-    }
-}
-
-void Conductor::OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> channel)
-{
-    std::cout << "=> OnDataChannel: connected to '" << channel->label() << "'" << std::endl;
-}
-
-void Conductor::OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionState new_state) {
-    std::cout << "=> OnConnectionChange: " << webrtc::PeerConnectionInterface::PeerConnectionInterface::AsString(new_state) << std::endl;
-    if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kConnected) {
-        signaling_service_.reset();
-        is_connected = true;
-    } else if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kFailed) {
-        peer_connection_->Close();
-        data_channel_subject_->UnSubscribe();
-    } else if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kClosed) {
-        SetStreamingState(false);
-        is_connected = false;
-    }
-}
-
-void Conductor::OnIceGatheringChange(webrtc::PeerConnectionInterface::IceGatheringState new_state) {
-    std::cout << "=> OnIceGatheringChange: " << webrtc::PeerConnectionInterface::PeerConnectionInterface::AsString(new_state) << std::endl;
-    if (new_state == webrtc::PeerConnectionInterface::IceGatheringState::kIceGatheringGathering) {
-        SetStreamingState(true);
-    }
-}
-
-void Conductor::OnIceCandidate(const webrtc::IceCandidateInterface *candidate) {
-    std::string ice;
-    candidate->ToString(&ice);
-    signaling_service_->AnswerLocalIce(candidate->sdp_mid(), candidate->sdp_mline_index(), ice);
-}
-
-void Conductor::SetStreamingState(bool state) {
+/*
+[true]: preparing/connecting, [false]: completed/false
+*/
+void Conductor::SetStreamingReadyState(bool state) {
     std::unique_lock<std::mutex> lock(state_mtx);
     is_ready_for_streaming = state;
     streaming_state.notify_all();
+    if (!state) {
+        peers_map[peers_idx++] = std::move(peer_);
+    }
 }
 
 bool Conductor::IsReadyForStreaming() const {
     return is_ready_for_streaming;
-}
-
-bool Conductor::IsConnected() const {
-    return is_connected;
 }
 
 /*
@@ -326,67 +248,9 @@ bool Conductor::IsConnected() const {
 */
 void Conductor::Timeout(int second) {
     sleep(second);
-    if (IsReadyForStreaming() && !IsConnected()) {
-        SetStreamingState(false);
+    if (IsReadyForStreaming() && !peer_->IsConnected()) {
+        SetStreamingReadyState(false);
     }
-}
-
-void Conductor::OnRemoteSdp(std::string sdp, std::string sdp_type) {
-    absl::optional<webrtc::SdpType> type_maybe =
-        webrtc::SdpTypeFromString(sdp_type);
-    if (!type_maybe) {
-      std::cout << "Unknown SDP type: " << sdp_type << std::endl;
-      return;
-    }
-    webrtc::SdpType type = *type_maybe;
-
-    webrtc::SdpParseError error;
-    std::unique_ptr<webrtc::SessionDescriptionInterface> session_description =
-        webrtc::CreateSessionDescription(type, sdp, &error);
-    if (!session_description) {
-        std::cout << "Can't parse received session description message. \n"
-                  << error.description.c_str() << std::endl;
-        return;
-    }
-
-    peer_connection_->SetRemoteDescription(
-        SetSessionDescription::Create(nullptr, nullptr).get(),
-        session_description.release());
-
-    if (type == webrtc::SdpType::kOffer) {
-        peer_connection_->CreateAnswer(
-            this, webrtc::PeerConnectionInterface::RTCOfferAnswerOptions());
-    }
-}
-
-void Conductor::OnRemoteIce(std::string sdp_mid, int sdp_mline_index, std::string sdp) {
-    webrtc::SdpParseError error;
-    std::unique_ptr<webrtc::IceCandidateInterface> candidate(
-        webrtc::CreateIceCandidate(sdp_mid, sdp_mline_index, sdp, &error));
-    if (!candidate.get()) {
-        std::cout << "Can't parse received candidate message. \n"
-                  << error.description.c_str() << std::endl;
-        return;
-    }
-
-    if (!peer_connection_->AddIceCandidate(candidate.get())) {
-        std::cout << "Failed to apply the received candidate" << std::endl;
-        return;
-    }
-}
-
-void Conductor::OnSuccess(webrtc::SessionDescriptionInterface* desc) {
-    peer_connection_->SetLocalDescription(
-        SetSessionDescription::Create(nullptr, nullptr).get(), desc);
-
-    std::string sdp;
-    desc->ToString(&sdp);
-    std::string type = webrtc::SdpTypeToString(desc->GetType());
-    signaling_service_->AnswerLocalSdp(sdp, type);
-}
-
-void Conductor::OnFailure(webrtc::RTCError error) {
-    std::cout << ToString(error.type()) << ": " << error.message() << std::endl;
 }
 
 Conductor::~Conductor() {
@@ -394,9 +258,7 @@ Conductor::~Conductor() {
     audio_track_ = nullptr;
     video_track_ = nullptr;
     video_capture_source_ = nullptr;
-    custom_video_sink_ = nullptr;
-    peer_connection_ = nullptr;
     peer_connection_factory_ = nullptr;
     rtc::CleanupSSL();
-    std::cout << "=> ~Conductor: destroied" << std::endl;
+    std::cout << "[Conductor]: destroyed!" << std::endl;
 }
