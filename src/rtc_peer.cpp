@@ -1,16 +1,21 @@
 #include "rtc_peer.h"
 
-rtc::scoped_refptr<RtcPeer> RtcPeer::Create(Args args) {
-    auto ptr = rtc::make_ref_counted<RtcPeer>();
+rtc::scoped_refptr<RtcPeer> RtcPeer::Create(Args args, int id) {
+    auto ptr = rtc::make_ref_counted<RtcPeer>(id);
     return ptr;
 }
 
-RtcPeer::RtcPeer()
-    : is_connected_(false) {}
+RtcPeer::RtcPeer(int id)
+    : is_connected_(false),
+      id_(id) {}
 
 RtcPeer::~RtcPeer() {
-    UnSubscribe();
-    std::cout << "[RtcPeer] destroyed!" << std::endl;
+    peer_connection_ = nullptr;
+    std::cout << "[RtcPeer] ("<< id_ <<") was destroyed!" << std::endl;
+}
+
+int RtcPeer::GetId() const {
+    return id_;
 }
 
 bool RtcPeer::IsConnected() const {
@@ -35,7 +40,7 @@ void RtcPeer::SetSignalingService(std::shared_ptr<SignalingService> service) {
 }
 
 void RtcPeer::CreateDataChannel() {
-    data_channel_subject_ = std::make_shared<DataChannelSubject>();
+    data_channel_subject_ = std::make_unique<DataChannelSubject>();
 
     struct webrtc::DataChannelInit init;
     init.ordered = true;
@@ -51,7 +56,6 @@ void RtcPeer::CreateDataChannel() {
             std::cout << "[OnDataChannel]: received msg => " << message << std::endl;
             if (strcmp(message, "false") == 0) {
                 peer_connection_->Close();
-                data_channel_subject_->UnSubscribe();
             }
         });
     } else {
@@ -59,9 +63,19 @@ void RtcPeer::CreateDataChannel() {
     }
 }
 
-void RtcPeer::OnStreamingState(std::function<void(bool)> func) {
+void RtcPeer::OnReadyToConnect(std::function<void(PeerState)> func) {
     auto observer = AsObservable();
     observer->Subscribe(func);
+}
+
+void RtcPeer::EmitReadyToConnect(bool is_ready) {
+    is_ready_to_connect_ = is_ready;
+    PeerState state = {
+        .id = id_,
+        .isConnected = is_connected_,
+        .isReadyToConnect = is_ready_to_connect_
+    };
+    Next(state);
 }
 
 void RtcPeer::OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState new_state) {
@@ -79,7 +93,7 @@ void RtcPeer::OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> cha
 void RtcPeer::OnIceGatheringChange(webrtc::PeerConnectionInterface::IceGatheringState new_state) {
     std::cout << "[RtcPeer] OnIceGatheringChange: " << webrtc::PeerConnectionInterface::PeerConnectionInterface::AsString(new_state) << std::endl;
     if (new_state == webrtc::PeerConnectionInterface::IceGatheringState::kIceGatheringGathering) {
-        Next(true);
+        EmitReadyToConnect(true);
     }
 }
 
@@ -87,13 +101,15 @@ void RtcPeer::OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnection
     std::cout << "[RtcPeer] OnConnectionChange: " << webrtc::PeerConnectionInterface::PeerConnectionInterface::AsString(new_state) << std::endl;
     if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kConnected) {
         signaling_service_->ResetCallback();
-        Next(false);
         is_connected_ = true;
+        EmitReadyToConnect(false);
+        UnSubscribe();
     } else if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kFailed) {
+        is_connected_ = false;
         peer_connection_->Close();
-        data_channel_subject_->UnSubscribe();
     } else if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kClosed) {
         is_connected_ = false;
+        data_channel_subject_.reset();
     }
 }
 

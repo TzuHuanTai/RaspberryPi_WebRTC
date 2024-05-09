@@ -45,24 +45,33 @@ protected:
     OnFailureFunc on_failure_;
 };
 
+struct PeerState {
+    int id;
+    bool isConnected;
+    bool isReadyToConnect;
+};
+
 class RtcPeer : public webrtc::PeerConnectionObserver,
                 public webrtc::CreateSessionDescriptionObserver,
                 public SignalingMessageObserver,
-                public Subject<bool> {
+                public Subject<PeerState> {
 public:
-    static rtc::scoped_refptr<RtcPeer> Create(Args args);
+    static rtc::scoped_refptr<RtcPeer> Create(Args args, int id);
 
-    RtcPeer();
+    RtcPeer(int id);
     ~RtcPeer();
     bool IsConnected() const;
+    int GetId() const;
     void SetSink(rtc::VideoSinkInterface<webrtc::VideoFrame> *video_sink_obj);
     void SetPeer(rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer);
     rtc::scoped_refptr<webrtc::PeerConnectionInterface> GetPeer();
     void SetSignalingService(std::shared_ptr<SignalingService> service);
     void CreateDataChannel();
-    void OnStreamingState(std::function<void(bool)> func);
+    void OnReadyToConnect(std::function<void(PeerState)> func);
 
 private:
+    void EmitReadyToConnect(bool is_ready);
+
     // PeerConnectionObserver implementation.
     void OnSignalingChange(
         webrtc::PeerConnectionInterface::SignalingState new_state) override;
@@ -83,9 +92,11 @@ private:
     void OnRemoteSdp(std::string sdp, std::string type) override;
     void OnRemoteIce(std::string sdp_mid, int sdp_mline_index, std::string candidate) override;
 
+    int id_;
     bool is_connected_;
+    bool is_ready_to_connect_;
     std::shared_ptr<SignalingService> signaling_service_;
-    std::shared_ptr<DataChannelSubject> data_channel_subject_;
+    std::unique_ptr<DataChannelSubject> data_channel_subject_;
     rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer_connection_;
     rtc::VideoSinkInterface<webrtc::VideoFrame> *custom_video_sink_;
 };

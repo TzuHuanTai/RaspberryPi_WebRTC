@@ -128,6 +128,8 @@ void Conductor::AddTracks(rtc::scoped_refptr<webrtc::PeerConnectionInterface> pe
 }
 
 bool Conductor::CreatePeerConnection() {
+    RefreshPeerList();
+
     std::cout << "[Conductor] Start to create a peer connection." << std::endl;
     webrtc::PeerConnectionInterface::RTCConfiguration config;
     config.sdp_semantics = webrtc::SdpSemantics::kUnifiedPlan;
@@ -143,7 +145,7 @@ bool Conductor::CreatePeerConnection() {
         config.servers.push_back(turn_server);
     }
 
-    peer_ = RtcPeer::Create(args);
+    peer_ = RtcPeer::Create(args, ++peers_idx);
     auto result = peer_connection_factory_->CreatePeerConnectionOrError(
         config, webrtc::PeerConnectionDependencies(peer_.get()));
 
@@ -151,11 +153,12 @@ bool Conductor::CreatePeerConnection() {
         peer_->SetPeer(result.MoveValue());
         peer_->CreateDataChannel();
         peer_->SetSignalingService(signaling_service_);
-        peer_->OnStreamingState([this](bool state) {
-            SetStreamingReadyState(state);
+        peer_->OnReadyToConnect([this](PeerState state) {
+            SetPeerReadyState(state.isReadyToConnect);
         });
         AddTracks(peer_->GetPeer());
-        std::cout << "[Conductor] Peer connection is created!" << std::endl;
+        peers_map[peers_idx] = peer_;
+        std::cout << "[Conductor] Peer connection("<< peers_idx <<") is created!" << std::endl;
         return true;
     }
     std::cout << "[Conductor] Peer connection is failed to create!" << std::endl;
@@ -227,20 +230,14 @@ bool Conductor::InitializePeerConnectionFactory() {
     return peer_connection_factory_ != nullptr;
 }
 
-/*
-[true]: preparing/connecting, [false]: completed/false
-*/
-void Conductor::SetStreamingReadyState(bool state) {
+void Conductor::SetPeerReadyState(bool state) {
     std::unique_lock<std::mutex> lock(state_mtx);
-    is_ready_for_streaming = state;
-    streaming_state.notify_all();
-    if (!state) {
-        peers_map[peers_idx++] = std::move(peer_);
-    }
+    is_ready = state;
+    ready_state.notify_all();
 }
 
-bool Conductor::IsReadyForStreaming() const {
-    return is_ready_for_streaming;
+bool Conductor::IsReady() const {
+    return is_ready;
 }
 
 /*
@@ -248,8 +245,26 @@ bool Conductor::IsReadyForStreaming() const {
 */
 void Conductor::Timeout(int second) {
     sleep(second);
-    if (IsReadyForStreaming() && !peer_->IsConnected()) {
-        SetStreamingReadyState(false);
+    if (IsReady() && !peer_->IsConnected()) {
+        SetPeerReadyState(false);
+    }
+}
+
+void Conductor::RefreshPeerList() {
+    auto pm_it = peers_map.begin();
+    while(pm_it != peers_map.end()) {
+        printf("[Conductor][Map] key:%d, value: %d =====\n", pm_it->second->GetId(), pm_it->second->IsConnected());
+
+        if (pm_it->second && !pm_it->second->IsConnected()) {
+            int id = pm_it->second->GetId();
+            std::cout << "[Conductor] peer(" << id << ") was ready to erase." << std::endl;
+            pm_it->second.release();
+            pm_it->second = nullptr;
+            pm_it = peers_map.erase(pm_it);
+            std::cout << "[Conductor] peer(" << id << ") was erased!"<< std::endl;
+        } else {
+            ++pm_it;
+        }
     }
 }
 

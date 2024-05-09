@@ -5,20 +5,18 @@
 #include <nlohmann/json.hpp>
 using json = nlohmann::json;
 
-DataChannelSubject::~DataChannelSubject()
-{
+DataChannelSubject::~DataChannelSubject() {
     UnSubscribe();
     data_channel_->UnregisterObserver();
+    data_channel_->Close();
 }
 
-void DataChannelSubject::OnStateChange()
-{
+void DataChannelSubject::OnStateChange() {
     webrtc::DataChannelInterface::DataState state = data_channel_->state();
     std::cout << "=> datachannel OnStateChange: " << webrtc::DataChannelInterface::DataStateString(state) << std::endl;
 }
 
-void DataChannelSubject::OnMessage(const webrtc::DataBuffer &buffer)
-{
+void DataChannelSubject::OnMessage(const webrtc::DataBuffer &buffer) {
     const uint8_t *data = buffer.data.data<uint8_t>();
     size_t length = buffer.data.size();
 
@@ -32,8 +30,7 @@ void DataChannelSubject::OnMessage(const webrtc::DataBuffer &buffer)
     delete[] msg;
 }
 
-void DataChannelSubject::Next(char *message)
-{
+void DataChannelSubject::Next(char *message) {
     json jsonObj = json::parse(message);
 
     std::string jsonStr = jsonObj.dump();
@@ -56,32 +53,27 @@ void DataChannelSubject::Next(char *message)
     }
 }
 
-std::shared_ptr<Observable<char *>> DataChannelSubject::AsObservable()
-{
+std::shared_ptr<Observable<char *>> DataChannelSubject::AsObservable() {
     auto observer = std::make_shared<Observable<char *>>();
     observers_map_[CommandType::UNKNOWN].push_back(observer);
     return observer;
 }
 
-std::shared_ptr<Observable<char *>> DataChannelSubject::AsObservable(CommandType type)
-{
+std::shared_ptr<Observable<char *>> DataChannelSubject::AsObservable(CommandType type) {
     auto observer = std::make_shared<Observable<char *>>();
     observers_map_[type].push_back(observer);
     return observer;
 }
 
-void DataChannelSubject::UnSubscribe()
-{
+void DataChannelSubject::UnSubscribe() {
     for (auto & [type, observers] : observers_map_)
     {
         observers.clear();
     }
 }
 
-void DataChannelSubject::Send(char *data, size_t length)
-{
-    if (data_channel_->state() != webrtc::DataChannelInterface::kOpen)
-    {
+void DataChannelSubject::Send(char *data, size_t length) {
+    if (data_channel_->state() != webrtc::DataChannelInterface::kOpen) {
         return;
     }
 
@@ -91,8 +83,7 @@ void DataChannelSubject::Send(char *data, size_t length)
 }
 
 void DataChannelSubject::SetDataChannel(
-    rtc::scoped_refptr<webrtc::DataChannelInterface> data_channel)
-{
+    rtc::scoped_refptr<webrtc::DataChannelInterface> data_channel) {
     data_channel_ = data_channel;
     data_channel_->RegisterObserver(this);
 }
