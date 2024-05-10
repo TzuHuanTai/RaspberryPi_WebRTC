@@ -45,7 +45,10 @@ std::shared_ptr<Conductor> Conductor::Create(Args args) {
     return ptr;
 }
 
-Conductor::Conductor(Args args) : args(args) {}
+Conductor::Conductor(Args args)
+    : args(args),
+      peers_idx(0),
+      is_ready(false) {}
 
 bool Conductor::InitializeSignaling(Args args) {
     signaling_service_ = ([args]() -> std::shared_ptr<SignalingService> {
@@ -248,6 +251,21 @@ void Conductor::Timeout(int second) {
     if (IsReady() && !peer_->IsConnected()) {
         SetPeerReadyState(false);
     }
+}
+
+void Conductor::BlockUntilSignal() {
+    std::unique_lock<std::mutex> lock(state_mtx);
+    ready_state.wait(lock, [this] {
+        return IsReady();
+    });
+}
+
+void Conductor::BlockUntilCompletion(int timeout) {
+    std::unique_lock<std::mutex> lock(state_mtx);
+    Timeout(timeout);
+    ready_state.wait(lock, [this] {
+        return !IsReady();
+    });
 }
 
 void Conductor::RefreshPeerList() {

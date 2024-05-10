@@ -14,13 +14,10 @@ int main(int argc, char *argv[]) {
         conductor->CreatePeerConnection();
 
         std::cout << "[main] wait for signaling!" << std::endl;
-        std::unique_lock<std::mutex> lock(conductor->state_mtx);
-        conductor->ready_state.wait(lock, [&]{return conductor->IsReady();});
+        conductor->BlockUntilSignal();
 
         std::cout << "[main] timeout waiting..." << std::endl;
-        conductor->Timeout(5);
-
-        conductor->ready_state.wait(lock, [&]{return !conductor->IsReady();});
+        conductor->BlockUntilCompletion(5);
     }
     
     return 0;

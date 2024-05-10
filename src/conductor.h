@@ -20,10 +20,6 @@ class Conductor {
 public:
     static std::shared_ptr<Conductor> Create(Args args);
 
-    std::mutex state_mtx;
-    std::condition_variable ready_state;
-    Args args;
-
     Conductor(Args args);
     ~Conductor();
 
@@ -32,10 +28,15 @@ public:
     void SetSink(rtc::VideoSinkInterface<webrtc::VideoFrame> *video_sink_obj);
     bool IsReady() const;
     void Timeout(int second);
+    void BlockUntilSignal();
+    void BlockUntilCompletion(int timeout);
 
 private:
-    int peers_idx = 0;
-    bool is_ready = false;
+    Args args;
+    int peers_idx;
+    bool is_ready;
+    std::mutex state_mtx;
+    std::condition_variable ready_state;
     std::unordered_map<int, rtc::scoped_refptr<RtcPeer>> peers_map;
 
     bool InitializePeerConnectionFactory();
