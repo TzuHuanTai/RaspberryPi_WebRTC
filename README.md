@@ -1,6 +1,6 @@
 ﻿# RaspberryPi_WebRTC
  
-Using v4l2 dma hardware encoder with WebRTC reduces CPU usage. Both `signalr` and `mqtt` are the options for signaling in this project.
+Using v4l2 dma hardware encoder with WebRTC to reduce CPU usage. Both `signalr` and `mqtt` are the options for signaling in this project.
 
 ## Architecture
 ![architecture](doc/architecture.png)
@@ -33,7 +33,7 @@ Using v4l2 dma hardware encoder with WebRTC reduces CPU usage. Both `signalr` an
     sudo apt install libboost-program-options-dev libavformat-dev libavcodec-dev libavutil-dev libswscale-dev libpulse-dev libasound2-dev libx11-dev
     ```
 5. Copy the [nlohmann/json.hpp](https://github.com/nlohmann/json/blob/develop/single_include/nlohmann/json.hpp) to `/usr/local/include` 
-6. Run signaling server
+6. Run the chosen signaling server
     * Create a [signalr server hub](https://github.com/TzuHuanTai/FarmerAPI/blob/master/FarmerAPI/Hubs/SignalingServer.cs) on .net
     * Follow [SETUP_MOSQUITTO](doc/SETUP_MOSQUITTO.md)
 
@@ -65,8 +65,8 @@ Run `pi_webrtc` to start the service.
     ./pi_webrtc --device=/dev/video0 --fps=30 --width=1280 --height=720 --v4l2_format=mjpeg --mqtt_host=127.0.0.1 --mqtt_port=1883 --mqtt_username=<username> --mqtt_password=<password>  --enable_v4l2_dma
     ```
 * `./pi_webrtc -h` to list all available args.
-* If `--enable_v4l2_dma` is assigned, only `H264` stream is provided. The `VP8`, `VP9` are available as well if not be assigned. But frames will be decoded/scaled by software, and the buffer will be copied to the HW encoder though.
-* If the `--record_path` is assigned, the background recorder will start immediately after running the program. But the performance of Pi 3B is limited, if the resolution is above 640x368@15fps the HW encoder will be unstable, stuck, or even crash.
+* `--enable_v4l2_dma` only apply to `--v4l2_format=h264` source stream. The `VP8`, `VP9` are available only if the flag not be assigned, and frames will be decoded/scaled by software, the buffer will be copied between HW encoder and user space.
+* If the `--record_path` is assigned, the background recorder will start immediately after running the program. But the performance of Pi 3B is limited, if the `--v4l2_format=mjpeg` source resolution is above 640x368@15fps the HW codec will be unstable, stuck, or even crash. However, it can record smoothly at 960x480@30fps when the `--v4l2_format=h264` and `--enable_v4l2_dma` flags are applied, even with two clients watching p2p streams simultaneously. Since the h264 source directly records into mp4 files without going through the decode/encode process.
 
 ## Run as Linux Service
 Set `pi_webrtc` to run as a daemon. 
