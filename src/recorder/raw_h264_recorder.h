@@ -13,7 +13,6 @@ protected:
     void Encode(Buffer buffer) override;
 
 private:
-    int frame_count_;
     bool has_first_keyframe_;
 };
 
