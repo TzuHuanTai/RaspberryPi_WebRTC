@@ -1,6 +1,8 @@
 ﻿# RaspberryPi_WebRTC
  
-Using v4l2 dma hardware encoder with WebRTC to reduce CPU usage. Both `signalr` and `mqtt` are the options for signaling in this project.
+Using v4l2 dma hardware encoder with WebRTC to reduce CPU usage on Raspberry Pi.
+
+<i>Note: Pi 5 does not support hardware encoder.</i>
 
 ## Architecture
 ![architecture](doc/architecture.png)
@@ -12,25 +14,26 @@ Using v4l2 dma hardware encoder with WebRTC to reduce CPU usage. Both `signalr` 
 * `boringssl` replace `openssl`
 
 ## Summary
-* Latency is about 0.2 seconds delay.
+* Latency is about 0.2~0.3 seconds.
 * Temperatures up to 60~65°C.
-* Using HW DMA sources minimizes CPU usage and latency down to ~50ms.
-
+* Using the hardware DMA encoder can reduce CPU usage down to 30~35% @720p30fps.
+[![Demo](https://img.youtube.com/vi/BcuHNVsWaHk/0.jpg)](https://www.youtube.com/watch?v=BcuHNVsWaHk)
 ![latency](doc/latency.jpg)
 ![latency](doc/latency_chart.png)
 
 <hr>
 
 # How to use
+Both `signalr` and `mqtt` are the options for signaling in this project.
 ## Preparation
 1. Follow [SETUP_ARM64_ENV](doc/SETUP_ARM64_ENV.md) to prepare an arm64 env for compilation (Optional)
 2. Follow [BUILD_WEBRTC](doc/BUILD_WEBRTC.md) to compile `libwebrtc.a` 
 3. Choose a signaling mechanisum
     * Follow [BUILD_SIGNALR_CLIENT_CPP](doc/BUILD_SIGNALR_CLIENT_CPP.md) to compile `microsoft-signalr`
     * Follow [BUILD_MOSQUITTO](doc/BUILD_MOSQUITTO.md) to compile `mosquitto`
-4. Install the needed packages on pi
+4. Install `FFmpeg` and the needed packages on pi
     ```bash
-    sudo apt install libboost-program-options-dev libavformat-dev libavcodec-dev libavutil-dev libswscale-dev libpulse-dev libasound2-dev libx11-dev
+    sudo apt install ffmpeg libboost-program-options-dev libavformat-dev libavcodec-dev libavutil-dev libswscale-dev libpulse-dev libasound2-dev libx11-dev
     ```
 5. Copy the [nlohmann/json.hpp](https://github.com/nlohmann/json/blob/develop/single_include/nlohmann/json.hpp) to `/usr/local/include` 
 6. Run the chosen signaling server
@@ -94,7 +97,7 @@ Set `pi_webrtc` to run as a daemon.
     ```
 
 # Install the [coturn](https://github.com/coturn/coturn) (Optional)
-If the cellular network is used, the `coturn` is required because the 5G NAT setting by ISP may block p2p.
+If the cellular network is used, the `coturn` is required because the 5G NAT setting by ISP may block p2p. Or try some cloud service that provides TURN server.
 1. Install
     ```bash
     sudo apt update
@@ -116,7 +119,7 @@ If the cellular network is used, the `coturn` is required because the 5G NAT set
     syslog
     no-cli
     ```
-3. Set the port `3478` forwarding on the router
+3. Set the port `3478` forwarding on the router/modem.
 4. Start the service, `sudo systemctl start coturn.service`
 
 # Reference
