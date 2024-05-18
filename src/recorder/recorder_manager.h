@@ -33,6 +33,7 @@ protected:
     uint frame_count;
     uint fps;
     std::string record_path;
+    std::string filename;
     AVFormatContext *fmt_ctx;
     bool has_first_keyframe;
     std::shared_ptr<Observable<Buffer>> video_observer;
@@ -46,6 +47,9 @@ protected:
     void CreateAudioRecorder(std::shared_ptr<PaCapture> aduio_src);
     void SubscribeVideoSource(std::shared_ptr<V4L2Capture> video_src);
     void SubscribeAudioSource(std::shared_ptr<PaCapture> aduio_src);
+
+private:
+    std::future<void> thumbnail_task;
 };
 
 #endif

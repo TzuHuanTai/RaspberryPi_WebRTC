@@ -25,11 +25,10 @@ std::string RecUtil::GenerateFilename() {
     return filename;
 }
 
-AVFormatContext* RecUtil::CreateContainer(std::string record_path) {
+AVFormatContext* RecUtil::CreateContainer(std::string record_path, std::string filename) {
     AVFormatContext* fmt_ctx = nullptr;
     std::string container = "mp4";
-    auto filename = RecUtil::GenerateFilename() + "." + container;
-    auto full_path = record_path + '/' + filename;
+    auto full_path = record_path + '/' + filename + "." + container;
 
     if (avformat_alloc_output_context2(&fmt_ctx, nullptr,
                                        container.c_str(),
@@ -47,6 +46,27 @@ AVFormatContext* RecUtil::CreateContainer(std::string record_path) {
     av_dump_format(fmt_ctx, 0, full_path.c_str(), 1);
 
     return fmt_ctx;
+}
+
+
+void RecUtil::CreateThumbnail(std::string record_path, std::string filename) {
+    // FFmpeg command to extract the first frame and save as thumbnail image.
+    const std::string ffmpegCommand = 
+        std::string("ffmpeg -xerror -loglevel quiet -hide_banner -y") +
+        " -i " + record_path + "/" + filename + ".mp4" +
+        " -vf \"select=eq(pict_type\\,I)\" -vsync vfr -frames:v 1 " +
+        record_path + "/" + filename + ".jpg";
+    printf("%s\n", ffmpegCommand.c_str());
+
+    // Execute the command
+    int result = std::system(ffmpegCommand.c_str());
+
+    // Check the result
+    if (result == 0) {
+        printf("Thumbnail created successfully.\n");
+    } else {
+        printf("Error executing FFmpeg command.\n");
+    }
 }
 
 bool RecUtil::WriteFormatHeader(AVFormatContext* fmt_ctx) {
