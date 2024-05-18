@@ -6,8 +6,7 @@
 
 namespace bpo = boost::program_options;
 
-void Parser::ParseArgs(int argc, char *argv[], Args &args)
-{
+void Parser::ParseArgs(int argc, char *argv[], Args &args) {
     bpo::options_description opts("all options");
     opts.add_options()("help,h", "Please call me directly.")
     ("fps", bpo::value<uint32_t>()->default_value(args.fps), "Set ioctl frame rate")
@@ -28,6 +27,7 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args)
     ("signaling_url", bpo::value<std::string>()->default_value(args.signaling_url), "Signaling server url, ref: Repository > FarmerAPI > Hubs > SignalingServer")
 #endif
     ("record_path", bpo::value<std::string>()->default_value(args.record_path), "The path to save the recording video files")
+    ("max_files", bpo::value<uint32_t>()->default_value(args.max_files), "The limitation of total video files in the folder")
     ("enable_v4l2_dma", bpo::bool_switch()->default_value(args.enable_v4l2_dma), "Share DMA buffers between decoder/scaler/encoder, which can decrease cpu usage")
     ("v4l2_format", bpo::value<std::string>()->default_value(args.v4l2_format), "Set v4l2 input format i420/mjpeg/h264 while capturing, if the camera is supported");
 
@@ -40,58 +40,45 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args)
         exit(1);
     }
     
-    if (vm.count("fps"))
-    {
+    if (vm.count("fps")) {
         args.fps = vm["fps"].as<uint32_t>();
     }
     
-    if (vm.count("width"))
-    {
+    if (vm.count("width")) {
         args.width = vm["width"].as<uint32_t>();
     }
     
-    if (vm.count("height"))
-    {
+    if (vm.count("height")) {
         args.height = vm["height"].as<uint32_t>();
     }
 
-    if (vm.count("rotation_angle"))
-    {
+    if (vm.count("rotation_angle")) {
         args.rotation_angle = vm["rotation_angle"].as<uint32_t>();
     }
     
-    if (vm.count("device"))
-    {
+    if (vm.count("device")) {
         args.device = vm["device"].as<std::string>();
     }
 
-    if (!vm["stun_url"].empty() && (vm["stun_url"].as<std::string>()).substr(0, 4) != "stun")
-    {
+    if (!vm["stun_url"].empty() && (vm["stun_url"].as<std::string>()).substr(0, 4) != "stun") {
         std::cout << "Stun url should not be empty and start with \"stun:\"" << std::endl;
         exit(1);
-    }
-    else if (vm.count("stun_url"))
-    {
+    } else if (vm.count("stun_url")) {
         args.stun_url = vm["stun_url"].as<std::string>();
     }
 
-    if (!(!vm["turn_url"].empty() || (vm["turn_url"].as<std::string>()).substr(0, 4) == "turn"))
-    {
+    if (!(!vm["turn_url"].empty() || (vm["turn_url"].as<std::string>()).substr(0, 4) == "turn")) {
         std::cout << "Turn url should start with \"turn:\"" << std::endl;
         exit(1);
-    }
-    else if (vm.count("turn_url"))
-    {
+    } else if (vm.count("turn_url")) {
         args.turn_url = vm["turn_url"].as<std::string>();
     }
 
-    if (vm.count("turn_username"))
-    {
+    if (vm.count("turn_username")) {
         args.turn_username = vm["turn_username"].as<std::string>();
     }
 
-    if (vm.count("turn_password"))
-    {
+    if (vm.count("turn_password")) {
         args.turn_password = vm["turn_password"].as<std::string>();
     }
 
@@ -123,22 +110,22 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args)
     if (!vm["record_path"].as<std::string>().empty() && 
         (!((vm["record_path"].as<std::string>()).front() == '/' ||
         (vm["record_path"].as<std::string>()).front() == '.') ||
-        (vm["record_path"].as<std::string>()).back() != '/'))
-    {
+        (vm["record_path"].as<std::string>()).back() != '/')) {
         std::cout << "The file path needs to start and end with a \"/\" character" << std::endl;
         exit(1);
-    }
-    else if (vm.count("record_path"))
-    {
+    } else if (vm.count("record_path")) {
         args.record_path = vm["record_path"].as<std::string>();
+    }
+
+    if (vm.count("max_files")) {
+        args.max_files = vm["max_files"].as<uint32_t>();
     }
 
     if (vm.count("enable_v4l2_dma")) {
         args.enable_v4l2_dma = vm["enable_v4l2_dma"].as<bool>();
     }
 
-    if (vm.count("v4l2_format"))
-    {
+    if (vm.count("v4l2_format")) {
         args.v4l2_format = vm["v4l2_format"].as<std::string>();
     }
 }
