@@ -94,7 +94,8 @@ void RecorderManager::WriteIntoFile(AVPacket *pkt) {
 }
 
 void RecorderManager::Start() {
-    fmt_ctx = RecUtil::CreateContainer(record_path);
+    filename = RecUtil::GenerateFilename();
+    fmt_ctx = RecUtil::CreateContainer(record_path, filename);
 
     if (video_recorder) {
         video_recorder->AddStream(fmt_ctx);
@@ -125,6 +126,12 @@ void RecorderManager::Stop() {
     if (audio_recorder) {
         audio_recorder->ResetCodecs();
     }
+
+    thumbnail_task = std::async(std::launch::async, 
+    [path = this->record_path, file = this->filename]() {
+        sleep(1); // wait for the file to be closed properly.
+        RecUtil::CreateThumbnail(path, file);
+    });
 }
 
 RecorderManager::~RecorderManager() {

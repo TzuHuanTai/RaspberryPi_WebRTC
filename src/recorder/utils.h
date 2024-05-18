@@ -18,7 +18,8 @@ public:
     static std::string GenerateFilename();
 
     // ffmpeg tool
-    static AVFormatContext* CreateContainer(std::string record_path);
+    static AVFormatContext* CreateContainer(std::string record_path, std::string filename);
+    static void CreateThumbnail(std::string record_path, std::string filename);
     static bool WriteFormatHeader(AVFormatContext* fmt_ctx);
     static void CloseContext(AVFormatContext* fmt_ctx);
 };

@@ -40,7 +40,7 @@ void BackgroundRecorder::RotateFiles() {
 
     std::vector<std::filesystem::path> files;
     for (const auto& entry : std::filesystem::directory_iterator(folder_path)) {
-        if (entry.path().extension() == ".mp4") {
+        if (entry.path().extension() == ".mp4" || entry.path().extension() == ".jpg") {
             files.push_back(entry.path());
         }
     }
