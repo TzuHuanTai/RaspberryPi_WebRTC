@@ -99,24 +99,34 @@ void AudioRecorder::Encode(int stream_index) {
 void AudioRecorder::OnBuffer(PaBuffer buffer) {
     uint8_t **converted_input_samples = nullptr;
     int samples_per_channel = buffer.length / buffer.channels;
-    av_samples_alloc_array_and_samples(&converted_input_samples, nullptr, 
-        channels, samples_per_channel, sample_fmt, 0);
 
-    auto data = (float*)buffer.start;
-    for (int i = 0; i < buffer.length; i++) {
-        if (i % buffer.channels >= channels) {
-            continue;
-        }
-        reinterpret_cast<float*>(converted_input_samples[i % buffer.channels])
-            [i / buffer.channels] = data[i];
+    if (av_samples_alloc_array_and_samples(&converted_input_samples, nullptr, 
+                                           channels, samples_per_channel, sample_fmt, 0) < 0) {
+        // Handle allocation error
+        return;
     }
 
-    av_audio_fifo_write(fifo_buffer, (void**)converted_input_samples, samples_per_channel);
+    auto data = reinterpret_cast<float*>(buffer.start);
+    for (int i = 0; i < buffer.length; ++i) {
+        int channel_index = i % buffer.channels;
+        if (channel_index < channels) {
+            reinterpret_cast<float*>(converted_input_samples[channel_index])
+                [i / buffer.channels] = data[i];
+        }
+    }
 
-    while (encoder && st && av_audio_fifo_size(fifo_buffer) >= encoder->frame_size) {
+    if (av_audio_fifo_write(fifo_buffer, reinterpret_cast<void**>(converted_input_samples),
+        samples_per_channel) < samples_per_channel) {
+        // Handle write error
+    }
+
+    while (encoder && st && 
+           av_audio_fifo_size(fifo_buffer) >= encoder->frame_size) {
         Encode(st->index);
     }
 
-    av_freep(&converted_input_samples[0]);
-    av_freep(&converted_input_samples);
+    if (converted_input_samples) {
+        av_freep(&converted_input_samples[0]);
+        av_freep(&converted_input_samples);
+    }
 }
