@@ -35,7 +35,7 @@ void VideoRecorder::PushBuffer(Buffer encoded_buffer) {
         raw_buffer_queue.push(std::move(buf));
     }
 
-    while (!raw_buffer_queue.empty()) {
+    while (is_started && !raw_buffer_queue.empty()) {
         auto buffer = raw_buffer_queue.front();
         Write(buffer);
         free(buffer.start);

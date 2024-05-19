@@ -102,12 +102,14 @@ void RecorderManager::Start() {
         video_recorder->OnEncoded([this](AVPacket *pkt) {
             this->WriteIntoFile(pkt);
         });
+        video_recorder->Start();
     }
     if (audio_recorder) {
         audio_recorder->AddStream(fmt_ctx);
         audio_recorder->OnEncoded([this](AVPacket *pkt) {
             this->WriteIntoFile(pkt);
         });
+        audio_recorder->Start();
     }
     RecUtil::WriteFormatHeader(fmt_ctx);
 
@@ -115,17 +117,22 @@ void RecorderManager::Start() {
 }
 
 void RecorderManager::Stop() {
+    std::lock_guard<std::mutex> lock(ctx_mux);
+    frame_count = 0;
+    if (video_recorder) {
+        video_recorder->Pause();
+        video_recorder->ResetCodecs();
+    }
+    if (audio_recorder) {
+        audio_recorder->Pause();
+        audio_recorder->ResetCodecs();
+    }
+
     if (fmt_ctx) {
         RecUtil::CloseContext(fmt_ctx);
     }
     fmt_ctx = nullptr;
-    frame_count = 0;
-    if (video_recorder) {
-        video_recorder->ResetCodecs();
-    }
-    if (audio_recorder) {
-        audio_recorder->ResetCodecs();
-    }
+    
 
     thumbnail_task = std::async(std::launch::async, 
     [path = this->record_path, file = this->filename]() {

@@ -120,7 +120,7 @@ void AudioRecorder::OnBuffer(PaBuffer buffer) {
         // Handle write error
     }
 
-    while (encoder && st && 
+    while (is_started && encoder && st && 
            av_audio_fifo_size(fifo_buffer) >= encoder->frame_size) {
         Encode(st->index);
     }
