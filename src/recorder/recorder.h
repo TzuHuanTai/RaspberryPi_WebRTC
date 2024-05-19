@@ -17,7 +17,8 @@ class Recorder {
 public:
     typedef std::function<void(AVPacket *pkt)> OnPacketedFunc;
 
-    Recorder() : frame_count(0) { };
+    Recorder() : frame_count(0),
+                 is_started(false) {};
     ~Recorder() { };
 
     virtual void OnBuffer(T buffer) = 0;
@@ -45,7 +46,16 @@ public:
         on_packeted = fn;
     }
 
+    void Pause() {
+        is_started = false;
+    }
+
+    void Start() {
+        is_started = true;
+    }
+
 protected:
+    bool is_started;
     unsigned int frame_count;
     OnPacketedFunc on_packeted;
 
