@@ -2,11 +2,28 @@
 #include "recorder/h264_recorder.h"
 #include "recorder/raw_h264_recorder.h"
 
+#include <unistd.h>
+
 VideoRecorder::VideoRecorder(Args config, std::string encoder_name)
     : Recorder(),
       encoder_name(encoder_name),
       config(config),
       wait_first_keyframe(false) {}
+
+void VideoRecorder::Initialize() {
+    InitializeEncoder();
+    worker_.reset(new Worker([this]() { 
+        if (is_started && !raw_buffer_queue.empty()) {
+            auto buffer = raw_buffer_queue.front();
+            Encode(buffer);
+            free(buffer.start);
+            raw_buffer_queue.pop();
+        } else {
+            usleep(10);
+        }
+    }));
+    worker_->Run();
+}
 
 void VideoRecorder::InitializeEncoder() {
     frame_rate = {.num = (int)config.fps, .den = 1};
@@ -21,36 +38,24 @@ void VideoRecorder::InitializeEncoder() {
     encoder->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
 }
 
-void VideoRecorder::OnBuffer(Buffer buffer) {
-    Encode(buffer);
-}
-
-void VideoRecorder::PushBuffer(Buffer encoded_buffer) {
+void VideoRecorder::OnBuffer(Buffer raw_buffer) {
     if (raw_buffer_queue.size() < config.fps * 10) {
-        Buffer buf = {.start = malloc(encoded_buffer.length),
-                      .length = encoded_buffer.length,
-                      .flags = encoded_buffer.flags};
-        memcpy(buf.start, encoded_buffer.start, encoded_buffer.length);
-
+        Buffer buf = {.start = malloc(raw_buffer.length),
+                      .length = raw_buffer.length,
+                      .flags = raw_buffer.flags};
+        memcpy(buf.start, raw_buffer.start, raw_buffer.length); 
         raw_buffer_queue.push(std::move(buf));
     }
-
-    while (is_started && !raw_buffer_queue.empty()) {
-        auto buffer = raw_buffer_queue.front();
-        Write(buffer);
-        free(buffer.start);
-        raw_buffer_queue.pop();
-    }
 }
 
-bool VideoRecorder::Write(Buffer buffer) {
+void VideoRecorder::OnEncoded(Buffer buffer) {
     int ret;
     if (!wait_first_keyframe && (buffer.flags & V4L2_BUF_FLAG_KEYFRAME)) {
         wait_first_keyframe = true;
     }
 
     if (!wait_first_keyframe) {
-        return false;
+        return;
     }
 
     AVPacket pkt;
@@ -60,7 +65,6 @@ bool VideoRecorder::Write(Buffer buffer) {
 
     pkt.stream_index = st->index;
     pkt.pts = pkt.dts = av_rescale_q(frame_count++, encoder->time_base, st->time_base);
-    OnEncoded(&pkt);
+    OnPacketed(&pkt);
     av_packet_unref(&pkt);
-    return true;
 }

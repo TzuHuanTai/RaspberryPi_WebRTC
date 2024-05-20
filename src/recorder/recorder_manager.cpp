@@ -104,14 +104,14 @@ void RecorderManager::Start() {
 
     if (video_recorder) {
         video_recorder->AddStream(fmt_ctx);
-        video_recorder->OnEncoded([this](AVPacket *pkt) {
+        video_recorder->OnPacketed([this](AVPacket *pkt) {
             this->WriteIntoFile(pkt);
         });
         video_recorder->Start();
     }
     if (audio_recorder) {
         audio_recorder->AddStream(fmt_ctx);
-        audio_recorder->OnEncoded([this](AVPacket *pkt) {
+        audio_recorder->OnPacketed([this](AVPacket *pkt) {
             this->WriteIntoFile(pkt);
         });
         audio_recorder->Start();

@@ -9,17 +9,10 @@ std::unique_ptr<RawH264Recorder> RawH264Recorder::Create(Args config) {
 }
 
 RawH264Recorder::RawH264Recorder(Args config, std::string encoder_name)
-    : VideoRecorder(config, encoder_name),
-      has_first_keyframe_(false) {};
+    : VideoRecorder(config, encoder_name) {};
 
 RawH264Recorder::~RawH264Recorder() {}
 
 void RawH264Recorder::Encode(Buffer buffer) {
-    if (buffer.flags & V4L2_BUF_FLAG_KEYFRAME && !has_first_keyframe_ ) {
-        has_first_keyframe_ = true;
-    }
-
-    if (has_first_keyframe_) {
-        PushBuffer(buffer);
-    }
+    OnEncoded(buffer);
 }

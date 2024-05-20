@@ -3,6 +3,7 @@
 
 #include "args.h"
 #include "common/v4l2_utils.h"
+#include "common/worker.h"
 #include "recorder/recorder.h"
 
 #include <string>
@@ -27,6 +28,7 @@ class VideoRecorder : public Recorder<Buffer> {
 public:
     VideoRecorder(Args config, std::string encoder_name);
     virtual ~VideoRecorder() {};
+    void Initialize() override;
     void OnBuffer(Buffer buffer) override;
 
 protected:
@@ -37,10 +39,13 @@ protected:
 
     AVRational frame_rate;
 
-    void PushBuffer(Buffer buffer);
-    bool Write(Buffer buffer);
     virtual void Encode(Buffer buffer) = 0;
+
+    void OnEncoded(Buffer buffer);
     void InitializeEncoder() override;
+
+private:
+    std::unique_ptr<Worker> worker_;
 };
 
 #endif
