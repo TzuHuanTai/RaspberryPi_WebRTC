@@ -91,7 +91,7 @@ void AudioRecorder::Encode(int stream_index) {
         }
 
         pkt.stream_index = stream_index;
-        OnEncoded(&pkt);
+        OnPacketed(&pkt);
     }
     av_packet_unref(&pkt);
 }

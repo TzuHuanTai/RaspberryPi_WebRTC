@@ -42,7 +42,7 @@ public:
         return true;
     }
 
-    void OnEncoded(OnPacketedFunc fn) {
+    void OnPacketed(OnPacketedFunc fn) {
         on_packeted = fn;
     }
 
@@ -65,7 +65,7 @@ protected:
 
     virtual void InitializeEncoder() = 0;
     
-    void OnEncoded(AVPacket *pkt) {
+    void OnPacketed(AVPacket *pkt) {
         if (on_packeted){
             on_packeted(pkt);
         }

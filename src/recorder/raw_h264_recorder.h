@@ -11,9 +11,6 @@ public:
 
 protected:
     void Encode(Buffer buffer) override;
-
-private:
-    bool has_first_keyframe_;
 };
 
 #endif

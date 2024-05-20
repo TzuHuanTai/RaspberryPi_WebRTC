@@ -22,7 +22,7 @@ void H264Recorder::Encode(Buffer buffer) {
     }
     decoder_->EmplaceBuffer(buffer, [this](Buffer decoded_buffer) {
         encoder_->EmplaceBuffer(decoded_buffer, [this](Buffer encoded_buffer) {
-            PushBuffer(encoded_buffer);
+            OnEncoded(encoded_buffer);
         });
     });
 }
