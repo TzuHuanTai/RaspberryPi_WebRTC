@@ -1,7 +1,6 @@
 #include "recorder/background_recorder.h"
 
 #include <iostream>
-#include <filesystem>
 #include <vector>
 #include <algorithm>
 
@@ -34,17 +33,23 @@ bool BackgroundRecorder::CreateVideoFolder(const std::string& folder_path) {
     return true;
 }
 
-void BackgroundRecorder::RotateFiles() {
-    auto folder_path = args_.record_path;
-    const int max_files = args_.max_files;
+void BackgroundRecorder::RotateFiles(std::string folder_path, int max_files) {
+    std::vector<std::filesystem::path> video_files;
+    std::vector<std::filesystem::path> image_files;
 
-    std::vector<std::filesystem::path> files;
     for (const auto& entry : std::filesystem::directory_iterator(folder_path)) {
-        if (entry.path().extension() == ".mp4" || entry.path().extension() == ".jpg") {
-            files.push_back(entry.path());
+        if (entry.path().extension() == ".mp4") {
+            video_files.push_back(entry.path());
+        } else if (entry.path().extension() == ".jpg") {
+            image_files.push_back(entry.path());
         }
     }
 
+    DeleteRedundantFiles(video_files, max_files / 2);
+    DeleteRedundantFiles(image_files, max_files / 2);
+}
+
+void BackgroundRecorder::DeleteRedundantFiles(std::vector<std::filesystem::path> files, int max_files) {
     if (files.size() > max_files) {
         std::sort(files.begin(), files.end(),
         [](const std::filesystem::path& a, const std::filesystem::path& b) {
@@ -58,7 +63,6 @@ void BackgroundRecorder::RotateFiles() {
             std::cout << "Deleted file: " << files[i] << std::endl;
         }
     }
-    sleep(60);
 }
 
 void BackgroundRecorder::Start() {
@@ -66,7 +70,10 @@ void BackgroundRecorder::Start() {
         audio_capture_ = PaCapture::Create(args_);
         recorder_mgr_ = RecorderManager::Create(video_capture_, audio_capture_, 
                                                 args_.record_path);
-        worker_.reset(new Worker([this]() { RotateFiles();}));
+        worker_.reset(new Worker([this]() { 
+            RotateFiles(args_.record_path, args_.max_files);
+            sleep(60);
+        }));
         worker_->Run();
     } else {
         std::cout << "Background recorder is not started!" << std::endl;
