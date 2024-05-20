@@ -4,22 +4,25 @@
 #include "recorder/raw_h264_recorder.h"
 #include "recorder/utils.h"
 
-const int SECOND_PER_FILE = 60;
+#include <csignal>
+#include <filesystem>
 
-std::unique_ptr<RecorderManager> RecorderManager::Create(
+const int SECOND_PER_FILE = 60;
+std::unique_ptr<RecorderManager> RecorderManager::instance = nullptr;
+
+void RecorderManager::Create(
         std::shared_ptr<V4L2Capture> video_src,
         std::shared_ptr<PaCapture> audio_src,
         std::string record_path) {
-    auto p = std::make_unique<RecorderManager>(video_src, audio_src, record_path);
+    instance = std::make_unique<RecorderManager>(video_src, audio_src, record_path);
     if (video_src) {
-        p->CreateVideoRecorder(video_src);
-        p->SubscribeVideoSource(video_src);
+        instance->CreateVideoRecorder(video_src);
+        instance->SubscribeVideoSource(video_src);
     }
     if (audio_src) {
-        p->CreateAudioRecorder(audio_src);
-        p->SubscribeAudioSource(audio_src);
+        instance->CreateAudioRecorder(audio_src);
+        instance->SubscribeAudioSource(audio_src);
     }
-    return p;
 }
 
 void RecorderManager::CreateVideoRecorder(
@@ -48,7 +51,9 @@ RecorderManager::RecorderManager(std::shared_ptr<V4L2Capture> video_src,
       has_first_keyframe(false),
       record_path(record_path),
       video_src(video_src),
-      audio_src(audio_src) {}
+      audio_src(audio_src) {
+    signal(SIGINT, RecorderManager::SignalHandler);
+}
 
 void RecorderManager::SubscribeVideoSource(std::shared_ptr<V4L2Capture> video_src) {
     video_observer = video_src->AsObservable();
@@ -139,6 +144,13 @@ void RecorderManager::Stop() {
         sleep(1); // wait for the file to be closed properly.
         RecUtil::CreateThumbnail(path, file);
     });
+}
+
+void RecorderManager::SignalHandler(int signum) {
+    // trigger destrctor to terminate recording before closing
+    printf("[RecorderManager] Interrupt signal (%d) received.\n", signum);
+    instance.reset();
+    exit(signum);
 }
 
 RecorderManager::~RecorderManager() {

@@ -20,7 +20,6 @@ private:
     std::unique_ptr<Worker> worker_;
     std::shared_ptr<PaCapture> audio_capture_;
     std::shared_ptr<V4L2Capture> video_capture_;
-    std::unique_ptr<RecorderManager> recorder_mgr_;
 
     bool CreateVideoFolder(const std::string& folder_path);
     void RotateFiles(std::string folder_path, int max_files);
