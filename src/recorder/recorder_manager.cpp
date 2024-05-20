@@ -4,7 +4,7 @@
 #include "recorder/raw_h264_recorder.h"
 #include "recorder/utils.h"
 
-const int SECOND_PER_FILE = 300;
+const int SECOND_PER_FILE = 60;
 
 std::unique_ptr<RecorderManager> RecorderManager::Create(
         std::shared_ptr<V4L2Capture> video_src,
