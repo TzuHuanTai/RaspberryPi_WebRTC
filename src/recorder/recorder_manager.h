@@ -16,7 +16,7 @@ extern "C"
 
 class RecorderManager {
 public:
-    static std::unique_ptr<RecorderManager> Create(
+    static void Create(
             std::shared_ptr<V4L2Capture> video_src, 
             std::shared_ptr<PaCapture> audio_src,
             std::string record_path);
@@ -50,6 +50,9 @@ protected:
 
 private:
     std::future<void> thumbnail_task;
+    static std::unique_ptr<RecorderManager> instance;
+
+    static void SignalHandler(int signum);
 };
 
 #endif

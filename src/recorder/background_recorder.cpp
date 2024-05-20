@@ -68,8 +68,8 @@ void BackgroundRecorder::DeleteRedundantFiles(std::vector<std::filesystem::path>
 void BackgroundRecorder::Start() {
     if (CreateVideoFolder(args_.record_path)) {
         audio_capture_ = PaCapture::Create(args_);
-        recorder_mgr_ = RecorderManager::Create(video_capture_, audio_capture_, 
-                                                args_.record_path);
+        RecorderManager::Create(video_capture_, audio_capture_, 
+                                args_.record_path);
         worker_.reset(new Worker([this]() { 
             RotateFiles(args_.record_path, args_.max_files);
             sleep(60);
@@ -81,6 +81,5 @@ void BackgroundRecorder::Start() {
 }
 
 void BackgroundRecorder::Stop() {
-    recorder_mgr_.reset();
     worker_.reset();
 }
