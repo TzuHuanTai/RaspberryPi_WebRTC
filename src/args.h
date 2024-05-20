@@ -25,7 +25,7 @@ struct Args {
     std::string signaling_url = "http://localhost:5000/SignalingServer";
 #endif
     std::string record_path = "";
-    int max_files = 20;
+    int max_files = 120;
 };
 
 #endif // ARGS_H_
