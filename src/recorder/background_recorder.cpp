@@ -45,7 +45,7 @@ void BackgroundRecorder::RotateFiles(std::string folder_path, int max_files) {
         }
     }
 
-    DeleteRedundantFiles(video_files, max_files / 2);
+    DeleteRedundantFiles(video_files, (max_files / 2) + 1);
     DeleteRedundantFiles(image_files, max_files / 2);
 }
 
