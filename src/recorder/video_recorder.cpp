@@ -14,10 +14,7 @@ void VideoRecorder::Initialize() {
     InitializeEncoder();
     worker_.reset(new Worker([this]() { 
         if (is_started && !raw_buffer_queue.empty()) {
-            auto buffer = raw_buffer_queue.front();
-            Encode(buffer);
-            free(buffer.start);
-            raw_buffer_queue.pop();
+            ConsumeBuffer();
         } else {
             usleep(1000);
         }
@@ -48,6 +45,19 @@ void VideoRecorder::OnBuffer(Buffer raw_buffer) {
     }
 }
 
+void VideoRecorder::Pause() {
+    is_started = false;
+
+    // Wait P-frames are all consumed until I-frame appear.
+    while (!raw_buffer_queue.empty()) {
+        auto buffer = raw_buffer_queue.front();
+        if (buffer.flags & V4L2_BUF_FLAG_KEYFRAME) {
+            break;
+        }
+        ConsumeBuffer();
+    }
+}
+
 void VideoRecorder::OnEncoded(Buffer buffer) {
     int ret;
     if (!wait_first_keyframe && (buffer.flags & V4L2_BUF_FLAG_KEYFRAME)) {
@@ -67,4 +77,15 @@ void VideoRecorder::OnEncoded(Buffer buffer) {
     pkt.pts = pkt.dts = av_rescale_q(frame_count++, encoder->time_base, st->time_base);
     OnPacketed(&pkt);
     av_packet_unref(&pkt);
+}
+
+void VideoRecorder::ConsumeBuffer() {
+    std::lock_guard<std::mutex> lock(queue_mutex);
+    auto buffer = raw_buffer_queue.front();
+    Encode(buffer);
+    if (buffer.start != nullptr) {
+        free(buffer.start);
+        buffer.start = nullptr;
+    }
+    raw_buffer_queue.pop();
 }

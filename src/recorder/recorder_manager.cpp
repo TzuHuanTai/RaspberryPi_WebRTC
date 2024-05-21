@@ -130,7 +130,6 @@ void RecorderManager::Start() {
 }
 
 void RecorderManager::Stop() {
-    std::lock_guard<std::mutex> lock(ctx_mux);
     frame_count = 0;
     if (video_recorder) {
         video_recorder->Pause();
@@ -142,9 +141,10 @@ void RecorderManager::Stop() {
     }
 
     if (fmt_ctx) {
+        std::lock_guard<std::mutex> lock(ctx_mux);
         RecUtil::CloseContext(fmt_ctx);
+        fmt_ctx = nullptr;
     }
-    fmt_ctx = nullptr;
 }
 
 void RecorderManager::SignalHandler(int signum) {

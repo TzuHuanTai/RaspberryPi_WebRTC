@@ -10,6 +10,7 @@
 #include <future>
 #include <queue>
 #include <memory>
+#include <mutex>
 
 extern "C"
 {
@@ -30,6 +31,7 @@ public:
     virtual ~VideoRecorder() {};
     void Initialize() override;
     void OnBuffer(Buffer buffer) override;
+    void Pause() override;
 
 protected:
     Args config;
@@ -45,7 +47,10 @@ protected:
     void InitializeEncoder() override;
 
 private:
+    std::mutex queue_mutex;
     std::unique_ptr<Worker> worker_;
+
+    void ConsumeBuffer();
 };
 
 #endif
