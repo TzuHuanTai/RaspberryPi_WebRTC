@@ -19,7 +19,7 @@ void VideoRecorder::Initialize() {
             free(buffer.start);
             raw_buffer_queue.pop();
         } else {
-            usleep(10);
+            usleep(1000);
         }
     }));
     worker_->Run();
