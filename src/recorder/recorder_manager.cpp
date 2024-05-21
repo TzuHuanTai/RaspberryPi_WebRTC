@@ -53,6 +53,7 @@ RecorderManager::RecorderManager(std::shared_ptr<V4L2Capture> video_src,
       video_src(video_src),
       audio_src(audio_src) {
     signal(SIGINT, RecorderManager::SignalHandler);
+    signal(SIGTERM, RecorderManager::SignalHandler);
 }
 
 void RecorderManager::SubscribeVideoSource(std::shared_ptr<V4L2Capture> video_src) {
@@ -68,6 +69,13 @@ void RecorderManager::SubscribeVideoSource(std::shared_ptr<V4L2Capture> video_sr
         if (frame_count / (SECOND_PER_FILE * fps) > 0 && 
             buffer.flags & V4L2_BUF_FLAG_KEYFRAME) {
             Stop();
+
+            thumbnail_task = std::async(std::launch::async, 
+                [path = this->record_path, file = this->filename]() {
+                    sleep(1); // wait for the file to be closed properly.
+                    RecUtil::CreateThumbnail(path, file);
+                });
+
             Start();
         }
 
@@ -137,19 +145,13 @@ void RecorderManager::Stop() {
         RecUtil::CloseContext(fmt_ctx);
     }
     fmt_ctx = nullptr;
-    
-
-    thumbnail_task = std::async(std::launch::async, 
-    [path = this->record_path, file = this->filename]() {
-        sleep(1); // wait for the file to be closed properly.
-        RecUtil::CreateThumbnail(path, file);
-    });
 }
 
 void RecorderManager::SignalHandler(int signum) {
     // trigger destrctor to terminate recording before closing
     printf("[RecorderManager] Interrupt signal (%d) received.\n", signum);
     instance.reset();
+    sleep(2);
     exit(signum);
 }
 
@@ -159,4 +161,6 @@ RecorderManager::~RecorderManager() {
     video_observer->UnSubscribe();
     audio_observer->UnSubscribe();
     Stop();
+
+    RecUtil::CreateThumbnail(record_path, filename);
 }

@@ -82,8 +82,8 @@ Set `pi_webrtc` to run as a daemon.
     [Service]
     Type=simple
     WorkingDirectory=/home/pi/IoT/RaspberryPi_WebRTC/build
-    ExecStartPre=/bin/sleep 60
     ExecStart=/home/pi/IoT/RaspberryPi_WebRTC/build/pi_webrtc --fps=30 --width=1280 --height=720 --v4l2_format=h264 --enable_v4l2_dma --mqtt_username=hakunamatata --mqtt_password=wonderful --record_path=/home/pi/video/
+    ExecStop=/bin/kill -s SIGTERM $MAINPID
     Restart=always
     RestartSec=20
       
