@@ -46,9 +46,7 @@ public:
         on_packeted = fn;
     }
 
-    virtual void Pause() {
-        is_started = false;
-    }
+    virtual void Pause() = 0;
 
     void Start() {
         is_started = true;

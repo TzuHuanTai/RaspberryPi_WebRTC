@@ -7,7 +7,7 @@
 #include <csignal>
 #include <filesystem>
 
-const int SECOND_PER_FILE = 60;
+const double SECOND_PER_FILE = 60.0;
 std::unique_ptr<RecorderManager> RecorderManager::instance = nullptr;
 
 void RecorderManager::Create(
@@ -46,12 +46,12 @@ void RecorderManager::CreateAudioRecorder(std::shared_ptr<PaCapture> capture) {
 RecorderManager::RecorderManager(std::shared_ptr<V4L2Capture> video_src, 
             std::shared_ptr<PaCapture> audio_src,
             std::string record_path)
-    : frame_count(0),
-      fmt_ctx(nullptr),
+    : fmt_ctx(nullptr),
       has_first_keyframe(false),
       record_path(record_path),
       video_src(video_src),
-      audio_src(audio_src) {
+      audio_src(audio_src),
+      elapsed_time_(0.0) {
     signal(SIGINT, RecorderManager::SignalHandler);
     signal(SIGTERM, RecorderManager::SignalHandler);
 }
@@ -60,19 +60,19 @@ void RecorderManager::SubscribeVideoSource(std::shared_ptr<V4L2Capture> video_sr
     video_observer = video_src->AsObservable();
     video_observer->Subscribe([this](Buffer buffer) {
         // waiting first keyframe to start recorders.
-        if (!has_first_keyframe && frame_count == 0 &&
-            buffer.flags & V4L2_BUF_FLAG_KEYFRAME) {
+        if (!has_first_keyframe && (buffer.flags & V4L2_BUF_FLAG_KEYFRAME)) {
             Start();
+            last_created_time_ = buffer.timestamp;
         }
 
-        // write in new the new file.
-        if (frame_count / (SECOND_PER_FILE * fps) > 0 && 
-            buffer.flags & V4L2_BUF_FLAG_KEYFRAME) {
+        // restart to write in the new file.
+        
+        if (elapsed_time_ >= SECOND_PER_FILE && buffer.flags & V4L2_BUF_FLAG_KEYFRAME) {
+            last_created_time_ = buffer.timestamp;
             Stop();
 
             thumbnail_task = std::async(std::launch::async, 
                 [path = this->record_path, file = this->filename]() {
-                    sleep(1); // wait for the file to be closed properly.
                     RecUtil::CreateThumbnail(path, file);
                 });
 
@@ -81,7 +81,8 @@ void RecorderManager::SubscribeVideoSource(std::shared_ptr<V4L2Capture> video_sr
 
         if (has_first_keyframe && video_recorder) {
             video_recorder->OnBuffer(buffer);
-            frame_count++;
+            elapsed_time_ = (buffer.timestamp.tv_sec - last_created_time_.tv_sec) +
+                           (buffer.timestamp.tv_usec - last_created_time_.tv_usec) / 1000000.0;
         }
     });
 }
@@ -130,7 +131,6 @@ void RecorderManager::Start() {
 }
 
 void RecorderManager::Stop() {
-    frame_count = 0;
     if (video_recorder) {
         video_recorder->Pause();
         video_recorder->ResetCodecs();

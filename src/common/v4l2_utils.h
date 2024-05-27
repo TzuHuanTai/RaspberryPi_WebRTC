@@ -15,6 +15,7 @@ struct Buffer {
     unsigned int length;
     unsigned int flags;
     int dmafd = 0;
+    struct timeval timestamp;
     struct v4l2_buffer inner;
     struct v4l2_plane plane;
 };

@@ -8,16 +8,15 @@ VideoRecorder::VideoRecorder(Args config, std::string encoder_name)
     : Recorder(),
       encoder_name(encoder_name),
       config(config),
-      wait_first_keyframe(false) {}
+      has_first_keyframe(false) {}
 
 void VideoRecorder::Initialize() {
     InitializeEncoder();
     worker_.reset(new Worker([this]() { 
-        if (is_started && !raw_buffer_queue.empty()) {
+        while (is_started && !raw_buffer_queue.empty()) {
             ConsumeBuffer();
-        } else {
-            usleep(1000);
         }
+        usleep(15000);
     }));
     worker_->Run();
 }
@@ -39,7 +38,8 @@ void VideoRecorder::OnBuffer(Buffer &raw_buffer) {
     if (raw_buffer_queue.size() < config.fps * 10) {
         Buffer buf = {.start = malloc(raw_buffer.length),
                       .length = raw_buffer.length,
-                      .flags = raw_buffer.flags};
+                      .flags = raw_buffer.flags,
+                      .timestamp = raw_buffer.timestamp};
         memcpy(buf.start, raw_buffer.start, raw_buffer.length); 
         raw_buffer_queue.push(std::move(buf));
     }
@@ -49,22 +49,26 @@ void VideoRecorder::Pause() {
     is_started = false;
 
     // Wait P-frames are all consumed until I-frame appear.
-    while (!raw_buffer_queue.empty()) {
-        auto buffer = raw_buffer_queue.front();
-        if (buffer.flags & V4L2_BUF_FLAG_KEYFRAME) {
-            break;
-        }
+    while (!raw_buffer_queue.empty() && 
+           !(raw_buffer_queue.front().flags & V4L2_BUF_FLAG_KEYFRAME)) {
         ConsumeBuffer();
     }
+
+    has_first_keyframe = false;
+}
+
+void VideoRecorder::SetBaseTimestamp(struct timeval time) {
+    base_time_ = time;
 }
 
 void VideoRecorder::OnEncoded(Buffer buffer) {
     int ret;
-    if (!wait_first_keyframe && (buffer.flags & V4L2_BUF_FLAG_KEYFRAME)) {
-        wait_first_keyframe = true;
+    if (!has_first_keyframe && (buffer.flags & V4L2_BUF_FLAG_KEYFRAME)) {
+        has_first_keyframe = true;
+        SetBaseTimestamp(buffer.timestamp);
     }
 
-    if (!wait_first_keyframe) {
+    if (!has_first_keyframe) {
         return;
     }
 
@@ -72,15 +76,18 @@ void VideoRecorder::OnEncoded(Buffer buffer) {
     av_init_packet(&pkt);
     pkt.data = static_cast<uint8_t *>(buffer.start);
     pkt.size = buffer.length;
-
     pkt.stream_index = st->index;
-    pkt.pts = pkt.dts = av_rescale_q(frame_count++, encoder->time_base, st->time_base);
+
+    double elapsed_time = (buffer.timestamp.tv_sec - base_time_.tv_sec) +
+                          (buffer.timestamp.tv_usec - base_time_.tv_usec) / 1000000.0;
+    pkt.pts = pkt.dts = static_cast<int>(elapsed_time * st->time_base.den / st->time_base.num);
+
     OnPacketed(&pkt);
     av_packet_unref(&pkt);
 }
 
 void VideoRecorder::ConsumeBuffer() {
-    std::lock_guard<std::mutex> lock(queue_mutex);
+    std::lock_guard<std::mutex> lock(queue_mutex_);
     auto buffer = std::move(raw_buffer_queue.front());
     Encode(buffer);
     if (buffer.start != nullptr) {

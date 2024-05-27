@@ -170,7 +170,8 @@ void V4L2Capture::CaptureImage() {
 
     shared_buffer_ = {.start = capture_.buffers[buf.index].start,
                       .length = buf.bytesused,
-                      .flags = buf.flags};
+                      .flags = buf.flags,
+                      .timestamp = buf.timestamp};
 
     if(!V4l2Util::QueueBuffer(fd_, &buf)) {
         return;
