@@ -13,7 +13,7 @@ public:
     void ResetCodecs() override;
 
 protected:
-    void Encode(Buffer buffer) override;
+    void Encode(Buffer &buffer) override;
 
 private:
     bool is_ready_;

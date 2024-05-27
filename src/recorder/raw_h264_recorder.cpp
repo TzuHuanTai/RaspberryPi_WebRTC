@@ -27,7 +27,7 @@ void RawH264Recorder::ResetCodecs() {
     has_first_keyframe_ = false;
 }
 
-void RawH264Recorder::Encode(Buffer buffer) {
+void RawH264Recorder::Encode(Buffer &buffer) {
     if (buffer.flags & V4L2_BUF_FLAG_KEYFRAME && !has_first_keyframe_ ) {
         CheckNALUnits(buffer);
         if (has_sps_ && has_pps_) {

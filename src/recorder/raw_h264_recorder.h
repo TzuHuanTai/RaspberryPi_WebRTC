@@ -12,7 +12,7 @@ public:
     bool CheckNALUnits(const Buffer& buffer);
 
 protected:
-    void Encode(Buffer buffer) override;
+    void Encode(Buffer &buffer) override;
 
 private:
     bool has_sps_;
