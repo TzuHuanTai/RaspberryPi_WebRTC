@@ -17,18 +17,16 @@ void AudioRecorder::Initialize() {
     InitializeEncoder();
     InitializeFrame(encoder);
     InitializeFifoBuffer(encoder);
-}
-
-void AudioRecorder::CloseCodec() {
-    if (encoder) {
-        avcodec_close(encoder);
-        avcodec_free_context(&encoder);
-    }
+    worker_.reset(new Worker([this]() { 
+        while (is_started && av_audio_fifo_size(fifo_buffer) >= encoder->frame_size) {
+            ConsumeBuffer();
+        }
+        usleep(15000);
+    }));
+    worker_->Run();
 }
 
 void AudioRecorder::InitializeEncoder() {
-    std::lock_guard<std::mutex> lock(codec_mux);
-    CloseCodec();
     const AVCodec *codec = avcodec_find_encoder_by_name(encoder_name.c_str());
     encoder = avcodec_alloc_context3(codec);
     encoder->codec_type = AVMEDIA_TYPE_AUDIO;
@@ -63,8 +61,7 @@ void AudioRecorder::InitializeFifoBuffer(AVCodecContext *encoder) {
     }
 }
 
-void AudioRecorder::Encode(int stream_index) {
-    std::lock_guard<std::mutex> lock(codec_mux);
+void AudioRecorder::Encode() {
     AVPacket pkt;
     av_init_packet(&pkt);
 
@@ -90,7 +87,7 @@ void AudioRecorder::Encode(int stream_index) {
             break;
         }
 
-        pkt.stream_index = stream_index;
+        pkt.stream_index = st->index;
         OnPacketed(&pkt);
     }
     av_packet_unref(&pkt);
@@ -120,13 +117,17 @@ void AudioRecorder::OnBuffer(PaBuffer &buffer) {
         // Handle write error
     }
 
-    while (is_started && encoder && st && 
-           av_audio_fifo_size(fifo_buffer) >= encoder->frame_size) {
-        Encode(st->index);
-    }
-
     if (converted_input_samples) {
         av_freep(&converted_input_samples[0]);
         av_freep(&converted_input_samples);
+        converted_input_samples = nullptr;
     }
+}
+
+void AudioRecorder::ConsumeBuffer() {
+    Encode();
+}
+
+void AudioRecorder::Pause() {
+    is_started = false;
 }

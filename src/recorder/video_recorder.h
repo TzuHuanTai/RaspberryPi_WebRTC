@@ -35,7 +35,7 @@ public:
 
 protected:
     Args config;
-    bool wait_first_keyframe;
+    bool has_first_keyframe;
     std::string encoder_name;
     std::queue<Buffer> raw_buffer_queue;
 
@@ -45,9 +45,11 @@ protected:
 
     void OnEncoded(Buffer buffer);
     void InitializeEncoder() override;
+    void SetBaseTimestamp(struct timeval time);
 
 private:
-    std::mutex queue_mutex;
+    struct timeval base_time_;
+    std::mutex queue_mutex_;
     std::unique_ptr<Worker> worker_;
 
     void ConsumeBuffer();

@@ -30,7 +30,6 @@ public:
 
 protected:
     std::mutex ctx_mux;
-    uint frame_count;
     uint fps;
     std::string record_path;
     std::string filename;
@@ -49,6 +48,8 @@ protected:
     void SubscribeAudioSource(std::shared_ptr<PaCapture> aduio_src);
 
 private:
+    double elapsed_time_;
+    struct timeval last_created_time_;
     std::future<void> thumbnail_task;
     static std::unique_ptr<RecorderManager> instance;
 
