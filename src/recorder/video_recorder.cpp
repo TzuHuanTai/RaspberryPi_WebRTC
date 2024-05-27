@@ -35,7 +35,7 @@ void VideoRecorder::InitializeEncoder() {
     encoder->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
 }
 
-void VideoRecorder::OnBuffer(Buffer raw_buffer) {
+void VideoRecorder::OnBuffer(Buffer &raw_buffer) {
     if (raw_buffer_queue.size() < config.fps * 10) {
         Buffer buf = {.start = malloc(raw_buffer.length),
                       .length = raw_buffer.length,
@@ -81,7 +81,7 @@ void VideoRecorder::OnEncoded(Buffer buffer) {
 
 void VideoRecorder::ConsumeBuffer() {
     std::lock_guard<std::mutex> lock(queue_mutex);
-    auto buffer = raw_buffer_queue.front();
+    auto buffer = std::move(raw_buffer_queue.front());
     Encode(buffer);
     if (buffer.start != nullptr) {
         free(buffer.start);

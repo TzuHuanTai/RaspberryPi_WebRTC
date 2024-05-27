@@ -21,7 +21,7 @@ public:
                  is_started(false) {};
     ~Recorder() { };
 
-    virtual void OnBuffer(T buffer) = 0;
+    virtual void OnBuffer(T &buffer) = 0;
 
     virtual void Initialize() {
         InitializeEncoder();

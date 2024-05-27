@@ -20,7 +20,7 @@ public:
     static std::unique_ptr<AudioRecorder> Create(Args config);
     AudioRecorder(Args config);
     ~AudioRecorder();
-    void OnBuffer(PaBuffer buffer) override;
+    void OnBuffer(PaBuffer &buffer) override;
     void Initialize() override;
 
 private:

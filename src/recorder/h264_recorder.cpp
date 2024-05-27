@@ -16,7 +16,7 @@ H264Recorder::~H264Recorder() {
     encoder_.reset();
 }
 
-void H264Recorder::Encode(Buffer buffer) {
+void H264Recorder::Encode(Buffer &buffer) {
     if (!is_ready_) {
         return;
     }

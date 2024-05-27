@@ -96,7 +96,7 @@ void AudioRecorder::Encode(int stream_index) {
     av_packet_unref(&pkt);
 }
 
-void AudioRecorder::OnBuffer(PaBuffer buffer) {
+void AudioRecorder::OnBuffer(PaBuffer &buffer) {
     uint8_t **converted_input_samples = nullptr;
     int samples_per_channel = buffer.length / buffer.channels;
 

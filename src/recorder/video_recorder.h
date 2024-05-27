@@ -30,7 +30,7 @@ public:
     VideoRecorder(Args config, std::string encoder_name);
     virtual ~VideoRecorder() {};
     void Initialize() override;
-    void OnBuffer(Buffer buffer) override;
+    void OnBuffer(Buffer &buffer) override;
     void Pause() override;
 
 protected:
@@ -41,7 +41,7 @@ protected:
 
     AVRational frame_rate;
 
-    virtual void Encode(Buffer buffer) = 0;
+    virtual void Encode(Buffer &buffer) = 0;
 
     void OnEncoded(Buffer buffer);
     void InitializeEncoder() override;
