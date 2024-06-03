@@ -85,6 +85,10 @@ void RecorderManager::SubscribeVideoSource(std::shared_ptr<V4L2Capture> video_sr
                            (buffer.timestamp.tv_usec - last_created_time_.tv_usec) / 1000000.0;
         }
     });
+
+    video_recorder->OnPacketed([this](AVPacket *pkt) {
+        this->WriteIntoFile(pkt);
+    });
 }
 
 void RecorderManager::SubscribeAudioSource(std::shared_ptr<PaCapture> audio_src) {
@@ -93,6 +97,10 @@ void RecorderManager::SubscribeAudioSource(std::shared_ptr<PaCapture> audio_src)
         if (has_first_keyframe && audio_recorder) {
             audio_recorder->OnBuffer(buffer);
         }
+    });
+
+    audio_recorder->OnPacketed([this](AVPacket *pkt) {
+        this->WriteIntoFile(pkt);
     });
 }
 
@@ -113,16 +121,10 @@ void RecorderManager::Start() {
 
     if (video_recorder) {
         video_recorder->AddStream(fmt_ctx);
-        video_recorder->OnPacketed([this](AVPacket *pkt) {
-            this->WriteIntoFile(pkt);
-        });
         video_recorder->Start();
     }
     if (audio_recorder) {
         audio_recorder->AddStream(fmt_ctx);
-        audio_recorder->OnPacketed([this](AVPacket *pkt) {
-            this->WriteIntoFile(pkt);
-        });
         audio_recorder->Start();
     }
     RecUtil::WriteFormatHeader(fmt_ctx);
