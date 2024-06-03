@@ -48,7 +48,7 @@ public:
 
     virtual void Pause() = 0;
 
-    void Start() {
+    virtual void Start() {
         is_started = true;
     }
 

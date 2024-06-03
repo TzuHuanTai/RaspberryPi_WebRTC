@@ -23,6 +23,7 @@ public:
     void OnBuffer(PaBuffer &buffer) override;
     void Initialize() override;
     void Pause() override;
+    void Start() override;
 
 private:
     AVSampleFormat sample_fmt = AV_SAMPLE_FMT_FLTP;
@@ -38,6 +39,7 @@ private:
     void InitializeFifoBuffer(AVCodecContext *encoder);
     void InitializeEncoder() override;
     void ConsumeBuffer();
+    void DrainAudioFifo(int drop_frame_count);
 };
 
 #endif
