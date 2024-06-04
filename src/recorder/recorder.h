@@ -32,7 +32,6 @@ public:
     bool AddStream(AVFormatContext *output_fmt_ctx) {
         frame_count = 0;
         InitializeEncoder();
-        fmt_ctx = output_fmt_ctx;
         st = avformat_new_stream(output_fmt_ctx, encoder->codec);
         avcodec_parameters_from_context(st->codecpar, encoder);
 
@@ -58,7 +57,6 @@ protected:
     OnPacketedFunc on_packeted;
 
     AVCodecContext *encoder;
-    volatile AVFormatContext *fmt_ctx;
     AVStream *st;
 
     virtual void InitializeEncoder() = 0;
