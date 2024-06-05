@@ -8,7 +8,7 @@ public:
     static std::unique_ptr<RawH264Recorder> Create(Args config);
     RawH264Recorder(Args config, std::string encoder_name);
     ~RawH264Recorder();
-    void ResetCodecs() override;
+    void PreStart() override;
     bool CheckNALUnits(const Buffer& buffer);
 
 protected:

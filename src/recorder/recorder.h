@@ -1,10 +1,7 @@
 #ifndef RECORDER_H_
 #define RECORDER_H_
 #include "common/interface/subject.h"
-#include <atomic>
-#include <string>
-#include <future>
-#include <memory>
+#include "common/worker.h"
 
 extern "C"
 {
@@ -15,52 +12,60 @@ extern "C"
 template<typename T>
 class Recorder {
 public:
-    typedef std::function<void(AVPacket *pkt)> OnPacketedFunc;
+    using OnPacketedFunc = std::function<void(AVPacket *pkt)>;
 
-    Recorder() : frame_count(0),
-                 is_started(false) {};
+    Recorder() : is_started(false) {};
     ~Recorder() { };
 
     virtual void OnBuffer(T &buffer) = 0;
 
-    virtual void Initialize() {
-        InitializeEncoder();
+    void Initialize() {
+        encoder = InitializeEncoderCtx();
+        worker.reset(new Worker([this]() { 
+            while (is_started && ConsumeBuffer()) {}
+            usleep(15000);
+        }));
+        worker->Run();
     }
 
-    virtual void ResetCodecs() {}
+    void ResetCodecCtx() {
+        encoder = InitializeEncoderCtx();
+    }
+
+    virtual void PostStop() {};
+    virtual void PreStart() {};
 
     bool AddStream(AVFormatContext *output_fmt_ctx) {
-        frame_count = 0;
-        InitializeEncoder();
         st = avformat_new_stream(output_fmt_ctx, encoder->codec);
         avcodec_parameters_from_context(st->codecpar, encoder);
 
-        if (st == nullptr) {
-            return false;
-        }
-        return true;
+        return st != nullptr;
     }
 
     void OnPacketed(OnPacketedFunc fn) {
         on_packeted = fn;
     }
 
-    virtual void Pause() = 0;
+    void Stop() {
+        is_started = false;
+        PostStop();
+        ResetCodecCtx();
+    }
 
-    virtual void Start() {
+    void Start() {
+        PreStart();
         is_started = true;
     }
 
 protected:
     bool is_started;
-    unsigned int frame_count;
     OnPacketedFunc on_packeted;
-
+    std::unique_ptr<Worker> worker;
     AVCodecContext *encoder;
     AVStream *st;
 
-    virtual void InitializeEncoder() = 0;
-    
+    virtual AVCodecContext* InitializeEncoderCtx() = 0;
+    virtual bool ConsumeBuffer() = 0;
     void OnPacketed(AVPacket *pkt) {
         if (on_packeted){
             on_packeted(pkt);
@@ -68,4 +73,4 @@ protected:
     }
 };
 
-#endif
+#endif  // RECORDER_H_
