@@ -7,16 +7,15 @@
 class BackgroundRecorder {
 public:
     static std::unique_ptr<BackgroundRecorder> CreateBackgroundRecorder(
-        std::shared_ptr<V4L2Capture> capture, RecorderFormat format);
+        std::shared_ptr<V4L2Capture> capture);
 
-    BackgroundRecorder(std::shared_ptr<V4L2Capture> capture, RecorderFormat format);
+    BackgroundRecorder(std::shared_ptr<V4L2Capture> capture);
     ~BackgroundRecorder();
     void Start();
     void Stop();
 
 private:
     Args args_;
-    RecorderFormat format_;
     std::unique_ptr<Worker> worker_;
     std::shared_ptr<PaCapture> audio_capture_;
     std::shared_ptr<V4L2Capture> video_capture_;
