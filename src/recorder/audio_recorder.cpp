@@ -18,9 +18,7 @@ void AudioRecorder::Initialize() {
     InitializeFrame(encoder);
     InitializeFifoBuffer(encoder);
     worker_.reset(new Worker([this]() { 
-        while (is_started && av_audio_fifo_size(fifo_buffer) >= encoder->frame_size) {
-            ConsumeBuffer();
-        }
+        while (is_started && ConsumeBuffer()) {}
         usleep(15000);
     }));
     worker_->Run();
@@ -94,6 +92,7 @@ void AudioRecorder::Encode() {
 }
 
 void AudioRecorder::OnBuffer(PaBuffer &buffer) {
+    std::lock_guard<std::mutex> lock(queue_mutex_);
     uint8_t **converted_input_samples = nullptr;
     int samples_per_channel = buffer.length / buffer.channels;
 
@@ -124,8 +123,13 @@ void AudioRecorder::OnBuffer(PaBuffer &buffer) {
     }
 }
 
-void AudioRecorder::ConsumeBuffer() {
+bool AudioRecorder::ConsumeBuffer() {
+    std::lock_guard<std::mutex> lock(queue_mutex_);
+    if (av_audio_fifo_size(fifo_buffer) < encoder->frame_size) {
+        return false;
+    }
     Encode();
+    return true;
 }
 
 void AudioRecorder::Pause() {
@@ -133,18 +137,6 @@ void AudioRecorder::Pause() {
 }
 
 void AudioRecorder::Start() {
-    DrainAudioFifo(1);
     is_started = true;
 }
 
-void AudioRecorder::DrainAudioFifo(int drop_frame_count) {
-    int frame_count = av_audio_fifo_size(fifo_buffer);
-    int drop_buf_count = drop_frame_count * encoder->frame_size;
-    if (frame_count > drop_buf_count) {
-        int ret = av_audio_fifo_drain(fifo_buffer, drop_buf_count);
-        if (ret < 0) {
-            printf("Error draining audio FIFO: %s\n", av_err2str(ret));
-        }
-        printf("Info: %d audio buffers are clean from Fifo.\n", drop_buf_count);
-    }
-}
