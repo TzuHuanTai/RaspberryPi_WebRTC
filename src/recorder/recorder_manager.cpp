@@ -69,14 +69,12 @@ void RecorderManager::SubscribeVideoSource(std::shared_ptr<V4L2Capture> video_sr
         
         if (elapsed_time_ >= SECOND_PER_FILE && buffer.flags & V4L2_BUF_FLAG_KEYFRAME) {
             last_created_time_ = buffer.timestamp;
-            Stop();
-
             thumbnail_task = std::async(std::launch::async, 
-                [path = this->record_path, file = this->filename]() {
+                [this, path = this->record_path, file = this->filename]() {
+                    Stop();
                     RecUtil::CreateThumbnail(path, file);
+                    Start();
                 });
-
-            Start();
         }
 
         if (has_first_keyframe && video_recorder) {
@@ -116,6 +114,7 @@ void RecorderManager::WriteIntoFile(AVPacket *pkt) {
 }
 
 void RecorderManager::Start() {
+    std::lock_guard<std::mutex> lock(ctx_mux);
     filename = RecUtil::GenerateFilename();
     fmt_ctx = RecUtil::CreateContainer(record_path, filename);
 
@@ -133,6 +132,7 @@ void RecorderManager::Start() {
 }
 
 void RecorderManager::Stop() {
+    std::lock_guard<std::mutex> lock(ctx_mux);
     if (video_recorder) {
         video_recorder->Pause();
         video_recorder->ResetCodecs();
@@ -143,7 +143,6 @@ void RecorderManager::Stop() {
     }
 
     if (fmt_ctx) {
-        std::lock_guard<std::mutex> lock(ctx_mux);
         RecUtil::CloseContext(fmt_ctx);
         fmt_ctx = nullptr;
     }

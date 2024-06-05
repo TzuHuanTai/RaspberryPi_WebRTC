@@ -7,6 +7,7 @@
 #include <string>
 #include <future>
 #include <memory>
+#include <mutex>
 
 extern "C"
 {
@@ -32,14 +33,14 @@ private:
     std::string encoder_name;
     AVAudioFifo* fifo_buffer;
     AVFrame *frame;
+    std::mutex queue_mutex_;
     std::unique_ptr<Worker> worker_;
 
     void Encode();
     void InitializeFrame(AVCodecContext *encoder);
     void InitializeFifoBuffer(AVCodecContext *encoder);
     void InitializeEncoder() override;
-    void ConsumeBuffer();
-    void DrainAudioFifo(int drop_frame_count);
+    bool ConsumeBuffer();
 };
 
 #endif
