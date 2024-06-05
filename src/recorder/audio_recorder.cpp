@@ -3,43 +3,35 @@
 std::unique_ptr<AudioRecorder> AudioRecorder::Create(Args config) {
     auto ptr = std::make_unique<AudioRecorder>(config);
     ptr->Initialize();
+    ptr->InitializeFrame();
+    ptr->InitializeFifoBuffer();
     return ptr;
 }
 
 AudioRecorder::AudioRecorder(Args config)
     : Recorder(),
-      config(config),
+      sample_rate(config.sample_rate),
       encoder_name("aac") { }
 
 AudioRecorder::~AudioRecorder() {}
 
-void AudioRecorder::Initialize() {
-    InitializeEncoder();
-    InitializeFrame(encoder);
-    InitializeFifoBuffer(encoder);
-    worker_.reset(new Worker([this]() { 
-        while (is_started && ConsumeBuffer()) {}
-        usleep(15000);
-    }));
-    worker_->Run();
-}
-
-void AudioRecorder::InitializeEncoder() {
+AVCodecContext* AudioRecorder::InitializeEncoderCtx() {
     const AVCodec *codec = avcodec_find_encoder_by_name(encoder_name.c_str());
-    encoder = avcodec_alloc_context3(codec);
+    auto encoder = avcodec_alloc_context3(codec);
     encoder->codec_type = AVMEDIA_TYPE_AUDIO;
     encoder->sample_fmt = sample_fmt;
     encoder->bit_rate = 128000;
-    encoder->sample_rate = config.sample_rate;
+    encoder->sample_rate = sample_rate;
     encoder->channel_layout = AV_CH_LAYOUT_STEREO;
 
     channels = av_get_channel_layout_nb_channels(encoder->channel_layout);
     encoder->channels = channels;
     encoder->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
     avcodec_open2(encoder, codec, nullptr);
+    return encoder;
 }
 
-void AudioRecorder::InitializeFrame(AVCodecContext *encoder) {
+void AudioRecorder::InitializeFrame() {
     frame = av_frame_alloc();
     if (frame != nullptr) {
         frame->pts = 0;
@@ -52,7 +44,7 @@ void AudioRecorder::InitializeFrame(AVCodecContext *encoder) {
     av_frame_make_writable(frame);
 }
 
-void AudioRecorder::InitializeFifoBuffer(AVCodecContext *encoder) {
+void AudioRecorder::InitializeFifoBuffer() {
     fifo_buffer = av_audio_fifo_alloc(encoder->sample_fmt, encoder->channels, 1);
     if (fifo_buffer == nullptr) {
         printf("Init fifo fail.\n");
@@ -132,11 +124,7 @@ bool AudioRecorder::ConsumeBuffer() {
     return true;
 }
 
-void AudioRecorder::Pause() {
-    is_started = false;
-}
-
-void AudioRecorder::Start() {
-    is_started = true;
+void AudioRecorder::PreStart() {
+    frame_count = 0;
 }
 

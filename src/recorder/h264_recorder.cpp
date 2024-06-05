@@ -3,7 +3,6 @@
 std::unique_ptr<H264Recorder> H264Recorder::Create(Args config) {
     auto ptr = std::make_unique<H264Recorder>(config, "h264_v4l2m2m");
     ptr->Initialize();
-    ptr->ResetCodecs();
     return ptr;
 }
 
@@ -25,6 +24,10 @@ void H264Recorder::Encode(Buffer &buffer) {
             OnEncoded(encoded_buffer);
         });
     });
+}
+
+void H264Recorder::PreStart() {
+    ResetCodecs();
 }
 
 void H264Recorder::ResetCodecs() {

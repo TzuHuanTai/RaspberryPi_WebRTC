@@ -2,7 +2,7 @@
 #include "recorder/h264_recorder.h"
 #include "recorder/raw_h264_recorder.h"
 
-#include <unistd.h>
+#include <memory>
 
 VideoRecorder::VideoRecorder(Args config, std::string encoder_name)
     : Recorder(),
@@ -10,28 +10,18 @@ VideoRecorder::VideoRecorder(Args config, std::string encoder_name)
       config(config),
       has_first_keyframe(false) {}
 
-void VideoRecorder::Initialize() {
-    InitializeEncoder();
-    worker_.reset(new Worker([this]() { 
-        while (is_started && !raw_buffer_queue.empty()) {
-            ConsumeBuffer();
-        }
-        usleep(15000);
-    }));
-    worker_->Run();
-}
-
-void VideoRecorder::InitializeEncoder() {
+AVCodecContext* VideoRecorder::InitializeEncoderCtx() {
     frame_rate = {.num = (int)config.fps, .den = 1};
 
     const AVCodec *codec = avcodec_find_encoder_by_name(encoder_name.c_str());
-    encoder = avcodec_alloc_context3(codec);
+    auto encoder = avcodec_alloc_context3(codec);
     encoder->codec_type = AVMEDIA_TYPE_VIDEO;
     encoder->width = config.width;
     encoder->height = config.height;
     encoder->framerate = frame_rate;
     encoder->time_base = av_inv_q(frame_rate);
     encoder->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
+    return encoder;
 }
 
 void VideoRecorder::OnBuffer(Buffer &raw_buffer) {
@@ -45,9 +35,7 @@ void VideoRecorder::OnBuffer(Buffer &raw_buffer) {
     }
 }
 
-void VideoRecorder::Pause() {
-    is_started = false;
-
+void VideoRecorder::PostStop() {
     // Wait P-frames are all consumed until I-frame appear.
     while (!raw_buffer_queue.empty() && 
            !(raw_buffer_queue.front().flags & V4L2_BUF_FLAG_KEYFRAME)) {
@@ -86,8 +74,11 @@ void VideoRecorder::OnEncoded(Buffer buffer) {
     av_packet_unref(&pkt);
 }
 
-void VideoRecorder::ConsumeBuffer() {
+bool VideoRecorder::ConsumeBuffer() {
     std::lock_guard<std::mutex> lock(queue_mutex_);
+    if (raw_buffer_queue.empty()) {
+        return false;
+    }
     auto buffer = std::move(raw_buffer_queue.front());
     Encode(buffer);
     if (buffer.start != nullptr) {
@@ -95,4 +86,5 @@ void VideoRecorder::ConsumeBuffer() {
         buffer.start = nullptr;
     }
     raw_buffer_queue.pop();
+    return true;
 }

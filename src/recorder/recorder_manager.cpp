@@ -134,12 +134,10 @@ void RecorderManager::Start() {
 void RecorderManager::Stop() {
     std::lock_guard<std::mutex> lock(ctx_mux);
     if (video_recorder) {
-        video_recorder->Pause();
-        video_recorder->ResetCodecs();
+        video_recorder->Stop();
     }
     if (audio_recorder) {
-        audio_recorder->Pause();
-        audio_recorder->ResetCodecs();
+        audio_recorder->Stop();
     }
 
     if (fmt_ctx) {

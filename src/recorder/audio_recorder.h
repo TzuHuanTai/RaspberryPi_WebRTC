@@ -1,12 +1,9 @@
 #ifndef AUDIO_RECODER_H_
 #define AUDIO_RECODER_H_
+
 #include "capture/pa_capture.h"
-#include "common/worker.h"
 #include "recorder/recorder.h"
 
-#include <string>
-#include <future>
-#include <memory>
 #include <mutex>
 
 extern "C"
@@ -22,25 +19,23 @@ public:
     AudioRecorder(Args config);
     ~AudioRecorder();
     void OnBuffer(PaBuffer &buffer) override;
-    void Initialize() override;
-    void Pause() override;
-    void Start() override;
+    void PreStart() override;
 
 private:
-    AVSampleFormat sample_fmt = AV_SAMPLE_FMT_FLTP;
+    int sample_rate;;
     int channels = 2;
-    Args config;
+    unsigned int frame_count;
     std::string encoder_name;
     AVAudioFifo* fifo_buffer;
+    AVSampleFormat sample_fmt = AV_SAMPLE_FMT_FLTP;
     AVFrame *frame;
     std::mutex queue_mutex_;
-    std::unique_ptr<Worker> worker_;
 
     void Encode();
-    void InitializeFrame(AVCodecContext *encoder);
-    void InitializeFifoBuffer(AVCodecContext *encoder);
-    void InitializeEncoder() override;
-    bool ConsumeBuffer();
+    void InitializeFrame();
+    void InitializeFifoBuffer();
+    AVCodecContext* InitializeEncoderCtx() override;
+    bool ConsumeBuffer() override;
 };
 
-#endif
+#endif // AUDIO_RECODER_H_

@@ -3,13 +3,9 @@
 
 #include "args.h"
 #include "common/v4l2_utils.h"
-#include "common/worker.h"
 #include "recorder/recorder.h"
 
-#include <string>
-#include <future>
 #include <queue>
-#include <memory>
 #include <mutex>
 
 extern "C"
@@ -22,9 +18,8 @@ class VideoRecorder : public Recorder<Buffer> {
 public:
     VideoRecorder(Args config, std::string encoder_name);
     virtual ~VideoRecorder() {};
-    void Initialize() override;
     void OnBuffer(Buffer &buffer) override;
-    void Pause() override;
+    void PostStop() override;
 
 protected:
     Args config;
@@ -37,15 +32,14 @@ protected:
     virtual void Encode(Buffer &buffer) = 0;
 
     void OnEncoded(Buffer buffer);
-    void InitializeEncoder() override;
     void SetBaseTimestamp(struct timeval time);
 
 private:
     struct timeval base_time_;
     std::mutex queue_mutex_;
-    std::unique_ptr<Worker> worker_;
 
-    void ConsumeBuffer();
+    AVCodecContext* InitializeEncoderCtx() override;
+    bool ConsumeBuffer() override;
 };
 
-#endif
+#endif  // VIDEO_RECODER_H_

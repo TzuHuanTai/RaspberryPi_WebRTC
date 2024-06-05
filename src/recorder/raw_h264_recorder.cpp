@@ -1,6 +1,5 @@
 #include "recorder/raw_h264_recorder.h"
 
-#include <cstdint>
 #define NAL_UNIT_TYPE_IDR 5
 #define NAL_UNIT_TYPE_SPS 7
 #define NAL_UNIT_TYPE_PPS 8
@@ -21,7 +20,7 @@ RawH264Recorder::RawH264Recorder(Args config, std::string encoder_name)
 
 RawH264Recorder::~RawH264Recorder() {}
 
-void RawH264Recorder::ResetCodecs() {
+void RawH264Recorder::PreStart() {
     has_sps_ = false;
     has_pps_ = false;
     has_first_keyframe_ = false;
