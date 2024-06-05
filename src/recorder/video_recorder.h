@@ -18,13 +18,6 @@ extern "C"
 #include <libavformat/avformat.h>
 }
 
-enum class RecorderFormat {
-    H264,
-    VP8,
-    AV1,
-    UNKNOWN
-};
-
 class VideoRecorder : public Recorder<Buffer> {
 public:
     VideoRecorder(Args config, std::string encoder_name);

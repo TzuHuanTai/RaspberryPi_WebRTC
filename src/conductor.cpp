@@ -69,8 +69,7 @@ bool Conductor::InitializeRecorder() {
         return false;
     }
 
-    bg_recorder_ = BackgroundRecorder::CreateBackgroundRecorder(
-        video_capture_source_, RecorderFormat::H264);
+    bg_recorder_ = BackgroundRecorder::CreateBackgroundRecorder(video_capture_source_);
     bg_recorder_->Start();    
 
     return true;

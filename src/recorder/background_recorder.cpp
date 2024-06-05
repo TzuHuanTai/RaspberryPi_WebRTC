@@ -5,16 +5,13 @@
 #include <algorithm>
 
 std::unique_ptr<BackgroundRecorder> BackgroundRecorder::CreateBackgroundRecorder(
-    std::shared_ptr<V4L2Capture> capture, RecorderFormat format) {
-    return std::make_unique<BackgroundRecorder>(capture, format);
+    std::shared_ptr<V4L2Capture> capture) {
+    return std::make_unique<BackgroundRecorder>(capture);
 }
 
-BackgroundRecorder::BackgroundRecorder(
-    std::shared_ptr<V4L2Capture> capture,
-    RecorderFormat format) 
+BackgroundRecorder::BackgroundRecorder(std::shared_ptr<V4L2Capture> capture) 
     : args_(capture->config()),
-      video_capture_(capture),
-      format_(format) {}
+      video_capture_(capture) {}
 
 BackgroundRecorder::~BackgroundRecorder() {
     Stop();
