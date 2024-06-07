@@ -260,8 +260,8 @@ void Conductor::BlockUntilSignal() {
 }
 
 void Conductor::BlockUntilCompletion(int timeout) {
+    auto f = std::async(std::launch::async, [this, timeout](){ Timeout(timeout); });
     std::unique_lock<std::mutex> lock(state_mtx);
-    Timeout(timeout);
     ready_state.wait(lock, [this] {
         return !IsReady();
     });
