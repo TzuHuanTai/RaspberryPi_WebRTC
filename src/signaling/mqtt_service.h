@@ -6,15 +6,9 @@
 #include <memory>
 #include <mosquitto.h>
 
-struct MqttTopic {
-    std::string offer_sdp = "OfferSDP";
-    std::string offer_ice = "OfferICE";
-};
-
 class MqttService : public SignalingService {
 public:
     static std::shared_ptr<MqttService> Create(Args args);
-    MqttTopic topics;
 
     MqttService(Args args);
     ~MqttService() override;
@@ -28,15 +22,19 @@ public:
 
 private:
     int port_;
+    std::string uid_;
     std::string hostname_;
     std::string username_;
     std::string password_;
+    std::string topic_sdp_;
+    std::string topic_ice_;
     struct mosquitto *connection_;
     void ListenOfferSdp(std::string message);
     void ListenOfferIce(std::string message);
     void Subscribe(const std::string& topic);
     void OnConnect(struct mosquitto *mosq, void *obj, int result);
     void OnMessage(struct mosquitto *mosq, void *obj, const struct mosquitto_message *message);
+    std::string InitTopic(const std::string& uid, const std::string& topic) const;
 };
 
 #endif

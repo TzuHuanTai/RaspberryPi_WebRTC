@@ -12,6 +12,7 @@ struct Args {
     bool enable_v4l2_dma = false;
     std::string v4l2_format = "mjpeg";
     std::string device = "";
+    std::string uid = "";
     std::string stun_url = "stun:stun.l.google.com:19302";
     std::string turn_url = "";
     std::string turn_username = "";

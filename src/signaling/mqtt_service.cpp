@@ -19,10 +19,17 @@ std::shared_ptr<MqttService> MqttService::Create(Args args) {
 MqttService::MqttService(Args args)
     : SignalingService(),
       port_(args.mqtt_port),
+      uid_(args.uid),
       hostname_(args.mqtt_host),
       username_(args.mqtt_username),
       password_(args.mqtt_password),
+      topic_sdp_(InitTopic(uid_, "sdp")),
+      topic_ice_(InitTopic(uid_, "ice")),
       connection_(nullptr) {}
+
+std::string MqttService::InitTopic(const std::string& uid, const std::string& topic) const {
+    return uid.empty() ? topic : uid + "/" + topic;
+}
 
 MqttService::~MqttService() {
     Disconnect();
@@ -56,7 +63,7 @@ void MqttService::AnswerLocalSdp(std::string sdp, std::string type) {
     jsonData["sdp"] = sdp;
     std::string jsonString = jsonData.dump();
 
-    int rc = mosquitto_publish(connection_, NULL, topics.offer_sdp.c_str(), 
+    int rc = mosquitto_publish(connection_, NULL, topic_sdp_.c_str(), 
                             jsonString.length(), jsonString.c_str(), 2, false);
     if (rc != MOSQ_ERR_SUCCESS) {
         fprintf(stderr, "Error publishing: %s\n", mosquitto_strerror(rc));
@@ -71,7 +78,7 @@ void MqttService::AnswerLocalIce(std::string sdp_mid, int sdp_mline_index, std::
     jsonData["candidate"] = candidate;
     std::string jsonString = jsonData.dump();
 
-    int rc = mosquitto_publish(connection_, NULL, topics.offer_ice.c_str(), 
+    int rc = mosquitto_publish(connection_, NULL, topic_ice_.c_str(), 
                             jsonString.length(), jsonString.c_str(), 2, false);
     if (rc != MOSQ_ERR_SUCCESS) {
         fprintf(stderr, "Error publishing: %s\n", mosquitto_strerror(rc));
@@ -101,8 +108,8 @@ void MqttService::Subscribe(const std::string& topic) {
 
 void MqttService::OnConnect(struct mosquitto *mosq, void *obj, int result) {
     if (result == 0) {
-        Subscribe(topics.offer_sdp);
-        Subscribe(topics.offer_ice);
+        Subscribe(topic_sdp_);
+        Subscribe(topic_ice_);
         std::cout << "MQTT service is ready." << std::endl;
     } else {
         // todo: retry connection on failure
@@ -116,9 +123,9 @@ void MqttService::OnMessage(struct mosquitto *mosq, void *obj, const struct mosq
     std::string payload(static_cast<char*>(message->payload));
 
     // todo: use map to run the fn of topics.
-    if (topic == topics.offer_sdp) {
+    if (topic == topic_sdp_) {
         ListenOfferSdp(payload);
-    } else if (topic == topics.offer_ice) {
+    } else if (topic == topic_ice_) {
         ListenOfferIce(payload);
     }
 }

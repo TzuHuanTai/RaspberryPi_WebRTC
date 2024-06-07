@@ -14,6 +14,7 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
     ("height", bpo::value<uint32_t>()->default_value(args.height), "Set ioctl frame height")
     ("rotation_angle", bpo::value<uint32_t>()->default_value(args.rotation_angle), "Set the rotation angle of the frame")
     ("device", bpo::value<std::string>()->default_value(args.device), "Set the specific camera file, default is /dev/video0")
+    ("uid", bpo::value<std::string>()->default_value(args.device), "Set the unique id, default is empty string")
     ("stun_url", bpo::value<std::string>()->default_value(args.stun_url), "Stun server, ex: stun:xxx.xxx.xxx")
     ("turn_url", bpo::value<std::string>()->default_value(args.turn_url), "Turn server, ex: turn:xxx.xxx.xxx:3478?transport=tcp")
     ("turn_username", bpo::value<std::string>()->default_value(args.turn_username), "Turn server username")
@@ -58,6 +59,10 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
     
     if (vm.count("device")) {
         args.device = vm["device"].as<std::string>();
+    }
+
+    if (vm.count("uid")) {
+        args.uid = vm["uid"].as<std::string>();
     }
 
     if (!vm["stun_url"].empty() && (vm["stun_url"].as<std::string>()).substr(0, 4) != "stun") {
