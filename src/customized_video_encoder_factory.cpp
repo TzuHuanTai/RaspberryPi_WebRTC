@@ -17,19 +17,18 @@ std::vector<webrtc::SdpVideoFormat>
 CustomizedVideoEncoderFactory::GetSupportedFormats() const {
     std::vector<webrtc::SdpVideoFormat> supported_codecs;
 
-    // vp8
-    supported_codecs.push_back(webrtc::SdpVideoFormat(cricket::kVp8CodecName));
+    if (args_.v4l2_format != "h264") {
+        supported_codecs.push_back(webrtc::SdpVideoFormat(cricket::kVp8CodecName));
 
-    // vp9
-    auto supported_vp9_formats = webrtc::SupportedVP9Codecs(true);
-    supported_codecs.insert(supported_codecs.end(), 
-                            std::begin(supported_vp9_formats),
-                            std::end(supported_vp9_formats));
+        auto supported_vp9_formats = webrtc::SupportedVP9Codecs(true);
+        supported_codecs.insert(supported_codecs.end(), 
+                                std::begin(supported_vp9_formats),
+                                std::end(supported_vp9_formats));
 
-    // av1
-    supported_codecs.push_back(webrtc::SdpVideoFormat(
-        cricket::kAv1CodecName, webrtc::SdpVideoFormat::Parameters(),
-        webrtc::LibaomAv1EncoderSupportedScalabilityModes()));
+        supported_codecs.push_back(webrtc::SdpVideoFormat(
+            cricket::kAv1CodecName, webrtc::SdpVideoFormat::Parameters(),
+            webrtc::LibaomAv1EncoderSupportedScalabilityModes()));
+    }
     // h264
 #if WEBRTC_USE_H264
     auto supported_h264_formats = webrtc::SupportedH264Codecs(true);
@@ -37,6 +36,10 @@ CustomizedVideoEncoderFactory::GetSupportedFormats() const {
                             std::begin(supported_h264_formats),
                             std::end(supported_h264_formats));
 #else
+    supported_codecs.push_back(CreateH264Format(webrtc::H264Profile::kProfileConstrainedBaseline,
+                               webrtc::H264Level::kLevel4, "1"));
+    supported_codecs.push_back(CreateH264Format(webrtc::H264Profile::kProfileConstrainedBaseline,
+                               webrtc::H264Level::kLevel4, "0"));
     supported_codecs.push_back(CreateH264Format(webrtc::H264Profile::kProfileBaseline,
                                webrtc::H264Level::kLevel4, "1"));
     supported_codecs.push_back(CreateH264Format(webrtc::H264Profile::kProfileBaseline,
