@@ -108,8 +108,8 @@ void MqttService::Subscribe(const std::string& topic) {
 
 void MqttService::OnConnect(struct mosquitto *mosq, void *obj, int result) {
     if (result == 0) {
-        Subscribe(topic_sdp_);
-        Subscribe(topic_ice_);
+        Subscribe(topic_sdp_ + "/+");
+        Subscribe(topic_ice_ + "/+");
         std::cout << "MQTT service is ready." << std::endl;
     } else {
         // todo: retry connection on failure
@@ -123,9 +123,9 @@ void MqttService::OnMessage(struct mosquitto *mosq, void *obj, const struct mosq
     std::string payload(static_cast<char*>(message->payload));
 
     // todo: use map to run the fn of topics.
-    if (topic == topic_sdp_) {
+    if (topic.substr(0, topic_sdp_.length()) == topic_sdp_) {
         ListenOfferSdp(payload);
-    } else if (topic == topic_ice_) {
+    } else if (topic.substr(0, topic_ice_.length()) == topic_ice_) {
         ListenOfferIce(payload);
     }
 }
