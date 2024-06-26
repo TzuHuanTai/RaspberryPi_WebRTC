@@ -1,7 +1,10 @@
 #include "rtc_peer.h"
 
+#include "common/base64_utils.h"
+
 rtc::scoped_refptr<RtcPeer> RtcPeer::Create(Args args, int id) {
     auto ptr = rtc::make_ref_counted<RtcPeer>(id);
+    ptr->args_ = args;
     return ptr;
 }
 
@@ -51,13 +54,30 @@ void RtcPeer::CreateDataChannel() {
     if (result.ok()) {
         std::cout << "[RtcPeer] Succeeds to create data channel" << std::endl;
         data_channel_subject_->SetDataChannel(result.MoveValue());
-        auto observer = data_channel_subject_->AsObservable(CommandType::CONNECT);
-        observer->Subscribe([this](char *message) {
-            std::cout << "[OnDataChannel]: received msg => " << message << std::endl;
+
+        auto conn_observer = data_channel_subject_->AsObservable(CommandType::CONNECT);
+        conn_observer->Subscribe([this](char *message) {
             if (strcmp(message, "false") == 0) {
                 peer_connection_->Close();
             }
         });
+
+        auto thumb_observer = data_channel_subject_->AsObservable(CommandType::THUMBNAIL);
+        thumb_observer->Subscribe([this](char *message) {
+            if (strcmp(message, "get") == 0 && !args_.record_path.empty()) {
+                try {
+                    auto latest_jpg_path = Base64Utils::FindLatestJpg(args_.record_path);
+                    auto binary_data = Base64Utils::ReadBinary(latest_jpg_path);
+                    auto base64_data = Base64Utils::Encode(binary_data);
+                    std::cout << "Send Image: " << latest_jpg_path << std::endl;
+                    std::string data_uri = "data:image/jpeg;base64," + base64_data;
+                    data_channel_subject_->Send(CommandType::THUMBNAIL, data_uri);
+                } catch (const std::exception &e) {
+                    std::cerr << "Error: " << e.what() << std::endl;
+                }
+            }
+        });
+
     } else {
         std::cout << "[RtcPeer] Fails to create data channel" << std::endl;
     }

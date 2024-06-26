@@ -93,6 +93,7 @@ private:
     void OnRemoteIce(std::string sdp_mid, int sdp_mline_index, std::string candidate) override;
 
     int id_;
+    Args args_;
     bool is_connected_;
     bool is_ready_to_connect_;
     std::shared_ptr<SignalingService> signaling_service_;

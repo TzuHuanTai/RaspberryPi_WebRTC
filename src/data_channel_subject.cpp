@@ -2,8 +2,6 @@
 
 #include <iostream>
 #include <memory>
-#include <nlohmann/json.hpp>
-using json = nlohmann::json;
 
 DataChannelSubject::~DataChannelSubject() {
     UnSubscribe();
@@ -23,33 +21,37 @@ void DataChannelSubject::OnMessage(const webrtc::DataBuffer &buffer) {
     char *msg = new char[length + 1];
     memcpy(msg, data, length);
     msg[length] = 0;
-
-    // Send(msg, length);
     Next(msg);
 
     delete[] msg;
 }
 
 void DataChannelSubject::Next(char *message) {
-    json jsonObj = json::parse(message);
+    try {
+        json jsonObj = json::parse(message);
 
-    std::string jsonStr = jsonObj.dump();
-    std::cout << "DataChannel Next() => " << jsonStr << std::endl;
+        std::string jsonStr = jsonObj.dump();
+        std::cout << "DataChannel Next() => " << jsonStr << std::endl;
 
-    CommandType type = jsonObj["type"];
-    std::string content = jsonObj["message"];
-    observers_ = observers_map_[type];
-    observers_.insert(
-        observers_.end(),
-        observers_map_[CommandType::UNKNOWN].begin(),
-        observers_map_[CommandType::UNKNOWN].end());
-
-    for (auto observer : observers_)
-    {
-        if (observer->subscribed_func_ != nullptr)
-        {
-            observer->subscribed_func_(content.data());
+        CommandType type = jsonObj["type"];
+        std::string content = jsonObj["message"];
+        if (content.empty()) {
+            return;
         }
+        observers_ = observers_map_[type];
+        observers_.insert(
+            observers_.end(),
+            observers_map_[CommandType::UNKNOWN].begin(),
+            observers_map_[CommandType::UNKNOWN].end());
+
+        for (auto observer : observers_) {
+            if (observer->subscribed_func_ != nullptr) {
+                observer->subscribed_func_(content.data());
+            }
+        }
+    } catch(const json::parse_error& e) {
+        std::cerr << "JSON parse error: " << e.what() << std::endl;
+        std::cerr << "Error occurred at byte position: " << e.byte << std::endl;
     }
 }
 
@@ -72,13 +74,12 @@ void DataChannelSubject::UnSubscribe() {
     }
 }
 
-void DataChannelSubject::Send(char *data, size_t length) {
+void DataChannelSubject::Send(CommandType type, const std::string data) {
     if (data_channel_->state() != webrtc::DataChannelInterface::kOpen) {
         return;
     }
-
-    rtc::CopyOnWriteBuffer buffer(data, length);
-    webrtc::DataBuffer data_buffer(buffer, true);
+    RtcMessage msg(type, data);
+    webrtc::DataBuffer data_buffer(msg.ToString());
     data_channel_->Send(data_buffer);
 }
 
