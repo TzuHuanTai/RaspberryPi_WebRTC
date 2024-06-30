@@ -26,15 +26,18 @@ private:
     std::string hostname_;
     std::string username_;
     std::string password_;
-    std::string topic_sdp_;
-    std::string topic_ice_;
+    std::string sdp_base_topic_;
+    std::string ice_base_topic_;
+    std::string remote_client_id_;
     struct mosquitto *connection_;
     void ListenOfferSdp(std::string message);
     void ListenOfferIce(std::string message);
     void Subscribe(const std::string& topic);
+    void Publish(const std::string& topic, const std::string& msg);
     void OnConnect(struct mosquitto *mosq, void *obj, int result);
     void OnMessage(struct mosquitto *mosq, void *obj, const struct mosquitto_message *message);
-    std::string InitTopic(const std::string& uid, const std::string& topic) const;
+    std::string GetClientId(std::string& topic);
+    std::string GetTopic(const std::string& topic, const std::string& client_id = "") const;
 };
 
 #endif

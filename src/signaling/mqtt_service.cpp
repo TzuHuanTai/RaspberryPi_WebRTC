@@ -23,12 +23,21 @@ MqttService::MqttService(Args args)
       hostname_(args.mqtt_host),
       username_(args.mqtt_username),
       password_(args.mqtt_password),
-      topic_sdp_(InitTopic(uid_, "sdp")),
-      topic_ice_(InitTopic(uid_, "ice")),
+      sdp_base_topic_(GetTopic("sdp")),
+      ice_base_topic_(GetTopic("ice")),
       connection_(nullptr) {}
 
-std::string MqttService::InitTopic(const std::string& uid, const std::string& topic) const {
-    return uid.empty() ? topic : uid + "/" + topic;
+std::string MqttService::GetTopic(const std::string& topic, 
+                                  const std::string& client_id) const {
+    std::string result;
+    if (!uid_.empty()) {
+        result = uid_ + "/";
+    }
+    result += topic;
+    if (!client_id.empty()) {
+        result += "/" + client_id;
+    }
+    return result;
 }
 
 MqttService::~MqttService() {
@@ -63,11 +72,7 @@ void MqttService::AnswerLocalSdp(std::string sdp, std::string type) {
     jsonData["sdp"] = sdp;
     std::string jsonString = jsonData.dump();
 
-    int rc = mosquitto_publish(connection_, NULL, topic_sdp_.c_str(), 
-                            jsonString.length(), jsonString.c_str(), 2, false);
-    if (rc != MOSQ_ERR_SUCCESS) {
-        fprintf(stderr, "Error publishing: %s\n", mosquitto_strerror(rc));
-    }
+    Publish(GetTopic("sdp", remote_client_id_), jsonString);
 }
 
 void MqttService::AnswerLocalIce(std::string sdp_mid, int sdp_mline_index, std::string candidate) {
@@ -78,11 +83,7 @@ void MqttService::AnswerLocalIce(std::string sdp_mid, int sdp_mline_index, std::
     jsonData["candidate"] = candidate;
     std::string jsonString = jsonData.dump();
 
-    int rc = mosquitto_publish(connection_, NULL, topic_ice_.c_str(), 
-                            jsonString.length(), jsonString.c_str(), 2, false);
-    if (rc != MOSQ_ERR_SUCCESS) {
-        fprintf(stderr, "Error publishing: %s\n", mosquitto_strerror(rc));
-    }
+    Publish(GetTopic("ice", remote_client_id_), jsonString);
 }
 
 void MqttService::Disconnect() {
@@ -96,6 +97,14 @@ void MqttService::Disconnect() {
     std::cout << "MQTT service is released." << std::endl;
 };
 
+void MqttService::Publish(const std::string& topic, const std::string& msg) {
+    int rc = mosquitto_publish(connection_, NULL, topic.c_str(), 
+                               msg.length(), msg.c_str(), 2, false);
+    if (rc != MOSQ_ERR_SUCCESS) {
+        fprintf(stderr, "Error publishing: %s\n", mosquitto_strerror(rc));
+    }
+}
+
 void MqttService::Subscribe(const std::string& topic) {
     int subscribe_result = mosquitto_subscribe_v5(
         connection_, nullptr, topic.c_str(), 0, MQTT_SUB_OPT_NO_LOCAL, nullptr);
@@ -108,8 +117,8 @@ void MqttService::Subscribe(const std::string& topic) {
 
 void MqttService::OnConnect(struct mosquitto *mosq, void *obj, int result) {
     if (result == 0) {
-        Subscribe(topic_sdp_ + "/+");
-        Subscribe(topic_ice_ + "/+");
+        Subscribe(sdp_base_topic_ + "/+/offer");
+        Subscribe(ice_base_topic_ + "/+/offer");
         std::cout << "MQTT service is ready." << std::endl;
     } else {
         // todo: retry connection on failure
@@ -122,12 +131,39 @@ void MqttService::OnMessage(struct mosquitto *mosq, void *obj, const struct mosq
     std::string topic(message->topic);
     std::string payload(static_cast<char*>(message->payload));
 
+    auto remote_client_id  = GetClientId(topic);
+    if (remote_client_id_.empty() && !remote_client_id.empty()) {
+        remote_client_id_ = remote_client_id;
+    } else if (remote_client_id_ != remote_client_id) {
+        return;
+    }
+
     // todo: use map to run the fn of topics.
-    if (topic.substr(0, topic_sdp_.length()) == topic_sdp_) {
+    if (topic.substr(0, sdp_base_topic_.length()) == sdp_base_topic_) {
         ListenOfferSdp(payload);
-    } else if (topic.substr(0, topic_ice_.length()) == topic_ice_) {
+    } else if (topic.substr(0, ice_base_topic_.length()) == ice_base_topic_) {
         ListenOfferIce(payload);
     }
+}
+
+std::string MqttService::GetClientId(std::string& topic) {
+    std::string base_topic;
+    if (topic.find(sdp_base_topic_) == 0) {
+        base_topic = sdp_base_topic_;
+    } else if (topic.find(ice_base_topic_) == 0) {
+        base_topic = ice_base_topic_;
+    } else {
+        return "";
+    }
+    size_t base_length = base_topic.length();
+    size_t start_pos = base_length + 1; // skip the trailing "/" of base_topic
+    size_t end_pos = topic.find('/', start_pos);
+
+    if (end_pos != std::string::npos) {
+        return topic.substr(start_pos, end_pos - start_pos);
+    }
+
+    return "";
 }
 
 void MqttService::Connect() {
