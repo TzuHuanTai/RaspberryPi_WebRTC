@@ -1,11 +1,27 @@
-#include "base64_utils.h"
+#include "utils.h"
 
-std::string Base64Utils::Encode(const std::string &binary) {
+bool Utils::CreateFolder(const std::string& folder_path) {
+    if (folder_path.empty()) {
+        return false;
+    }
+    if (!std::filesystem::exists(folder_path)) {
+        if (!std::filesystem::create_directory(folder_path)) {
+            std::cerr << "Failed to create directory: " << folder_path << std::endl;
+            return false;
+        }
+        std::cout << "Directory created: " << folder_path << std::endl;
+    } else {
+        std::cout << "Directory already exists: " << folder_path << std::endl;
+    }
+    return true;
+}
+
+std::string Utils::ToBase64(const std::string &binary_file) {
     std::string out;
     int val = 0, valb = -6;
     static const std::string base64_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     
-    for (unsigned char c : binary) {
+    for (unsigned char c : binary_file) {
         val = (val << 8) + c;
         valb += 8;
         while (valb >= 0) {
@@ -18,7 +34,7 @@ std::string Base64Utils::Encode(const std::string &binary) {
     return out;
 }
 
-std::string Base64Utils::ReadBinary(const std::string &file_path) {
+std::string Utils::ReadFileInBinary(const std::string &file_path) {
     std::ifstream file(file_path, std::ios::binary);
     if (!file) {
         throw std::runtime_error("Unable to open file");
@@ -29,7 +45,7 @@ std::string Base64Utils::ReadBinary(const std::string &file_path) {
     return ss.str();
 }
 
-std::string Base64Utils::FindLatestJpg(const std::string &directory) {
+std::string Utils::FindLatestJpg(const std::string &directory) {
     std::string latest_file;
     auto latest_time = std::filesystem::file_time_type::min();
 

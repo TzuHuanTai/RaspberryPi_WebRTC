@@ -1,5 +1,4 @@
 #include "conductor.h"
-#include "capture/v4l2_capture.h"
 #include "track/swscale_track_source.h"
 #include "track/v4l2dma_track_source.h"
 #include "customized_video_encoder_factory.h"
@@ -26,15 +25,8 @@
 
 std::shared_ptr<Conductor> Conductor::Create(Args args) {
     auto ptr = std::make_shared<Conductor>(args);
-    if (!ptr->InitializePeerConnectionFactory()) {
-        std::cout << "[Conductor] Initialize PeerConnection failed!" << std::endl;
-    }
-
+    ptr->InitializePeerConnectionFactory();
     ptr->InitializeTracks();
-
-    if (!ptr->InitializeRecorder()) {
-        std::cout << "[Conductor] Recorder is not created!" << std::endl;
-    }
     return ptr;
 }
 
@@ -43,19 +35,21 @@ Conductor::Conductor(Args args)
       peers_idx(0),
       is_ready(false) {}
 
-bool Conductor::InitializeRecorder() {
-    if (args.record_path.empty()) {
-        return false;
-    }
+Args Conductor::config() const {
+    return args;
+}
 
-    bg_recorder_ = BackgroundRecorder::CreateBackgroundRecorder(video_capture_source_);
-    bg_recorder_->Start();    
+std::shared_ptr<PaCapture> Conductor::AudioSource() const {
+    return audio_capture_source_;
+}
 
-    return true;
+std::shared_ptr<V4L2Capture> Conductor::VideoSource() const {
+    return video_capture_source_;
 }
 
 void Conductor::InitializeTracks() {
     if (audio_track_ == nullptr) {
+        audio_capture_source_ = PaCapture::Create(args);
         auto options = peer_connection_factory_->CreateAudioSource(cricket::AudioOptions());
         audio_track_ = peer_connection_factory_->CreateAudioTrack("audio_track", options.get());
     }
@@ -109,9 +103,6 @@ void Conductor::AddTracks(rtc::scoped_refptr<webrtc::PeerConnectionInterface> pe
 }
 
 bool Conductor::CreatePeerConnection() {
-    RefreshPeerList();
-
-    std::cout << "[Conductor] Start to create a peer connection." << std::endl;
     webrtc::PeerConnectionInterface::RTCConfiguration config;
     config.sdp_semantics = webrtc::SdpSemantics::kUnifiedPlan;
     webrtc::PeerConnectionInterface::IceServer server;
@@ -154,7 +145,7 @@ void Conductor::SetSink(rtc::VideoSinkInterface<webrtc::VideoFrame> *video_sink_
     peer_->SetSink(std::move(video_sink_obj));
 }
 
-bool Conductor::InitializePeerConnectionFactory() {
+void Conductor::InitializePeerConnectionFactory() {
     rtc::InitializeSSL();
 
     network_thread_ = rtc::Thread::CreateWithSocketServer();
@@ -207,8 +198,6 @@ bool Conductor::InitializePeerConnectionFactory() {
     } else {
         std::cout << "=> peer_connection_factory: success!" << std::endl;
     }
-
-    return peer_connection_factory_ != nullptr;
 }
 
 void Conductor::SetPeerReadyState(bool state) {
@@ -221,29 +210,22 @@ bool Conductor::IsReady() const {
     return is_ready;
 }
 
-/*
-// If webrtc can not connect within a certain number of seconds, give up and wait again.
-*/
-void Conductor::Timeout(int second) {
-    sleep(second);
-    if (IsReady() && !peer_->IsConnected()) {
-        SetPeerReadyState(false);
+void Conductor::AwaitCompletion() {
+    {
+        std::unique_lock<std::mutex> lock(state_mtx);
+        ready_state.wait(lock, [this] {
+            return IsReady();
+        });
     }
-}
 
-void Conductor::BlockUntilSignal() {
-    std::unique_lock<std::mutex> lock(state_mtx);
-    ready_state.wait(lock, [this] {
-        return IsReady();
-    });
-}
+    RefreshPeerList();
 
-void Conductor::BlockUntilCompletion(int timeout) {
-    auto f = std::async(std::launch::async, [this, timeout](){ Timeout(timeout); });
-    std::unique_lock<std::mutex> lock(state_mtx);
-    ready_state.wait(lock, [this] {
-        return !IsReady();
-    });
+    {
+        std::unique_lock<std::mutex> lock(state_mtx);
+        ready_state.wait(lock, [this] {
+            return !IsReady();
+        });
+    }
 }
 
 void Conductor::RefreshPeerList() {
@@ -265,7 +247,6 @@ void Conductor::RefreshPeerList() {
 }
 
 Conductor::~Conductor() {
-    bg_recorder_->Stop();
     audio_track_ = nullptr;
     video_track_ = nullptr;
     video_capture_source_ = nullptr;

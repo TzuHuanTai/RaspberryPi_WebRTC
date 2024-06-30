@@ -6,7 +6,7 @@
 #include "signaling/signalr_service.h"
 #endif
 
-#include "common/base64_utils.h"
+#include "common/utils.h"
 
 rtc::scoped_refptr<RtcPeer> RtcPeer::Create(Args args, int id) {
     auto ptr = rtc::make_ref_counted<RtcPeer>(id);
@@ -80,9 +80,9 @@ void RtcPeer::CreateDataChannel() {
         thumb_observer->Subscribe([this](char *message) {
             if (strcmp(message, "get") == 0 && !args_.record_path.empty()) {
                 try {
-                    auto latest_jpg_path = Base64Utils::FindLatestJpg(args_.record_path);
-                    auto binary_data = Base64Utils::ReadBinary(latest_jpg_path);
-                    auto base64_data = Base64Utils::Encode(binary_data);
+                    auto latest_jpg_path = Utils::FindLatestJpg(args_.record_path);
+                    auto binary_data = Utils::ReadFileInBinary(latest_jpg_path);
+                    auto base64_data = Utils::ToBase64(binary_data);
                     std::cout << "Send Image: " << latest_jpg_path << std::endl;
                     std::string data_uri = "data:image/jpeg;base64," + base64_data;
                     data_channel_subject_->Send(CommandType::THUMBNAIL, data_uri);

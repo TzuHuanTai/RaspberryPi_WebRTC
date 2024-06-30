@@ -1,8 +1,10 @@
 #include <iostream>
 
 #include "args.h"
-#include "conductor.h"
 #include "parser.h"
+#include "conductor.h"
+#include "common/utils.h"
+#include "recorder/background_recorder.h"
 
 int main(int argc, char *argv[]) {
     Args args;
@@ -10,14 +12,23 @@ int main(int argc, char *argv[]) {
 
     auto conductor = Conductor::Create(args);
 
-    while (true) {
-        conductor->CreatePeerConnection();
+    if (Utils::CreateFolder(args.record_path)) {
+        auto bg_recorder = BackgroundRecorder::Create(conductor);
+        bg_recorder->Start();
+        std::cout << "[main] recorder is created!" << std::endl;
+    } else {
+        std::cout << "[main] recorder is not started!" << std::endl;
+    }
 
-        std::cout << "[main] wait for signaling!" << std::endl;
-        conductor->BlockUntilSignal();
+    try {
+        while (true) {
+            conductor->CreatePeerConnection();
 
-        std::cout << "[main] timeout waiting..." << std::endl;
-        conductor->BlockUntilCompletion(5);
+            std::cout << "[main] wait for signaling!" << std::endl;
+            conductor->AwaitCompletion();
+        }
+    } catch (const std::exception &e) {
+        std::cerr << "Error in [main]: " << e.what() << std::endl;
     }
     
     return 0;
