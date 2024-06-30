@@ -3,12 +3,6 @@
 #include "track/swscale_track_source.h"
 #include "track/v4l2dma_track_source.h"
 #include "customized_video_encoder_factory.h"
-#if USE_MQTT_SIGNALING
-#include "signaling/mqtt_service.h"
-#endif
-#if USE_SIGNALR_SIGNALING
-#include "signaling/signalr_service.h"
-#endif
 
 #include <api/audio_codecs/builtin_audio_decoder_factory.h>
 #include <api/audio_codecs/builtin_audio_encoder_factory.h>
@@ -37,7 +31,6 @@ std::shared_ptr<Conductor> Conductor::Create(Args args) {
     }
 
     ptr->InitializeTracks();
-    ptr->InitializeSignaling(args);
 
     if (!ptr->InitializeRecorder()) {
         std::cout << "[Conductor] Recorder is not created!" << std::endl;
@@ -49,20 +42,6 @@ Conductor::Conductor(Args args)
     : args(args),
       peers_idx(0),
       is_ready(false) {}
-
-bool Conductor::InitializeSignaling(Args args) {
-    signaling_service_ = ([args]() -> std::shared_ptr<SignalingService> {
-#if USE_MQTT_SIGNALING
-        return MqttService::Create(args);
-#elif USE_SIGNALR_SIGNALING
-        return SignalrService::Create(args);
-#else
-        return nullptr;
-#endif
-    })();
-
-    return signaling_service_ != nullptr;
-}
 
 bool Conductor::InitializeRecorder() {
     if (args.record_path.empty()) {
@@ -154,7 +133,7 @@ bool Conductor::CreatePeerConnection() {
     if (result.ok()) {
         peer_->SetPeer(result.MoveValue());
         peer_->CreateDataChannel();
-        peer_->SetSignalingService(signaling_service_);
+        peer_->InitSignalingClient(args);
         peer_->OnReadyToConnect([this](PeerState state) {
             SetPeerReadyState(state.isReadyToConnect);
         });
