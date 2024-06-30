@@ -4,30 +4,19 @@
 #include <vector>
 #include <algorithm>
 
-std::unique_ptr<BackgroundRecorder> BackgroundRecorder::CreateBackgroundRecorder(
-    std::shared_ptr<V4L2Capture> capture) {
-    return std::make_unique<BackgroundRecorder>(capture);
+std::unique_ptr<BackgroundRecorder> BackgroundRecorder::Create(
+    std::shared_ptr<Conductor> conductor) {
+    return std::make_unique<BackgroundRecorder>(conductor);
 }
 
-BackgroundRecorder::BackgroundRecorder(std::shared_ptr<V4L2Capture> capture) 
-    : args_(capture->config()),
-      video_capture_(capture) {}
+BackgroundRecorder::BackgroundRecorder(std::shared_ptr<Conductor> conductor) 
+    : max_files_(conductor->config().max_files),
+      record_path_(conductor->config().record_path),
+      audio_capture_(conductor->AudioSource()),
+      video_capture_(conductor->VideoSource()) {}
 
 BackgroundRecorder::~BackgroundRecorder() {
     Stop();
-}
-
-bool BackgroundRecorder::CreateVideoFolder(const std::string& folder_path) {
-    if (!std::filesystem::exists(folder_path)) {
-        if (!std::filesystem::create_directory(folder_path)) {
-            std::cerr << "Failed to create directory: " << folder_path << std::endl;
-            return false;
-        }
-        std::cout << "Directory created: " << folder_path << std::endl;
-    } else {
-        std::cout << "Directory already exists: " << folder_path << std::endl;
-    }
-    return true;
 }
 
 void BackgroundRecorder::RotateFiles(std::string folder_path, int max_files) {
@@ -63,18 +52,12 @@ void BackgroundRecorder::DeleteRedundantFiles(std::vector<std::filesystem::path>
 }
 
 void BackgroundRecorder::Start() {
-    if (CreateVideoFolder(args_.record_path)) {
-        audio_capture_ = PaCapture::Create(args_);
-        RecorderManager::Create(video_capture_, audio_capture_, 
-                                args_.record_path);
-        worker_.reset(new Worker([this]() { 
-            RotateFiles(args_.record_path, args_.max_files);
-            sleep(60);
-        }));
-        worker_->Run();
-    } else {
-        std::cout << "Background recorder is not started!" << std::endl;
-    }
+    RecorderManager::Create(video_capture_, audio_capture_, record_path_);
+    worker_.reset(new Worker([this]() {
+        RotateFiles(record_path_, max_files_);
+        sleep(60);
+    }));
+    worker_->Run();
 }
 
 void BackgroundRecorder::Stop() {

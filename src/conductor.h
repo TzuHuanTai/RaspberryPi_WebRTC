@@ -2,8 +2,9 @@
 #define CONDUCTOR_H_
 
 #include "args.h"
-#include "recorder/background_recorder.h"
 #include "rtc_peer.h"
+#include "capture/pa_capture.h"
+#include "capture/v4l2_capture.h"
 
 #include <iostream>
 #include <memory>
@@ -22,13 +23,14 @@ public:
     Conductor(Args args);
     ~Conductor();
 
+    Args config() const;
     bool CreatePeerConnection();
     rtc::scoped_refptr<webrtc::PeerConnectionInterface> GetPeer() const;
+    std::shared_ptr<PaCapture> AudioSource() const;
+    std::shared_ptr<V4L2Capture> VideoSource() const;
     void SetSink(rtc::VideoSinkInterface<webrtc::VideoFrame> *video_sink_obj);
     bool IsReady() const;
-    void Timeout(int second);
-    void BlockUntilSignal();
-    void BlockUntilCompletion(int timeout);
+    void AwaitCompletion();
 
 private:
     Args args;
@@ -38,7 +40,7 @@ private:
     std::condition_variable ready_state;
     std::unordered_map<int, rtc::scoped_refptr<RtcPeer>> peers_map;
 
-    bool InitializePeerConnectionFactory();
+    void InitializePeerConnectionFactory();
     void InitializeTracks();
     bool InitializeRecorder();
     void AddTracks(rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer_connection);
@@ -48,8 +50,8 @@ private:
     std::unique_ptr<rtc::Thread> network_thread_;
     std::unique_ptr<rtc::Thread> worker_thread_;
     std::unique_ptr<rtc::Thread> signaling_thread_;
-    std::unique_ptr<BackgroundRecorder> bg_recorder_;
     rtc::scoped_refptr<RtcPeer> peer_;
+    std::shared_ptr<PaCapture> audio_capture_source_;
     std::shared_ptr<V4L2Capture> video_capture_source_;
     rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> peer_connection_factory_;
     rtc::scoped_refptr<webrtc::AudioTrackInterface> audio_track_;
