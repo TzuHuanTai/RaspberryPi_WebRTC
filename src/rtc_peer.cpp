@@ -1,4 +1,10 @@
 #include "rtc_peer.h"
+#if USE_MQTT_SIGNALING
+#include "signaling/mqtt_service.h"
+#endif
+#if USE_SIGNALR_SIGNALING
+#include "signaling/signalr_service.h"
+#endif
 
 #include "common/base64_utils.h"
 
@@ -37,9 +43,17 @@ rtc::scoped_refptr<webrtc::PeerConnectionInterface> RtcPeer::GetPeer() {
     return peer_connection_;
 }
 
-void RtcPeer::SetSignalingService(std::shared_ptr<SignalingService> service) {
-    signaling_service_ = service;
-    signaling_service_->ResetCallback(this);
+void RtcPeer::InitSignalingClient(Args args) {
+    signaling_client_ = ([args]() -> std::shared_ptr<SignalingService> {
+#if USE_MQTT_SIGNALING
+        return MqttService::Create(args);
+#elif USE_SIGNALR_SIGNALING
+        return SignalrService::Create(args);
+#else
+        return nullptr;
+#endif
+    })();
+    signaling_client_->ResetCallback(this);
 }
 
 void RtcPeer::CreateDataChannel() {
@@ -102,7 +116,7 @@ void RtcPeer::OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState 
     std::cout << "[RtcPeer] OnSignalingChange: ";
     std::cout << webrtc::PeerConnectionInterface::PeerConnectionInterface::AsString(new_state) << std::endl;
     if (new_state == webrtc::PeerConnectionInterface::SignalingState::kClosed) {
-        signaling_service_.reset();
+        signaling_client_.reset();
     }
 }
 
@@ -120,7 +134,7 @@ void RtcPeer::OnIceGatheringChange(webrtc::PeerConnectionInterface::IceGathering
 void RtcPeer::OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionState new_state) {
     std::cout << "[RtcPeer] OnConnectionChange: " << webrtc::PeerConnectionInterface::PeerConnectionInterface::AsString(new_state) << std::endl;
     if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kConnected) {
-        signaling_service_->ResetCallback();
+        signaling_client_.reset();
         is_connected_ = true;
         EmitReadyToConnect(false);
         UnSubscribe();
@@ -136,8 +150,8 @@ void RtcPeer::OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnection
 void RtcPeer::OnIceCandidate(const webrtc::IceCandidateInterface *candidate) {
     std::string ice;
     candidate->ToString(&ice);
-    if (signaling_service_) {
-        signaling_service_->AnswerLocalIce(candidate->sdp_mid(), candidate->sdp_mline_index(), ice);
+    if (signaling_client_) {
+        signaling_client_->AnswerLocalIce(candidate->sdp_mid(), candidate->sdp_mline_index(), ice);
     }
 }
 
@@ -158,8 +172,8 @@ void RtcPeer::OnSuccess(webrtc::SessionDescriptionInterface* desc) {
     std::string sdp;
     desc->ToString(&sdp);
     std::string type = webrtc::SdpTypeToString(desc->GetType());
-    if (signaling_service_) {
-        signaling_service_->AnswerLocalSdp(sdp, type);
+    if (signaling_client_) {
+        signaling_client_->AnswerLocalSdp(sdp, type);
     }
 }
 

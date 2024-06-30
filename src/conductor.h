@@ -3,7 +3,6 @@
 
 #include "args.h"
 #include "recorder/background_recorder.h"
-#include "signaling/signaling_service.h"
 #include "rtc_peer.h"
 
 #include <iostream>
@@ -41,7 +40,6 @@ private:
 
     bool InitializePeerConnectionFactory();
     void InitializeTracks();
-    bool InitializeSignaling(Args args);
     bool InitializeRecorder();
     void AddTracks(rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer_connection);
     void RefreshPeerList();
@@ -51,7 +49,6 @@ private:
     std::unique_ptr<rtc::Thread> worker_thread_;
     std::unique_ptr<rtc::Thread> signaling_thread_;
     std::unique_ptr<BackgroundRecorder> bg_recorder_;
-    std::shared_ptr<SignalingService> signaling_service_;
     rtc::scoped_refptr<RtcPeer> peer_;
     std::shared_ptr<V4L2Capture> video_capture_source_;
     rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> peer_connection_factory_;

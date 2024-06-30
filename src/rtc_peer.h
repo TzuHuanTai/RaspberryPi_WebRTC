@@ -65,7 +65,7 @@ public:
     void SetSink(rtc::VideoSinkInterface<webrtc::VideoFrame> *video_sink_obj);
     void SetPeer(rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer);
     rtc::scoped_refptr<webrtc::PeerConnectionInterface> GetPeer();
-    void SetSignalingService(std::shared_ptr<SignalingService> service);
+    void InitSignalingClient(Args args);
     void CreateDataChannel();
     void OnReadyToConnect(std::function<void(PeerState)> func);
 
@@ -96,7 +96,7 @@ private:
     Args args_;
     bool is_connected_;
     bool is_ready_to_connect_;
-    std::shared_ptr<SignalingService> signaling_service_;
+    std::shared_ptr<SignalingService> signaling_client_;
     std::unique_ptr<DataChannelSubject> data_channel_subject_;
     rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer_connection_;
     rtc::VideoSinkInterface<webrtc::VideoFrame> *custom_video_sink_;
