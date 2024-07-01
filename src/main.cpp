@@ -10,10 +10,11 @@ int main(int argc, char *argv[]) {
     Args args;
     Parser::ParseArgs(argc, argv, args);
 
-    auto conductor = Conductor::Create(args);
+    std::shared_ptr<Conductor> conductor = Conductor::Create(args);
+    std::unique_ptr<BackgroundRecorder> bg_recorder;
 
     if (Utils::CreateFolder(args.record_path)) {
-        auto bg_recorder = BackgroundRecorder::Create(conductor);
+        bg_recorder = BackgroundRecorder::Create(conductor);
         bg_recorder->Start();
         std::cout << "[main] recorder is created!" << std::endl;
     } else {
