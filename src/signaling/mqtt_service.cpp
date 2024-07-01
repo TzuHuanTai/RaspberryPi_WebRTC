@@ -19,6 +19,7 @@ std::shared_ptr<MqttService> MqttService::Create(Args args) {
 MqttService::MqttService(Args args)
     : SignalingService(),
       port_(args.mqtt_port),
+      sdp_received_(false),
       uid_(args.uid),
       hostname_(args.mqtt_host),
       username_(args.mqtt_username),
@@ -131,17 +132,11 @@ void MqttService::OnMessage(struct mosquitto *mosq, void *obj, const struct mosq
     std::string topic(message->topic);
     std::string payload(static_cast<char*>(message->payload));
 
-    auto remote_client_id  = GetClientId(topic);
-    if (remote_client_id_.empty() && !remote_client_id.empty()) {
-        remote_client_id_ = remote_client_id;
-    } else if (remote_client_id_ != remote_client_id) {
-        return;
-    }
-
-    // todo: use map to run the fn of topics.
-    if (topic.substr(0, sdp_base_topic_.length()) == sdp_base_topic_) {
+    if (!sdp_received_ && topic.substr(0, sdp_base_topic_.length()) == sdp_base_topic_) {
+        remote_client_id_  = GetClientId(topic);
+        sdp_received_ = true;
         ListenOfferSdp(payload);
-    } else if (topic.substr(0, ice_base_topic_.length()) == ice_base_topic_) {
+    } else if (sdp_received_ && topic.substr(0, ice_base_topic_.length()) == ice_base_topic_) {
         ListenOfferIce(payload);
     }
 }

@@ -22,6 +22,7 @@ public:
 
 private:
     int port_;
+    bool sdp_received_;
     std::string uid_;
     std::string hostname_;
     std::string username_;
