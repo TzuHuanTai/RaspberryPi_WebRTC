@@ -5,7 +5,7 @@
 
 class Worker {
 public:
-    Worker(std::function<void()> excuting_function);
+    Worker(std::string name, std::function<void()> excuting_function);
     ~Worker();
     void Release();
     void Run();
@@ -15,6 +15,7 @@ protected:
 
 private:
     bool abort_;
+    std::string name_;
     rtc::PlatformThread thread_;
 
     void Thread();

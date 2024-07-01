@@ -98,7 +98,7 @@ void Pa2Capture::CaptureSamples() {
 }
 
 void Pa2Capture::StartCapture() {
-    worker_.reset(new Worker([&]() {
+    worker_.reset(new Worker("PaCapture2", [&]() {
         pa_mainloop_iterate(m, 1, nullptr);
     }));
     worker_->Run();

@@ -58,6 +58,6 @@ void PaCapture::CaptureSamples() {
 }
 
 void PaCapture::StartCapture() {
-    worker_.reset(new Worker([this]() { CaptureSamples(); }));
+    worker_.reset(new Worker("PaCapture", [this]() { CaptureSamples(); }));
     worker_->Run();
 }
