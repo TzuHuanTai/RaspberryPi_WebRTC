@@ -143,6 +143,7 @@ void RtcPeer::OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnection
         peer_connection_->Close();
     } else if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kClosed) {
         is_connected_ = false;
+        EmitReadyToConnect(false);
         data_channel_subject_.reset();
     }
 }
