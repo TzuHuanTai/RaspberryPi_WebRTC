@@ -157,6 +157,7 @@ void V4L2Capture::CaptureImage() {
     int r = select(fd_ + 1, &fds, NULL, NULL, &tv);
 
     if (r <= 0) { // timeout or failed
+        printf("[V4l2Capture]: capture timeout or failed!\n");
         return;
     }
 
@@ -194,6 +195,6 @@ void V4L2Capture::StartCapture() {
 
     V4l2Util::StreamOn(fd_, capture_.type);
 
-    worker_.reset(new Worker([this]() { CaptureImage(); }));
+    worker_.reset(new Worker("V4l2Capture", [this]() { CaptureImage(); }));
     worker_->Run();
 }

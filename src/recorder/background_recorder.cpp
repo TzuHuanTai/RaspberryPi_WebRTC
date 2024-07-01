@@ -53,7 +53,7 @@ void BackgroundRecorder::DeleteRedundantFiles(std::vector<std::filesystem::path>
 
 void BackgroundRecorder::Start() {
     RecorderManager::Create(video_capture_, audio_capture_, record_path_);
-    worker_.reset(new Worker([this]() {
+    worker_.reset(new Worker("BackgroundRecorder", [this]() {
         RotateFiles(record_path_, max_files_);
         sleep(60);
     }));
@@ -61,5 +61,6 @@ void BackgroundRecorder::Start() {
 }
 
 void BackgroundRecorder::Stop() {
+    std::cout << "[BackgroundRecorder] released." << std::endl;
     worker_.reset();
 }

@@ -21,7 +21,7 @@ public:
 
     void Initialize() {
         encoder = InitializeEncoderCtx();
-        worker.reset(new Worker([this]() { 
+        worker.reset(new Worker("Recorder", [this]() { 
             while (is_started && ConsumeBuffer()) {}
             usleep(15000);
         }));

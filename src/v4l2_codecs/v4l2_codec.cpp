@@ -41,7 +41,7 @@ bool V4l2Codec::PrepareBuffer(BufferGroup *gbuffer, int width, int height,
 }
 
 void V4l2Codec::ResetWorker() {
-    worker_.reset(new Worker([this]() { CapturingFunction();}));
+    worker_.reset(new Worker("V4l2Codec", [this]() { CapturingFunction();}));
     worker_->Run();
 }
 
