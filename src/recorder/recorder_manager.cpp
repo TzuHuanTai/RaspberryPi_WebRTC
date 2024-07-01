@@ -3,6 +3,7 @@
 #include "recorder/h264_recorder.h"
 #include "recorder/raw_h264_recorder.h"
 #include "recorder/utils.h"
+#include "common/utils.h"
 
 #include <csignal>
 #include <filesystem>
@@ -114,6 +115,11 @@ void RecorderManager::WriteIntoFile(AVPacket *pkt) {
 }
 
 void RecorderManager::Start() {
+    if (!Utils::CheckDriveSpace(record_path, 100)) {
+        printf("[RecorderManager] Skip recording since not enough free space!\n");
+        return;
+    }
+
     std::lock_guard<std::mutex> lock(ctx_mux);
     filename = RecUtil::GenerateFilename();
     fmt_ctx = RecUtil::CreateContainer(record_path, filename);

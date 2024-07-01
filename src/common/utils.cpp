@@ -65,3 +65,14 @@ std::string Utils::FindLatestJpg(const std::string &directory) {
 
     return latest_file;
 }
+
+bool Utils::CheckDriveSpace(const std::string &file_path, unsigned long min_free_space_mb) {
+    struct statvfs stat;
+    if (statvfs(file_path.c_str(), &stat) != 0) {
+        return false;
+    }
+    unsigned long free_space = stat.f_bsize * stat.f_bavail;
+    unsigned long free_space_mb = free_space / (1024 * 1024);
+
+    return free_space_mb >= min_free_space_mb;
+}
