@@ -12,25 +12,25 @@ public:
     V4l2Codec(): fd_(0) {};
     virtual ~V4l2Codec();
     bool Open(const char *file_name);
-    bool PrepareBuffer(BufferGroup *gbuffer, int width, int height,
+    bool PrepareBuffer(V4l2BufferGroup *gbuffer, int width, int height,
                        uint32_t pix_fmt, v4l2_buf_type type,
                        v4l2_memory memory, int buffer_num, bool has_dmafd = false);
     void ResetWorker();
-    void EmplaceBuffer(Buffer &buffer, std::function<void(Buffer)>on_capture);
+    void EmplaceBuffer(V4l2Buffer &buffer, std::function<void(V4l2Buffer)>on_capture);
     void ReleaseCodec();
 
 protected:
     int fd_;
-    BufferGroup output_;
-    BufferGroup capture_;
+    V4l2BufferGroup output_;
+    V4l2BufferGroup capture_;
     std::queue<int> output_buffer_index_;
     std::unique_ptr<Worker> worker_;
-    std::queue<std::function<void(Buffer)>> capturing_tasks_;
+    std::queue<std::function<void(V4l2Buffer)>> capturing_tasks_;
     virtual void HandleEvent() {};
 
 private:
-    bool OutputBuffer(Buffer &buffer);
-    bool CaptureBuffer(Buffer &buffer);
+    bool OutputBuffer(V4l2Buffer &buffer);
+    bool CaptureBuffer(V4l2Buffer &buffer);
     void CapturingFunction();
 };
 

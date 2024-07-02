@@ -14,24 +14,24 @@ extern "C"
 #include <libavformat/avformat.h>
 }
 
-class VideoRecorder : public Recorder<Buffer> {
+class VideoRecorder : public Recorder<V4l2Buffer> {
 public:
     VideoRecorder(Args config, std::string encoder_name);
     virtual ~VideoRecorder() {};
-    void OnBuffer(Buffer &buffer) override;
+    void OnBuffer(V4l2Buffer &buffer) override;
     void PostStop() override;
 
 protected:
     Args config;
     bool has_first_keyframe;
     std::string encoder_name;
-    std::queue<Buffer> raw_buffer_queue;
+    std::queue<V4l2Buffer> raw_buffer_queue;
 
     AVRational frame_rate;
 
-    virtual void Encode(Buffer &buffer) = 0;
+    virtual void Encode(V4l2Buffer &buffer) = 0;
 
-    void OnEncoded(Buffer buffer);
+    void OnEncoded(V4l2Buffer buffer);
     void SetBaseTimestamp(struct timeval time);
 
 private:

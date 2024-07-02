@@ -27,7 +27,7 @@ public:
 protected:
     std::shared_ptr<V4L2Capture> capture_;
     virtual void Init() {};
-    virtual void OnFrameCaptured(Buffer buffer);
+    virtual void OnFrameCaptured(V4l2Buffer buffer);
 };
 
 #endif

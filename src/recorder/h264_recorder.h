@@ -13,7 +13,7 @@ public:
     void PreStart() override;
 
 protected:
-    void Encode(Buffer &buffer) override;
+    void Encode(V4l2Buffer &buffer) override;
 
 private:
     bool is_ready_;

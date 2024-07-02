@@ -15,12 +15,12 @@ H264Recorder::~H264Recorder() {
     encoder_.reset();
 }
 
-void H264Recorder::Encode(Buffer &buffer) {
+void H264Recorder::Encode(V4l2Buffer &buffer) {
     if (!is_ready_) {
         return;
     }
-    decoder_->EmplaceBuffer(buffer, [this](Buffer decoded_buffer) {
-        encoder_->EmplaceBuffer(decoded_buffer, [this](Buffer encoded_buffer) {
+    decoder_->EmplaceBuffer(buffer, [this](V4l2Buffer decoded_buffer) {
+        encoder_->EmplaceBuffer(decoded_buffer, [this](V4l2Buffer encoded_buffer) {
             OnEncoded(encoded_buffer);
         });
     });

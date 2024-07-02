@@ -59,7 +59,7 @@ RecorderManager::RecorderManager(std::shared_ptr<V4L2Capture> video_src,
 
 void RecorderManager::SubscribeVideoSource(std::shared_ptr<V4L2Capture> video_src) {
     video_observer = video_src->AsObservable();
-    video_observer->Subscribe([this](Buffer buffer) {
+    video_observer->Subscribe([this](V4l2Buffer buffer) {
         // waiting first keyframe to start recorders.
         if (!has_first_keyframe && (buffer.flags & V4L2_BUF_FLAG_KEYFRAME)) {
             Start();
@@ -121,7 +121,7 @@ void RecorderManager::Start() {
     }
 
     std::lock_guard<std::mutex> lock(ctx_mux);
-    filename = RecUtil::GenerateFilename();
+    filename = Utils::GenerateFilename();
     fmt_ctx = RecUtil::CreateContainer(record_path, filename);
 
     if (video_recorder) {

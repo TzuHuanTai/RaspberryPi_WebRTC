@@ -26,7 +26,7 @@ void RawH264Recorder::PreStart() {
     has_first_keyframe_ = false;
 }
 
-void RawH264Recorder::Encode(Buffer &buffer) {
+void RawH264Recorder::Encode(V4l2Buffer &buffer) {
     if (buffer.flags & V4L2_BUF_FLAG_KEYFRAME && !has_first_keyframe_ ) {
         CheckNALUnits(buffer);
         if (has_sps_ && has_pps_) {
@@ -39,7 +39,7 @@ void RawH264Recorder::Encode(Buffer &buffer) {
     }
 }
 
-bool RawH264Recorder::CheckNALUnits(const Buffer& buffer) {
+bool RawH264Recorder::CheckNALUnits(const V4l2Buffer& buffer) {
     if (buffer.start == nullptr || buffer.length < 4) {
         return false;
     }

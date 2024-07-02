@@ -12,7 +12,7 @@ bool V4l2Codec::Open(const char *file_name) {
     return true;
 }
 
-bool V4l2Codec::PrepareBuffer(BufferGroup *gbuffer, int width, int height,
+bool V4l2Codec::PrepareBuffer(V4l2BufferGroup *gbuffer, int width, int height,
                               uint32_t pix_fmt, v4l2_buf_type type,
                               v4l2_memory memory, int buffer_num, bool has_dmafd) {
     if (!V4l2Util::InitBuffer(fd_, gbuffer, type, memory, has_dmafd)) {
@@ -45,14 +45,14 @@ void V4l2Codec::ResetWorker() {
     worker_->Run();
 }
 
-void V4l2Codec::EmplaceBuffer(Buffer &buffer, 
-                              std::function<void(Buffer)>on_capture) {
+void V4l2Codec::EmplaceBuffer(V4l2Buffer &buffer, 
+                              std::function<void(V4l2Buffer)>on_capture) {
     if (OutputBuffer(buffer)) {
         capturing_tasks_.push(on_capture);
     }
 }
 
-bool V4l2Codec::OutputBuffer(Buffer &buffer) {
+bool V4l2Codec::OutputBuffer(V4l2Buffer &buffer) {
     if (output_buffer_index_.empty()) {
         return false;
     }
@@ -78,7 +78,7 @@ bool V4l2Codec::OutputBuffer(Buffer &buffer) {
     return true;
 }
 
-bool V4l2Codec::CaptureBuffer(Buffer &buffer) {
+bool V4l2Codec::CaptureBuffer(V4l2Buffer &buffer) {
     fd_set fds[2];
     fd_set *rd_fds = &fds[0]; /* for capture */
     fd_set *ex_fds = &fds[1]; /* for handle event */
@@ -136,7 +136,7 @@ bool V4l2Codec::CaptureBuffer(Buffer &buffer) {
 }
 
 void V4l2Codec::CapturingFunction() {
-    Buffer encoded_buffer = {};
+    V4l2Buffer encoded_buffer = {};
     if(CaptureBuffer(encoded_buffer) && !capturing_tasks_.empty()) {
         auto task = capturing_tasks_.front();
         capturing_tasks_.pop();

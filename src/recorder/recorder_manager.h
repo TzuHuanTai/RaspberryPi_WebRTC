@@ -35,7 +35,7 @@ protected:
     std::string filename;
     AVFormatContext *fmt_ctx;
     bool has_first_keyframe;
-    std::shared_ptr<Observable<Buffer>> video_observer;
+    std::shared_ptr<Observable<V4l2Buffer>> video_observer;
     std::shared_ptr<Observable<PaBuffer>> audio_observer;
     std::shared_ptr<V4L2Capture> video_src; 
     std::shared_ptr<PaCapture> audio_src;

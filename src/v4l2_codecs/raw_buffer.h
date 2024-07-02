@@ -11,7 +11,7 @@
 class RawBuffer : public webrtc::VideoFrameBuffer {
 public:
     static rtc::scoped_refptr<RawBuffer> Create(
-        int width, int height, int size, Buffer buffer);
+        int width, int height, int size, V4l2Buffer buffer);
 
     void InitializeData();
 
@@ -21,12 +21,12 @@ public:
     rtc::scoped_refptr<webrtc::I420BufferInterface> ToI420() override;
 
     unsigned int Size() const;
-    Buffer GetBuffer();
+    V4l2Buffer GetBuffer();
     const uint8_t *Data() const;
     uint8_t *MutableData();
 
 protected:
-    RawBuffer(int width, int height, int size, Buffer buffer);
+    RawBuffer(int width, int height, int size, V4l2Buffer buffer);
     ~RawBuffer() override;
 
 private:
@@ -34,7 +34,7 @@ private:
     const int height_;
     const int size_;
     unsigned int flags_;
-    Buffer buffer_;
+    V4l2Buffer buffer_;
     const std::unique_ptr<uint8_t, webrtc::AlignedFreeDeleter> data_;
 };
 
