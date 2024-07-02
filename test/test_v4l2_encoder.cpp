@@ -16,7 +16,7 @@ int main(int argc, char *argv[]) {
     bool wait_first_keyframe = false;
     int images_nb = 0;
     int record_sec = 10;
-    struct Buffer encoded_buffer;
+    struct V4l2Buffer encoded_buffer;
     Args args{.device = "/dev/video0",
               .fps = 30,
               .width = 640,
@@ -31,8 +31,8 @@ int main(int argc, char *argv[]) {
     auto recorder = H264Recorder::Create(capture);
 
     auto observer = capture->AsObservable();
-    observer->Subscribe([&](Buffer buffer) {
-        encoder->EmplaceBuffer(buffer, [&](Buffer encoded_buffer) {
+    observer->Subscribe([&](V4l2Buffer buffer) {
+        encoder->EmplaceBuffer(buffer, [&](V4l2Buffer encoded_buffer) {
             if (is_finished) {
                 return;
             }

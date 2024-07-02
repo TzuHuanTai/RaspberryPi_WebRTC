@@ -8,7 +8,7 @@
 #include <mutex>
 #include <condition_variable>
 
-void WriteImage(Buffer buffer, int index) {
+void WriteImage(V4l2Buffer buffer, int index) {
     printf("Dequeued buffer index: %d\n"
            "  bytesused: %d\n",
            index, buffer.length);
@@ -40,8 +40,8 @@ int main(int argc, char *argv[]) {
 
     auto capture = V4L2Capture::Create(args);
     auto observer = capture->AsObservable();
-    observer->Subscribe([&](Buffer buffer) {
-        scaler->EmplaceBuffer(buffer, [&](Buffer scaled_buffer) {
+    observer->Subscribe([&](V4l2Buffer buffer) {
+        scaler->EmplaceBuffer(buffer, [&](V4l2Buffer scaled_buffer) {
             if (is_finished) {
                 return;
             }

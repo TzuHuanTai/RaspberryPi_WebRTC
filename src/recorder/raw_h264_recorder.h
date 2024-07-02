@@ -9,10 +9,10 @@ public:
     RawH264Recorder(Args config, std::string encoder_name);
     ~RawH264Recorder();
     void PreStart() override;
-    bool CheckNALUnits(const Buffer& buffer);
+    bool CheckNALUnits(const V4l2Buffer& buffer);
 
 protected:
-    void Encode(Buffer &buffer) override;
+    void Encode(V4l2Buffer &buffer) override;
 
 private:
     bool has_sps_;

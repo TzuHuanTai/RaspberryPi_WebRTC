@@ -59,7 +59,7 @@ int32_t V4l2H264Encoder::Encode(
     rtc::scoped_refptr<webrtc::VideoFrameBuffer> frame_buffer =
         frame.video_frame_buffer();
 
-    Buffer src_buffer = {};
+    V4l2Buffer src_buffer = {};
     if (frame_buffer->type() == webrtc::VideoFrameBuffer::Type::kNative) {
         RawBuffer *raw_buffer = static_cast<RawBuffer *>(frame_buffer.get());
         src_buffer = raw_buffer->GetBuffer();
@@ -74,7 +74,7 @@ int32_t V4l2H264Encoder::Encode(
         };
     }
 
-    encoder_->EmplaceBuffer(src_buffer, [this, frame](Buffer encoded_buffer) {
+    encoder_->EmplaceBuffer(src_buffer, [this, frame](V4l2Buffer encoded_buffer) {
         SendFrame(frame, encoded_buffer);
     });
 
@@ -101,7 +101,7 @@ webrtc::VideoEncoder::EncoderInfo V4l2H264Encoder::GetEncoderInfo() const {
     return info;
 }
 
-void V4l2H264Encoder::SendFrame(const webrtc::VideoFrame &frame, Buffer &encoded_buffer) {
+void V4l2H264Encoder::SendFrame(const webrtc::VideoFrame &frame, V4l2Buffer &encoded_buffer) {
     auto encoded_image_buffer =
         webrtc::EncodedImageBuffer::Create((uint8_t *)encoded_buffer.start, encoded_buffer.length);
 

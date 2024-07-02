@@ -4,11 +4,11 @@
 static const int kBufferAlignment = 64;
 
 rtc::scoped_refptr<RawBuffer> RawBuffer::Create(
-    int width, int height, int size, Buffer buffer) {
+    int width, int height, int size, V4l2Buffer buffer) {
     return rtc::make_ref_counted<RawBuffer>(width, height, size, buffer);
 }
 
-RawBuffer::RawBuffer(int width, int height, int size, Buffer buffer)
+RawBuffer::RawBuffer(int width, int height, int size, V4l2Buffer buffer)
     : width_(width),
       height_(height),
       size_(size),
@@ -44,7 +44,7 @@ unsigned int RawBuffer::Size() const {
     return static_cast<unsigned int>(size_);
 }
 
-Buffer RawBuffer::GetBuffer() {
+V4l2Buffer RawBuffer::GetBuffer() {
     return buffer_;
 }
 

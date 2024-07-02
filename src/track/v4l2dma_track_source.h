@@ -16,7 +16,7 @@ public:
 
 protected:
     void Init() override;
-    void OnFrameCaptured(Buffer buffer) override;
+    void OnFrameCaptured(V4l2Buffer buffer) override;
 
 private:
     bool has_first_keyframe_;

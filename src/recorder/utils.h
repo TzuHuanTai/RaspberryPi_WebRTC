@@ -14,9 +14,6 @@ extern "C"
 
 class RecUtil {
 public:
-    static std::string PrefixZero(int src, int digits);
-    static std::string GenerateFilename();
-
     // ffmpeg tool
     static AVFormatContext* CreateContainer(std::string record_path, std::string filename);
     static void CreateThumbnail(std::string record_path, std::string filename);

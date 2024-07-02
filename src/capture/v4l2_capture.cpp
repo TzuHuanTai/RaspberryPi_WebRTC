@@ -181,7 +181,7 @@ void V4L2Capture::CaptureImage() {
     Next(shared_buffer_);
 }
 
-const Buffer& V4L2Capture::GetImage() const {
+const V4l2Buffer& V4L2Capture::GetImage() const {
     return shared_buffer_;
 }
 

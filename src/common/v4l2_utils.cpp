@@ -55,7 +55,7 @@ bool V4l2Util::QueryCapabilities(int fd, v4l2_capability *cap) {
     return true;
 }
 
-bool V4l2Util::InitBuffer(int fd, BufferGroup *gbuffer, v4l2_buf_type type, v4l2_memory memory,
+bool V4l2Util::InitBuffer(int fd, V4l2BufferGroup *gbuffer, v4l2_buf_type type, v4l2_memory memory,
                           bool has_dmafd) {
     v4l2_capability cap = {};
     if (!V4l2Util::QueryCapabilities(fd, &cap)) {
@@ -89,7 +89,7 @@ bool V4l2Util::QueueBuffer(int fd, v4l2_buffer *buffer) {
     return true;
 }
 
-bool V4l2Util::QueueBuffers(int fd, BufferGroup *gbuffer) {
+bool V4l2Util::QueueBuffers(int fd, V4l2BufferGroup *gbuffer) {
     for (int i = 0; i < gbuffer->num_buffers; i++) {
         v4l2_buffer *inner = &gbuffer->buffers[i].inner;
         if (!V4l2Util::QueueBuffer(fd, inner)) {
@@ -137,7 +137,7 @@ bool V4l2Util::SetFps(int fd, v4l2_buf_type type, int fps) {
     return true;
 }
 
-bool V4l2Util::SetFormat(int fd, BufferGroup *gbuffer, int width, int height,
+bool V4l2Util::SetFormat(int fd, V4l2BufferGroup *gbuffer, int width, int height,
                          uint32_t pixel_format) {
     v4l2_format fmt = {};
     fmt.type = gbuffer->type;
@@ -214,7 +214,7 @@ bool V4l2Util::StreamOff(int fd, v4l2_buf_type type) {
     return true;
 }
 
-void V4l2Util::UnMap(BufferGroup *gbuffer) {
+void V4l2Util::UnMap(V4l2BufferGroup *gbuffer) {
     for (int i = 0; i < gbuffer->num_buffers; i++) {
         if(gbuffer->buffers[i].dmafd != 0) {
             printf("close (%d) dmafd\n", gbuffer->buffers[i].dmafd);
@@ -227,9 +227,9 @@ void V4l2Util::UnMap(BufferGroup *gbuffer) {
     }
 }
 
-bool V4l2Util::MMap(int fd, BufferGroup *gbuffer) {
+bool V4l2Util::MMap(int fd, V4l2BufferGroup *gbuffer) {
     for(int i = 0; i < gbuffer->num_buffers; i++) {
-        Buffer *buffer = &gbuffer->buffers[i];
+        V4l2Buffer *buffer = &gbuffer->buffers[i];
         v4l2_buffer *inner = &buffer->inner;
         inner->type = gbuffer->type;
         inner->memory = V4L2_MEMORY_MMAP;
@@ -281,7 +281,7 @@ bool V4l2Util::MMap(int fd, BufferGroup *gbuffer) {
     return true;
 }
 
-bool V4l2Util::AllocateBuffer(int fd, BufferGroup *gbuffer, int num_buffers) {
+bool V4l2Util::AllocateBuffer(int fd, V4l2BufferGroup *gbuffer, int num_buffers) {
     gbuffer->num_buffers = num_buffers;
     gbuffer->buffers.resize(num_buffers);
 
@@ -299,7 +299,7 @@ bool V4l2Util::AllocateBuffer(int fd, BufferGroup *gbuffer, int num_buffers) {
         return MMap(fd, gbuffer);
     } else if (gbuffer->memory == V4L2_MEMORY_DMABUF) {
         for(int i = 0; i < num_buffers; i++) {
-            Buffer *buffer = &gbuffer->buffers[i];
+            V4l2Buffer *buffer = &gbuffer->buffers[i];
             v4l2_buffer *inner = &buffer->inner;
             inner->type = gbuffer->type;
             inner->memory = V4L2_MEMORY_DMABUF;
@@ -312,7 +312,7 @@ bool V4l2Util::AllocateBuffer(int fd, BufferGroup *gbuffer, int num_buffers) {
     return true;
 }
 
-bool V4l2Util::DeallocateBuffer(int fd, BufferGroup *gbuffer) {
+bool V4l2Util::DeallocateBuffer(int fd, V4l2BufferGroup *gbuffer) {
     if (gbuffer->memory == V4L2_MEMORY_MMAP) {
         V4l2Util::UnMap(gbuffer);
     }

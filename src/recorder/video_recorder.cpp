@@ -24,9 +24,9 @@ AVCodecContext* VideoRecorder::InitializeEncoderCtx() {
     return encoder;
 }
 
-void VideoRecorder::OnBuffer(Buffer &raw_buffer) {
+void VideoRecorder::OnBuffer(V4l2Buffer &raw_buffer) {
     if (raw_buffer_queue.size() < config.fps * 10) {
-        Buffer buf = {.start = malloc(raw_buffer.length),
+        V4l2Buffer buf = {.start = malloc(raw_buffer.length),
                       .length = raw_buffer.length,
                       .flags = raw_buffer.flags,
                       .timestamp = raw_buffer.timestamp};
@@ -49,7 +49,7 @@ void VideoRecorder::SetBaseTimestamp(struct timeval time) {
     base_time_ = time;
 }
 
-void VideoRecorder::OnEncoded(Buffer buffer) {
+void VideoRecorder::OnEncoded(V4l2Buffer buffer) {
     int ret;
     if (!has_first_keyframe && (buffer.flags & V4L2_BUF_FLAG_KEYFRAME)) {
         has_first_keyframe = true;

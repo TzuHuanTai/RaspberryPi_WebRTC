@@ -2,7 +2,7 @@
 #define V4L2_UTILS_
 
 #include "v4l2_utils.h"
-
+#include "utils.h"
 #include <linux/videodev2.h>
 
 #include <stdint.h>
@@ -10,7 +10,7 @@
 #include <unordered_set>
 #include <vector>
 
-struct Buffer {
+struct V4l2Buffer : public Buffer {
     void *start = nullptr;
     unsigned int length;
     unsigned int flags;
@@ -20,11 +20,11 @@ struct Buffer {
     struct v4l2_plane plane;
 };
 
-struct BufferGroup {
+struct V4l2BufferGroup {
     int fd = 0;
     int num_buffers = 0;
     bool has_dmafd = false;
-    std::vector<Buffer> buffers;
+    std::vector<V4l2Buffer> buffers;
     enum v4l2_buf_type type;
     enum v4l2_memory memory;
 };
@@ -38,23 +38,23 @@ public:
     static int OpenDevice(const char *file);
     static void CloseDevice(int fd);
     static bool QueryCapabilities(int fd, v4l2_capability *cap);
-    static bool InitBuffer(int fd, BufferGroup *gbuffer, v4l2_buf_type type, v4l2_memory memory,
+    static bool InitBuffer(int fd, V4l2BufferGroup *gbuffer, v4l2_buf_type type, v4l2_memory memory,
                            bool has_dmafd = false);
     static bool DequeueBuffer(int fd, v4l2_buffer *buffer);
     static bool QueueBuffer(int fd, v4l2_buffer *buffer);
-    static bool QueueBuffers(int fd, BufferGroup *buffer);
+    static bool QueueBuffers(int fd, V4l2BufferGroup *buffer);
     static std::unordered_set<std::string> GetDeviceSupportedFormats(const char *file);
     static bool SubscribeEvent(int fd, uint32_t type);
     static bool SetFps(int fd, v4l2_buf_type type, int fps);
-    static bool SetFormat(int fd, BufferGroup *gbuffer, int width, int height, uint32_t pixel_format);
+    static bool SetFormat(int fd, V4l2BufferGroup *gbuffer, int width, int height, uint32_t pixel_format);
     static bool SetCtrl(int fd, uint32_t id, int32_t value);
     static bool SetExtCtrl(int fd, uint32_t id, int32_t value);
     static bool StreamOn(int fd, v4l2_buf_type type);
     static bool StreamOff(int fd, v4l2_buf_type type);
-    static void UnMap(BufferGroup *gbuffer);
-    static bool MMap(int fd, BufferGroup *gbuffer);
-    static bool AllocateBuffer(int fd, BufferGroup *gbuffer, int num_buffers);
-    static bool DeallocateBuffer(int fd, BufferGroup *gbuffer);
+    static void UnMap(V4l2BufferGroup *gbuffer);
+    static bool MMap(int fd, V4l2BufferGroup *gbuffer);
+    static bool AllocateBuffer(int fd, V4l2BufferGroup *gbuffer, int num_buffers);
+    static bool DeallocateBuffer(int fd, V4l2BufferGroup *gbuffer);
 };
 
 #endif // V4L2_UTILS_

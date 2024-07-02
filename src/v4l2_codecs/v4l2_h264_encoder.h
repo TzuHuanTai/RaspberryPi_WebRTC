@@ -36,7 +36,7 @@ protected:
     webrtc::BitrateAdjuster bitrate_adjuster_;
     std::unique_ptr<V4l2Encoder> encoder_;
 
-    virtual void SendFrame(const webrtc::VideoFrame &frame, Buffer &encoded_buffer);
+    virtual void SendFrame(const webrtc::VideoFrame &frame, V4l2Buffer &encoded_buffer);
 };
 
 #endif

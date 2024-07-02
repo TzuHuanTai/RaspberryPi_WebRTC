@@ -38,7 +38,7 @@ void V4l2DmaTrackSource::Init() {
     });
 }
 
-void V4l2DmaTrackSource::OnFrameCaptured(Buffer buffer) {
+void V4l2DmaTrackSource::OnFrameCaptured(V4l2Buffer buffer) {
     rtc::TimestampAligner timestamp_aligner_;
     const int64_t timestamp_us = rtc::TimeMicros();
     const int64_t translated_timestamp_us =
@@ -70,8 +70,8 @@ void V4l2DmaTrackSource::OnFrameCaptured(Buffer buffer) {
         }
     }
 
-    decoder_->EmplaceBuffer(buffer, [this, translated_timestamp_us](Buffer decoded_buffer) {
-        scaler_->EmplaceBuffer(decoded_buffer, [this, translated_timestamp_us](Buffer scaled_buffer) {
+    decoder_->EmplaceBuffer(buffer, [this, translated_timestamp_us](V4l2Buffer decoded_buffer) {
+        scaler_->EmplaceBuffer(decoded_buffer, [this, translated_timestamp_us](V4l2Buffer scaled_buffer) {
             rtc::scoped_refptr<webrtc::VideoFrameBuffer> dst_buffer = nullptr;
 
             if (!capture_->is_dma()) {

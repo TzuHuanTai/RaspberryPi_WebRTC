@@ -10,7 +10,7 @@
 
 #include <modules/video_capture/video_capture.h>
 
-class V4L2Capture : public Subject<Buffer>
+class V4L2Capture : public Subject<V4l2Buffer>
 {
 public:
     V4L2Capture(Args args);
@@ -28,7 +28,7 @@ public:
     V4L2Capture &SetFps(int fps = 30);
     V4L2Capture &SetRotation(int angle);
     void StartCapture();
-    const Buffer& GetImage() const;
+    const V4l2Buffer& GetImage() const;
 
 private:
     int fd_;
@@ -40,8 +40,8 @@ private:
     bool is_dma_;
     uint32_t format_;
     Args config_;
-    BufferGroup capture_;
-    Buffer shared_buffer_;
+    V4l2BufferGroup capture_;
+    V4l2Buffer shared_buffer_;
     webrtc::VideoType video_type_;
     std::mutex capture_lock_;
     std::unique_ptr<Worker> worker_;
