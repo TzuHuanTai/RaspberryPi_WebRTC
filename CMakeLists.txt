@@ -106,18 +106,22 @@ elseif(BUILD_TEST STREQUAL "v4l2_encoder")
         ${WEBRTC_LIBRARY}
     )
 elseif(BUILD_TEST STREQUAL "v4l2_decoder")
+    find_package(JPEG REQUIRED)
+    include_directories(${JPEG_INCLUDE_DIR})
+
     add_subdirectory(src/capture)
+    add_subdirectory(src/common)
     add_subdirectory(src/v4l2_codecs)
     add_executable(test_v4l2_decoder test/test_v4l2_decoder.cpp)
     target_link_libraries(test_v4l2_decoder
         capture
-        common
         v4l2_codecs
     )
     target_link_libraries(test_v4l2_decoder
         ${WEBRTC_LINK_LIBS}
         Threads::Threads
         ${WEBRTC_LIBRARY}
+        ${JPEG_LIBRARIES}
     )
 elseif(BUILD_TEST STREQUAL "v4l2_scaler")
     add_subdirectory(src/capture)
