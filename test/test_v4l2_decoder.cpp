@@ -2,6 +2,10 @@
 #include "v4l2_codecs/v4l2_decoder.h"
 #include "v4l2_codecs/v4l2_scaler.h"
 #include "capture/v4l2_capture.h"
+#include "common/utils.h"
+
+#include <third_party/libyuv/include/libyuv.h>
+#include <jpeglib.h>
 
 #include <fcntl.h>
 #include <unistd.h>
@@ -9,19 +13,16 @@
 #include <mutex>
 #include <condition_variable>
 
-void WriteImage(Buffer buffer, int index) {
-    printf("Dequeued buffer index: %d\n"
-           "  bytesused: %d\n",
-           index, buffer.length);
-
-    std::string filename = "img" + std::to_string(index) + ".yuv";
-    int outfd = open(filename.c_str(), O_WRONLY | O_CREAT | O_EXCL, 0600);
-    if ((outfd == -1) && (EEXIST == errno)) {
-        /* open the existing file with write flag */
-        outfd = open(filename.c_str(), O_WRONLY);
+void WriteJpegImage(Buffer buffer, int index) {
+    std::string filename = "img" + std::to_string(index) + ".jpg";
+    FILE* file = fopen(filename.c_str(), "wb");
+    if (file) {
+        fwrite((uint8_t*)buffer.start, 1, buffer.length, file);
+        fclose(file);
+        printf("JPEG data successfully written to %s\n", filename.c_str());
+    } else {
+        fprintf(stderr, "Failed to open file for writing: %s\n", filename.c_str());
     }
-
-    write(outfd, buffer.start, buffer.length);
 }
 
 int main(int argc, char *argv[]) {
@@ -30,28 +31,33 @@ int main(int argc, char *argv[]) {
     bool is_finished = false;
     int images_nb = 0;
     int record_sec = 1;
-    Args args{.device = "/dev/video0",
-              .fps = 15,
+    Args args{.fps = 15,
               .width = 640,
               .height = 480,
-              .v4l2_format = "h264"};
+              .v4l2_format = "h264",
+              .device = "/dev/video0"};
+
+    int scaled_width = 320;
+    int scaled_height = 240;
 
     auto decoder = std::make_unique<V4l2Decoder>();
     decoder->Configure(args.width, args.height, V4L2_PIX_FMT_H264, true);
     auto scaler = std::make_unique<V4l2Scaler>();
-    scaler->Configure(args.width, args.height, 320, 240, true, false);
+    scaler->Configure(args.width, args.height, scaled_width, scaled_height, true, false);
 
     auto capture = V4L2Capture::Create(args);
     auto observer = capture->AsObservable();
-    observer->Subscribe([&](Buffer buffer) {
-        decoder->EmplaceBuffer(buffer, [&](Buffer decoded_buffer) {
-            scaler->EmplaceBuffer(decoded_buffer, [&](Buffer scaled_buffer) {
+    observer->Subscribe([&](V4l2Buffer buffer) {
+        decoder->EmplaceBuffer(buffer, [&](V4l2Buffer decoded_buffer) {
+            scaler->EmplaceBuffer(decoded_buffer, [&](V4l2Buffer scaled_buffer) {
                 if (is_finished) {
                     return;
                 }
 
                 if (images_nb++ < args.fps * record_sec) {
-                    WriteImage(scaled_buffer, images_nb);
+                    auto jpg_buffer = Utils::ConvertYuvToJpeg((uint8_t *)scaled_buffer.start, scaled_width, scaled_height);
+                    printf("Buffer index: %d\n  bytesused: %d\n",images_nb, jpg_buffer.length);
+                    WriteJpegImage(jpg_buffer, images_nb);
                 } else {
                     is_finished = true;
                     cond_var.notify_all();
