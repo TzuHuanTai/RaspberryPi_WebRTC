@@ -33,7 +33,7 @@ Both `signalr` and `mqtt` are the options for signaling in this project.
     * Follow [BUILD_MOSQUITTO](doc/BUILD_MOSQUITTO.md) to compile `mosquitto`
 4. Install `FFmpeg` and the needed packages on pi
     ```bash
-    sudo apt install ffmpeg libboost-program-options-dev libavformat-dev libavcodec-dev libavutil-dev libswscale-dev libpulse-dev libasound2-dev libx11-dev
+    sudo apt install ffmpeg libboost-program-options-dev libavformat-dev libavcodec-dev libavutil-dev libswscale-dev libpulse-dev libasound2-dev libx11-dev libjpeg-dev
     ```
 5. Copy the [nlohmann/json.hpp](https://github.com/nlohmann/json/blob/develop/single_include/nlohmann/json.hpp) to `/usr/local/include` 
 6. Run the chosen signaling server
