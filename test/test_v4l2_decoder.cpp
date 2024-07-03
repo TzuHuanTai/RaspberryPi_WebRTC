@@ -37,32 +37,32 @@ int main(int argc, char *argv[]) {
               .v4l2_format = "h264",
               .device = "/dev/video0"};
 
-    int scaled_width = 320;
-    int scaled_height = 240;
+    int scaled_width = 640;
+    int scaled_height = 480;
 
     auto decoder = std::make_unique<V4l2Decoder>();
     decoder->Configure(args.width, args.height, V4L2_PIX_FMT_H264, true);
-    auto scaler = std::make_unique<V4l2Scaler>();
-    scaler->Configure(args.width, args.height, scaled_width, scaled_height, true, false);
+    // auto scaler = std::make_unique<V4l2Scaler>();
+    // scaler->Configure(args.width, args.height, scaled_width, scaled_height, true, false);
 
     auto capture = V4L2Capture::Create(args);
     auto observer = capture->AsObservable();
     observer->Subscribe([&](V4l2Buffer buffer) {
         decoder->EmplaceBuffer(buffer, [&](V4l2Buffer decoded_buffer) {
-            scaler->EmplaceBuffer(decoded_buffer, [&](V4l2Buffer scaled_buffer) {
+            // scaler->EmplaceBuffer(decoded_buffer, [&](V4l2Buffer scaled_buffer) {
                 if (is_finished) {
                     return;
                 }
 
                 if (images_nb++ < args.fps * record_sec) {
-                    auto jpg_buffer = Utils::ConvertYuvToJpeg((uint8_t *)scaled_buffer.start, scaled_width, scaled_height);
+                    auto jpg_buffer = Utils::ConvertYuvToJpeg((uint8_t *)decoded_buffer.start, scaled_width, scaled_height);
                     printf("Buffer index: %d\n  bytesused: %d\n",images_nb, jpg_buffer.length);
                     WriteJpegImage(jpg_buffer, images_nb);
                 } else {
                     is_finished = true;
                     cond_var.notify_all();
                 }
-            });
+            // });
         });
     });
 

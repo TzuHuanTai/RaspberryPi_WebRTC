@@ -62,7 +62,8 @@ bool V4l2Util::InitBuffer(int fd, V4l2BufferGroup *gbuffer, v4l2_buf_type type, 
         return false;
     }
 
-    printf("driver '%s' on card '%s' in %s mode\n", cap.driver, cap.card,
+    printf("[V4l2Util] fd(%d) driver '%s' on card '%s' in %s mode\n", 
+           fd, cap.driver, cap.card,
            V4l2Util::IsSinglePlaneVideo(&cap) ? "splane" 
            : V4l2Util::IsMultiPlaneVideo(&cap) ? "mplane" : "unknown");
     gbuffer->fd = fd;
@@ -143,7 +144,7 @@ bool V4l2Util::SetFormat(int fd, V4l2BufferGroup *gbuffer, int width, int height
     fmt.type = gbuffer->type;
     ioctl(fd, VIDIOC_G_FMT, &fmt);
 
-    printf("V4l2m2m %d formats: %s(%dx%d)", gbuffer->fd,
+    printf("[V4l2Util] fd(%d) prev formats: %s(%dx%d)\n", gbuffer->fd,
            V4l2Util::FourccToString(fmt.fmt.pix_mp.pixelformat).c_str(),
            fmt.fmt.pix_mp.width, fmt.fmt.pix_mp.height);
 
@@ -160,7 +161,7 @@ bool V4l2Util::SetFormat(int fd, V4l2BufferGroup *gbuffer, int width, int height
         return false;
     }
 
-    printf(" -> %s(%dx%d)\n",
+    printf("[V4l2Util] fd(%d) set format: %s(%dx%d)\n", gbuffer->fd,
            V4l2Util::FourccToString(fmt.fmt.pix_mp.pixelformat).c_str(),
            fmt.fmt.pix_mp.width, fmt.fmt.pix_mp.height);
 
@@ -252,9 +253,10 @@ bool V4l2Util::MMap(int fd, V4l2BufferGroup *gbuffer) {
                 return false;
             }
             buffer->dmafd = expbuf.fd;
-            printf("(%d) %d export dma fd: (%d)\n",
-                   gbuffer->fd, gbuffer->type, buffer->dmafd);
-        } else {
+            printf("[V4l2Util] fd(%d) export dma at fd(%d)\n",
+                   gbuffer->fd, buffer->dmafd);
+        }
+
         if(gbuffer->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE
             || gbuffer->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
             buffer->length = inner->m.planes[0].length;
@@ -273,9 +275,8 @@ bool V4l2Util::MMap(int fd, V4l2BufferGroup *gbuffer) {
             return false;
         }
 
-        printf("V4l2m2m querying (%d) %d buffer: %p with %d length\n", 
-                gbuffer->fd, gbuffer->type, buffer->start, buffer->length);
-        }
+        printf("[V4l2Util] fd(%d) query buffer at %p (length: %d)\n", 
+                gbuffer->fd, buffer->start, buffer->length);
     }
 
     return true;
