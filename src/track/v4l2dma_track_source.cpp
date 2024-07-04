@@ -71,6 +71,11 @@ void V4l2DmaTrackSource::OnFrameCaptured(V4l2Buffer buffer) {
     }
 
     decoder_->EmplaceBuffer(buffer, [this, translated_timestamp_us](V4l2Buffer decoded_buffer) {
+
+        if (!i420_raw_buffer_) {
+            i420_raw_buffer_ = RawBuffer::Create(width_, height_, decoded_buffer.length, decoded_buffer);
+        }
+
         scaler_->EmplaceBuffer(decoded_buffer, [this, translated_timestamp_us](V4l2Buffer scaled_buffer) {
             rtc::scoped_refptr<webrtc::VideoFrameBuffer> dst_buffer = nullptr;
 

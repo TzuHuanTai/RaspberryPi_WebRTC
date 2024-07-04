@@ -6,20 +6,20 @@
 #include "signaling/signalr_service.h"
 #endif
 
-#include "common/utils.h"
-
 rtc::scoped_refptr<RtcPeer> RtcPeer::Create(Args args, int id) {
     auto ptr = rtc::make_ref_counted<RtcPeer>(id);
-    ptr->args_ = args;
+    ptr->InitSignalingClient(args);
     return ptr;
 }
 
 RtcPeer::RtcPeer(int id)
-    : is_connected_(false),
-      id_(id) {}
+    : id_(id),
+      is_connected_(false) {}
 
 RtcPeer::~RtcPeer() {
     peer_connection_ = nullptr;
+    signaling_client_.reset();
+    data_channel_subject_.reset();
     std::cout << "[RtcPeer] ("<< id_ <<") was destroyed!" << std::endl;
 }
 
@@ -56,8 +56,8 @@ void RtcPeer::InitSignalingClient(Args args) {
     signaling_client_->ResetCallback(this);
 }
 
-void RtcPeer::CreateDataChannel() {
-    data_channel_subject_ = std::make_unique<DataChannelSubject>();
+std::shared_ptr<DataChannelSubject> RtcPeer::CreateDataChannel() {
+    data_channel_subject_ = std::make_shared<DataChannelSubject>();
 
     struct webrtc::DataChannelInit init;
     init.ordered = true;
@@ -65,36 +65,39 @@ void RtcPeer::CreateDataChannel() {
     init.id = 0;
     auto result = peer_connection_->CreateDataChannelOrError("cmd_channel", &init);
 
-    if (result.ok()) {
-        std::cout << "[RtcPeer] Succeeds to create data channel" << std::endl;
-        data_channel_subject_->SetDataChannel(result.MoveValue());
-
-        auto conn_observer = data_channel_subject_->AsObservable(CommandType::CONNECT);
-        conn_observer->Subscribe([this](char *message) {
-            if (strcmp(message, "false") == 0) {
-                peer_connection_->Close();
-            }
-        });
-
-        auto thumb_observer = data_channel_subject_->AsObservable(CommandType::THUMBNAIL);
-        thumb_observer->Subscribe([this](char *message) {
-            if (strcmp(message, "get") == 0 && !args_.record_path.empty()) {
-                try {
-                    auto latest_jpg_path = Utils::FindLatestJpg(args_.record_path);
-                    auto binary_data = Utils::ReadFileInBinary(latest_jpg_path);
-                    auto base64_data = Utils::ToBase64(binary_data);
-                    std::cout << "Send Image: " << latest_jpg_path << std::endl;
-                    std::string data_uri = "data:image/jpeg;base64," + base64_data;
-                    data_channel_subject_->Send(CommandType::THUMBNAIL, data_uri);
-                } catch (const std::exception &e) {
-                    std::cerr << "Error: " << e.what() << std::endl;
-                }
-            }
-        });
-
-    } else {
+    if (!result.ok()) {
         std::cout << "[RtcPeer] Fails to create data channel" << std::endl;
+        return nullptr;
     }
+
+    std::cout << "[RtcPeer] Succeeds to create data channel" << std::endl;
+    data_channel_subject_->SetDataChannel(result.MoveValue());
+
+    auto conn_observer = data_channel_subject_->AsObservable(CommandType::CONNECT);
+    conn_observer->Subscribe([this](char *message) {
+        if (strcmp(message, "false") == 0) {
+            peer_connection_->Close();
+        }
+    });
+
+    return data_channel_subject_;
+}
+
+void RtcPeer::OnSnapshot(std::function<void()> func) {
+    SubscribeCommandChannel(CommandType::SNAPSHOT, func);
+}
+
+void RtcPeer::OnThumbnail(std::function<void()> func) {
+    SubscribeCommandChannel(CommandType::THUMBNAIL, func);
+}
+
+void RtcPeer::SubscribeCommandChannel(CommandType type, std::function<void()> func) {
+    auto thumb_observer = data_channel_subject_->AsObservable(type);
+    thumb_observer->Subscribe([func](char *message) {
+        if (strcmp(message, "get") == 0) {
+            func();
+        }
+    });
 }
 
 void RtcPeer::OnReadyToConnect(std::function<void(PeerState)> func) {
@@ -142,6 +145,7 @@ void RtcPeer::OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnection
         is_connected_ = false;
         peer_connection_->Close();
     } else if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kClosed) {
+        signaling_client_.reset();
         is_connected_ = false;
         EmitReadyToConnect(false);
         data_channel_subject_.reset();

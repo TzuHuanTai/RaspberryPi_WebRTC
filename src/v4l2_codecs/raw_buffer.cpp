@@ -37,6 +37,8 @@ int RawBuffer::height() const {
 rtc::scoped_refptr<webrtc::I420BufferInterface> RawBuffer::ToI420() {
     rtc::scoped_refptr<webrtc::I420Buffer> buffer =
         webrtc::I420Buffer::Create(width_, height_);
+
+    memcpy(buffer->MutableDataY(), (uint8_t*)buffer_.start, buffer_.length);
     return buffer;
 }
 

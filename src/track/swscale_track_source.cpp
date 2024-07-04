@@ -64,6 +64,7 @@ void SwScaleTrackSource::OnFrameCaptured(V4l2Buffer buffer) {
         // "ConvertToI420 Failed"
     }
 
+    i420_raw_buffer_ = i420_buffer;
     dst_buffer = i420_buffer;
 
     if (adapted_width != width_ || adapted_height != height_) {
@@ -79,6 +80,10 @@ void SwScaleTrackSource::OnFrameCaptured(V4l2Buffer buffer) {
             .set_rotation(webrtc::kVideoRotation_0)
             .set_timestamp_us(translated_timestamp_us)
             .build());
+}
+
+rtc::scoped_refptr<webrtc::I420BufferInterface> SwScaleTrackSource::GetI420Frame() {
+    return i420_raw_buffer_->ToI420();
 }
 
 webrtc::MediaSourceInterface::SourceState SwScaleTrackSource::state() const {
