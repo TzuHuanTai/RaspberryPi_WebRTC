@@ -83,6 +83,15 @@ void DataChannelSubject::Send(CommandType type, const std::string data) {
     data_channel_->Send(data_buffer);
 }
 
+void DataChannelSubject::Send(const uint8_t* data, size_t size) {
+    if (data_channel_->state() != webrtc::DataChannelInterface::kOpen) {
+        return;
+    }
+    rtc::CopyOnWriteBuffer buffer(data, size);
+    webrtc::DataBuffer data_buffer(buffer, true);
+    data_channel_->Send(data_buffer);
+}
+
 void DataChannelSubject::SetDataChannel(
     rtc::scoped_refptr<webrtc::DataChannelInterface> data_channel) {
     data_channel_ = data_channel;

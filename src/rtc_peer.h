@@ -66,11 +66,14 @@ public:
     void SetPeer(rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer);
     rtc::scoped_refptr<webrtc::PeerConnectionInterface> GetPeer();
     void InitSignalingClient(Args args);
-    void CreateDataChannel();
+    std::shared_ptr<DataChannelSubject> CreateDataChannel();
+    void OnSnapshot(std::function<void()> func);
+    void OnThumbnail(std::function<void()> func);
     void OnReadyToConnect(std::function<void(PeerState)> func);
 
 private:
     void EmitReadyToConnect(bool is_ready);
+    void SubscribeCommandChannel(CommandType type, std::function<void()> func);
 
     // PeerConnectionObserver implementation.
     void OnSignalingChange(
@@ -93,11 +96,10 @@ private:
     void OnRemoteIce(std::string sdp_mid, int sdp_mline_index, std::string candidate) override;
 
     int id_;
-    Args args_;
     bool is_connected_;
     bool is_ready_to_connect_;
     std::shared_ptr<SignalingService> signaling_client_;
-    std::unique_ptr<DataChannelSubject> data_channel_subject_;
+    std::shared_ptr<DataChannelSubject> data_channel_subject_;
     rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer_connection_;
     rtc::VideoSinkInterface<webrtc::VideoFrame> *custom_video_sink_;
 };

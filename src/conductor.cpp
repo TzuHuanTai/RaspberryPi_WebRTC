@@ -1,5 +1,5 @@
 #include "conductor.h"
-#include "track/swscale_track_source.h"
+#include "common/utils.h"
 #include "track/v4l2dma_track_source.h"
 #include "customized_video_encoder_factory.h"
 
@@ -56,18 +56,15 @@ void Conductor::InitializeTracks() {
 
     if (video_track_ == nullptr && !args.device.empty()) {
         video_capture_source_ = V4L2Capture::Create(args);
-        auto video_track_source =  ([this]() -> rtc::scoped_refptr<rtc::AdaptedVideoTrackSource> {
-            if (args.enable_v4l2_dma || args.v4l2_format == "h264") {
-                return V4l2DmaTrackSource::Create(video_capture_source_);
-            } else {
-                return SwScaleTrackSource::Create(video_capture_source_);
-            }
-        })();
 
-        rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> video_source =
-            webrtc::VideoTrackSourceProxy::Create(signaling_thread_.get(),
-                                                  worker_thread_.get(),
-                                                  video_track_source);
+        if (args.enable_v4l2_dma || args.v4l2_format == "h264") {
+            video_track_source_ = V4l2DmaTrackSource::Create(video_capture_source_);
+        } else {
+            video_track_source_ = SwScaleTrackSource::Create(video_capture_source_);
+        }
+        auto video_source = webrtc::VideoTrackSourceProxy::Create(signaling_thread_.get(),
+                                                                  worker_thread_.get(),
+                                                                  video_track_source_);
         video_track_ = peer_connection_factory_->CreateVideoTrack(video_source, "video_track");
     }
 }
@@ -102,6 +99,10 @@ void Conductor::AddTracks(rtc::scoped_refptr<webrtc::PeerConnectionInterface> pe
     }
 }
 
+rtc::scoped_refptr<webrtc::I420BufferInterface> Conductor::GetI420Frame() {
+    return video_track_source_ ? video_track_source_->GetI420Frame() : nullptr;
+}
+
 bool Conductor::CreatePeerConnection() {
     webrtc::PeerConnectionInterface::RTCConfiguration config;
     config.sdp_semantics = webrtc::SdpSemantics::kUnifiedPlan;
@@ -123,8 +124,44 @@ bool Conductor::CreatePeerConnection() {
 
     if (result.ok()) {
         peer_->SetPeer(result.MoveValue());
-        peer_->CreateDataChannel();
-        peer_->InitSignalingClient(args);
+        auto datachannel = peer_->CreateDataChannel();
+        peer_->OnSnapshot([this, datachannel]() {
+            try {
+                auto i420buff = GetI420Frame();
+                auto jpg_buffer = Utils::ConvertYuvToJpeg(i420buff->DataY(), args.width, args.height);
+
+                const int chunk_size = 16384; // 1024*16
+                const int file_size = jpg_buffer.length;
+                int offset = 0;
+
+                while (offset < file_size) {
+                    int current_chunk_size = std::min(chunk_size, file_size - offset);
+                    datachannel->Send(((uint8_t*)jpg_buffer.start + offset), current_chunk_size);
+                    offset += current_chunk_size;
+                }
+
+                std::string end_signal = "";
+                datachannel->Send((uint8_t*)end_signal.c_str(), end_signal.length());
+
+            } catch (const std::exception &e) {
+                std::cerr << "Error: " << e.what() << std::endl;
+            }
+        });
+        peer_->OnThumbnail([this, datachannel]() {
+            if (args.record_path.empty()) {
+                return;
+            }
+            try {
+                auto latest_jpg_path = Utils::FindLatestJpg(args.record_path);
+                auto binary_data = Utils::ReadFileInBinary(latest_jpg_path);
+                auto base64_data = Utils::ToBase64(binary_data);
+                std::cout << "Send Image: " << latest_jpg_path << std::endl;
+                std::string data_uri = "data:image/jpeg;base64," + base64_data;
+                datachannel->Send(CommandType::THUMBNAIL, data_uri);
+            } catch (const std::exception &e) {
+                std::cerr << "Error: " << e.what() << std::endl;
+            }
+        });
         peer_->OnReadyToConnect([this](PeerState state) {
             SetPeerReadyState(state.isReadyToConnect);
         });

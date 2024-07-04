@@ -10,8 +10,9 @@ using json = nlohmann::json;
 
 enum class CommandType {
     CONNECT,
-    RECORD,
+    SNAPSHOT,
     THUMBNAIL,
+    RECORD,
     UNKNOWN
 };
 
@@ -46,6 +47,7 @@ public:
     void UnSubscribe() override;
 
     void Send(CommandType type, const std::string data);
+    void Send(const uint8_t* data, size_t size);
     void SetDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> data_channel);
 
 private:

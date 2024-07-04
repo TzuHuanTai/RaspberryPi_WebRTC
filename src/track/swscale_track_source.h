@@ -23,9 +23,12 @@ public:
     bool is_screencast() const override;
     absl::optional<bool> needs_denoising() const override;
     void StartTrack();
+    rtc::scoped_refptr<webrtc::I420BufferInterface> GetI420Frame();
 
 protected:
     std::shared_ptr<V4L2Capture> capture_;
+    rtc::scoped_refptr<webrtc::VideoFrameBuffer> i420_raw_buffer_;
+
     virtual void Init() {};
     virtual void OnFrameCaptured(V4l2Buffer buffer);
 };
