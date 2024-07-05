@@ -123,6 +123,7 @@ void MqttService::OnConnect(struct mosquitto *mosq, void *obj, int result) {
         std::cout << "MQTT service is ready." << std::endl;
     } else {
         // todo: retry connection on failure
+        std::cerr << "Connect failed with error code: " << result << std::endl;
     }
 }
 
@@ -164,11 +165,15 @@ std::string MqttService::GetClientId(std::string& topic) {
 void MqttService::Connect() {
     mosquitto_lib_init();
 
-    connection_ = mosquitto_new(nullptr, true, this);
+    connection_ = mosquitto_new(uid_.c_str(), true, this);
     mosquitto_int_option(connection_, MOSQ_OPT_PROTOCOL_VERSION, MQTT_PROTOCOL_V5);
+    if (port_ == 8883){
+        mosquitto_int_option(connection_, MOSQ_OPT_TLS_USE_OS_CERTS, 1);
+    }
 
-    if (connection_ == nullptr){
-        fprintf(stderr, "Error: Out of memory.\n");
+    if (connection_ == nullptr) {
+        fprintf(stderr, "Error: fail to new mosquitto object.\n");
+        return;
     }
 
     if (!username_.empty()) {
@@ -186,14 +191,14 @@ void MqttService::Connect() {
     });
 
     int rc = mosquitto_connect_async(connection_, hostname_.c_str(), port_, 60);
-    if(rc != MOSQ_ERR_SUCCESS){
+    if (rc != MOSQ_ERR_SUCCESS) {
         mosquitto_destroy(connection_);
         fprintf(stderr, "Error: %s\n", mosquitto_strerror(rc));
     }
 
     rc = mosquitto_loop_start(connection_); // already handle reconnections
-    if(rc != MOSQ_ERR_SUCCESS){
+    if (rc != MOSQ_ERR_SUCCESS) {
         mosquitto_destroy(connection_);
         fprintf(stderr, "Error: %s\n", mosquitto_strerror(rc));
-    }	
+    }
 }
