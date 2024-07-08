@@ -3,6 +3,8 @@
 #include "common/interface/subject.h"
 #include "common/worker.h"
 
+#include "atomic"
+
 extern "C"
 {
 #include <libavcodec/avcodec.h>
@@ -15,12 +17,14 @@ public:
     using OnPacketedFunc = std::function<void(AVPacket *pkt)>;
 
     Recorder() : is_started(false) {};
-    ~Recorder() { };
+    ~Recorder() {
+        avcodec_free_context(&encoder);
+    };
 
     virtual void OnBuffer(T &buffer) = 0;
 
     void Initialize() {
-        encoder = InitializeEncoderCtx();
+        InitializeEncoderCtx(encoder);
         worker.reset(new Worker("Recorder", [this]() { 
             while (is_started && ConsumeBuffer()) {}
             usleep(15000);
@@ -29,13 +33,15 @@ public:
     }
 
     void ResetCodecCtx() {
-        encoder = InitializeEncoderCtx();
+        avcodec_free_context(&encoder);
+        InitializeEncoderCtx(encoder);
     }
 
     virtual void PostStop() {};
     virtual void PreStart() {};
 
     bool AddStream(AVFormatContext *output_fmt_ctx) {
+        ResetCodecCtx();
         st = avformat_new_stream(output_fmt_ctx, encoder->codec);
         avcodec_parameters_from_context(st->codecpar, encoder);
 
@@ -49,7 +55,6 @@ public:
     void Stop() {
         is_started = false;
         PostStop();
-        ResetCodecCtx();
     }
 
     void Start() {
@@ -58,13 +63,13 @@ public:
     }
 
 protected:
-    bool is_started;
+    std::atomic<bool> is_started;
     OnPacketedFunc on_packeted;
     std::unique_ptr<Worker> worker;
     AVCodecContext *encoder;
     AVStream *st;
 
-    virtual AVCodecContext* InitializeEncoderCtx() = 0;
+    virtual void InitializeEncoderCtx(AVCodecContext* &encoder) = 0;
     virtual bool ConsumeBuffer() = 0;
     void OnPacketed(AVPacket *pkt) {
         if (on_packeted){

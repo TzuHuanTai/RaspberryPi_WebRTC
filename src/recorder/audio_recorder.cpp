@@ -11,13 +11,14 @@ std::unique_ptr<AudioRecorder> AudioRecorder::Create(Args config) {
 AudioRecorder::AudioRecorder(Args config)
     : Recorder(),
       sample_rate(config.sample_rate),
+      channels(2),
       encoder_name("aac") { }
 
 AudioRecorder::~AudioRecorder() {}
 
-AVCodecContext* AudioRecorder::InitializeEncoderCtx() {
+void AudioRecorder::InitializeEncoderCtx(AVCodecContext* &encoder) {
     const AVCodec *codec = avcodec_find_encoder_by_name(encoder_name.c_str());
-    auto encoder = avcodec_alloc_context3(codec);
+    encoder = avcodec_alloc_context3(codec);
     encoder->codec_type = AVMEDIA_TYPE_AUDIO;
     encoder->sample_fmt = sample_fmt;
     encoder->bit_rate = 128000;
@@ -28,14 +29,14 @@ AVCodecContext* AudioRecorder::InitializeEncoderCtx() {
     encoder->channels = channels;
     encoder->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
     avcodec_open2(encoder, codec, nullptr);
-    return encoder;
 }
 
 void AudioRecorder::InitializeFrame() {
     frame = av_frame_alloc();
+    frame_size = encoder->frame_size;
     if (frame != nullptr) {
         frame->pts = 0;
-        frame->nb_samples = encoder->frame_size;
+        frame->nb_samples = frame_size;
         frame->format = encoder->sample_fmt;
         frame->channel_layout = encoder->channel_layout;
         frame->sample_rate = encoder->sample_rate;
@@ -55,7 +56,7 @@ void AudioRecorder::Encode() {
     AVPacket pkt;
     av_init_packet(&pkt);
 
-    if(av_audio_fifo_read(fifo_buffer, (void**)&frame->data, encoder->frame_size) < 0) {
+    if (av_audio_fifo_read(fifo_buffer, (void**)&frame->data, frame_size) < 0) {
         printf("Read fifo fail");
     }
 
@@ -117,7 +118,7 @@ void AudioRecorder::OnBuffer(PaBuffer &buffer) {
 
 bool AudioRecorder::ConsumeBuffer() {
     std::lock_guard<std::mutex> lock(queue_mutex_);
-    if (av_audio_fifo_size(fifo_buffer) < encoder->frame_size) {
+    if (av_audio_fifo_size(fifo_buffer) < frame_size) {
         return false;
     }
     Encode();
@@ -127,4 +128,3 @@ bool AudioRecorder::ConsumeBuffer() {
 void AudioRecorder::PreStart() {
     frame_count = 0;
 }
-

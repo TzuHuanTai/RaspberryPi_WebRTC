@@ -12,8 +12,7 @@ std::unique_ptr<BackgroundRecorder> BackgroundRecorder::Create(
 BackgroundRecorder::BackgroundRecorder(std::shared_ptr<Conductor> conductor) 
     : max_files_(conductor->config().max_files),
       record_path_(conductor->config().record_path),
-      audio_capture_(conductor->AudioSource()),
-      video_capture_(conductor->VideoSource()) {}
+      conductor_(conductor) {}
 
 BackgroundRecorder::~BackgroundRecorder() {
     Stop();
@@ -31,7 +30,7 @@ void BackgroundRecorder::RotateFiles(std::string folder_path, int max_files) {
         }
     }
 
-    DeleteRedundantFiles(video_files, (max_files / 2) + 1);
+    DeleteRedundantFiles(video_files, max_files / 2);
     DeleteRedundantFiles(image_files, max_files / 2);
 }
 
@@ -52,7 +51,7 @@ void BackgroundRecorder::DeleteRedundantFiles(std::vector<std::filesystem::path>
 }
 
 void BackgroundRecorder::Start() {
-    RecorderManager::Create(video_capture_, audio_capture_, record_path_);
+    recorder_mgr_ = RecorderManager::Create(conductor_, record_path_);
     worker_.reset(new Worker("BackgroundRecorder", [this]() {
         RotateFiles(record_path_, max_files_);
         sleep(60);

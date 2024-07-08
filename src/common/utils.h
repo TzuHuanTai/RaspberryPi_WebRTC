@@ -24,7 +24,10 @@ public:
     static std::string FindLatestJpg(const std::string &directory);
     static bool CreateFolder(const std::string& folder_path);
     static bool CheckDriveSpace(const std::string &file_path, unsigned long min_free_space_mb);
-    static Buffer ConvertYuvToJpeg(const uint8_t* yuv_data, int width, int height);
+    static Buffer ConvertYuvToJpeg(const uint8_t* yuv_data, int width, int height, int quality = 100);
+    static void CreateJpegImage(const uint8_t* yuv_data, int width, int height,
+                                std::string record_path, std::string filename);
+    static void WriteJpegImage(Buffer buffer, std::string record_path, std::string filename);
 };
 
 #endif // UTILS_

@@ -105,7 +105,7 @@ std::string Utils::GenerateFilename() {
     return filename;
 }
 
-Buffer Utils::ConvertYuvToJpeg(const uint8_t* yuv_data, int width, int height) {
+Buffer Utils::ConvertYuvToJpeg(const uint8_t* yuv_data, int width, int height, int quality) {
     struct jpeg_compress_struct cinfo;
     struct jpeg_error_mgr jerr;
 
@@ -123,7 +123,7 @@ Buffer Utils::ConvertYuvToJpeg(const uint8_t* yuv_data, int width, int height) {
     cinfo.in_color_space = JCS_EXT_BGR;
 
     jpeg_set_defaults(&cinfo);
-    jpeg_set_quality(&cinfo, 100, TRUE);
+    jpeg_set_quality(&cinfo, quality, TRUE);
 
     JSAMPROW row_pointer[1];
     int row_stride = width * 3;
@@ -149,4 +149,26 @@ Buffer Utils::ConvertYuvToJpeg(const uint8_t* yuv_data, int width, int height) {
     jpegBuffer.length = size;
 
     return jpegBuffer;
+}
+
+void Utils::WriteJpegImage(Buffer buffer, std::string record_path, std::string filename) {
+    std::string full_path = record_path + '/' + filename + ".jpg";
+    FILE* file = fopen(full_path.c_str(), "wb");
+    if (file) {
+        fwrite((uint8_t*)buffer.start, 1, buffer.length, file);
+        fclose(file);
+        printf("JPEG data successfully written to %s\n", full_path.c_str());
+    } else {
+        fprintf(stderr, "Failed to open file for writing: %s\n", full_path.c_str());
+    }
+}
+
+void Utils::CreateJpegImage(const uint8_t* yuv_data, int width, int height,
+                            std::string record_path, std::string filename) {
+    try {
+        auto jpg_buffer = Utils::ConvertYuvToJpeg(yuv_data, width, height, 30);
+        WriteJpegImage(jpg_buffer, record_path, filename);
+    } catch (const std::exception &e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+    }
 }
