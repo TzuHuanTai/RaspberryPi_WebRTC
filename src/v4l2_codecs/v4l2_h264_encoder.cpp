@@ -59,7 +59,7 @@ int32_t V4l2H264Encoder::Encode(
     rtc::scoped_refptr<webrtc::VideoFrameBuffer> frame_buffer =
         frame.video_frame_buffer();
 
-    V4l2Buffer src_buffer = {};
+    V4l2Buffer src_buffer;
     if (frame_buffer->type() == webrtc::VideoFrameBuffer::Type::kNative) {
         RawBuffer *raw_buffer = static_cast<RawBuffer *>(frame_buffer.get());
         src_buffer = raw_buffer->GetBuffer();
@@ -68,10 +68,8 @@ int32_t V4l2H264Encoder::Encode(
         unsigned int i420_buffer_size = (i420_buffer->StrideY() * height_) +
                         ((i420_buffer->StrideY() + 1) / 2) * ((height_ + 1) / 2) * 2;
 
-        src_buffer = {
-            .start = const_cast<uint8_t*>(i420_buffer->DataY()),
-            .length = i420_buffer_size
-        };
+        src_buffer.start = const_cast<uint8_t*>(i420_buffer->DataY());
+        src_buffer.length = i420_buffer_size;
     }
 
     encoder_->EmplaceBuffer(src_buffer, [this, frame](V4l2Buffer encoded_buffer) {

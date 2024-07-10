@@ -11,13 +11,17 @@
 #include <vector>
 
 struct V4l2Buffer : public Buffer {
-    void *start = nullptr;
-    unsigned int length;
     unsigned int flags;
     int dmafd = 0;
     struct timeval timestamp;
     struct v4l2_buffer inner;
     struct v4l2_plane plane;
+
+    V4l2Buffer() = default;
+    V4l2Buffer(void *start, unsigned int length) : Buffer(start, length) {}
+    V4l2Buffer(void *start, unsigned int length, unsigned int flags, struct timeval timestamp)
+        : Buffer(start, length), flags(flags), timestamp(timestamp) {}
+    ~V4l2Buffer() = default;
 };
 
 struct V4l2BufferGroup {

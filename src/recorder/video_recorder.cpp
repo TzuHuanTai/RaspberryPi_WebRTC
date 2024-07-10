@@ -27,10 +27,8 @@ void VideoRecorder::InitializeEncoderCtx(AVCodecContext* &encoder) {
 
 void VideoRecorder::OnBuffer(V4l2Buffer &raw_buffer) {
     if (raw_buffer_queue.size() < config.fps * 10) {
-        V4l2Buffer buf = {.start = malloc(raw_buffer.length),
-                      .length = raw_buffer.length,
-                      .flags = raw_buffer.flags,
-                      .timestamp = raw_buffer.timestamp};
+        V4l2Buffer buf(malloc(raw_buffer.length), raw_buffer.length,
+                       raw_buffer.flags, raw_buffer.timestamp);
         memcpy(buf.start, raw_buffer.start, raw_buffer.length); 
         raw_buffer_queue.push(std::move(buf));
     }

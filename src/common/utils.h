@@ -13,6 +13,9 @@
 struct Buffer {
     void *start = nullptr;
     unsigned int length;
+    Buffer() = default;
+    Buffer(void *start, unsigned int length) : start(start), length(length) {}
+    ~Buffer() = default;
 };
 
 class Utils {
