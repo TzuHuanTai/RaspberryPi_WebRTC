@@ -77,7 +77,6 @@ void VideoRecorder::OnEncoded(V4l2Buffer &buffer) {
 }
 
 bool VideoRecorder::ConsumeBuffer() {
-    std::lock_guard<std::mutex> lock(queue_mutex_);
     if (raw_buffer_queue.empty()) {
         return false;
     }

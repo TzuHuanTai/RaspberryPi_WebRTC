@@ -38,7 +38,6 @@ void V4L2Capture::Init(std::string device) {
 
 V4L2Capture::~V4L2Capture() {
     worker_.reset();
-    std::lock_guard<std::mutex> lock(capture_lock_);
     V4l2Util::StreamOff(fd_, capture_.type);
     V4l2Util::DeallocateBuffer(fd_, &capture_);
     V4l2Util::CloseDevice(fd_);
@@ -146,8 +145,6 @@ V4L2Capture &V4L2Capture::SetRotation(int angle) {
 }
 
 void V4L2Capture::CaptureImage() {
-    std::lock_guard<std::mutex> lock(capture_lock_);
-
     fd_set fds;
     FD_ZERO(&fds);
     FD_SET(fd_, &fds);
@@ -186,8 +183,6 @@ const V4l2Buffer& V4L2Capture::GetImage() const {
 }
 
 void V4L2Capture::StartCapture() {
-    std::lock_guard<std::mutex> lock(capture_lock_);
-
     if (!V4l2Util::AllocateBuffer(fd_, &capture_, buffer_count_)
         || !V4l2Util::QueueBuffers(fd_, &capture_)) {
         exit(0);

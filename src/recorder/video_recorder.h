@@ -7,7 +7,6 @@
 #include "v4l2_codecs/v4l2_decoder.h"
 
 #include <queue>
-#include <mutex>
 
 extern "C"
 {
@@ -40,7 +39,6 @@ protected:
 
 private:
     struct timeval base_time_;
-    std::mutex queue_mutex_;
     std::unique_ptr<V4l2Decoder> image_decoder_;
 
     void InitializeEncoderCtx(AVCodecContext* &encoder) override;
