@@ -55,13 +55,15 @@ void AudioRecorder::InitializeFifoBuffer() {
 void AudioRecorder::Encode() {
     AVPacket pkt;
     av_init_packet(&pkt);
+    pkt.data = nullptr;
+    pkt.size = 0;
 
     if (av_audio_fifo_read(fifo_buffer, (void**)&frame->data, frame_size) < 0) {
         printf("Read fifo fail");
     }
 
-    frame->pts = av_rescale_q(frame_count++ * frame->nb_samples, 
-                              encoder->time_base, st->time_base);
+    frame->pts = frame_count * frame->nb_samples;
+    frame_count++;
 
     int ret = avcodec_send_frame(encoder, frame);
     if (ret < 0 || ret == AVERROR_EOF) {
@@ -79,9 +81,14 @@ void AudioRecorder::Encode() {
         }
 
         pkt.stream_index = st->index;
+        pkt.pts = av_rescale_q(pkt.pts, encoder->time_base, st->time_base);
+        pkt.dts = av_rescale_q(pkt.dts, encoder->time_base, st->time_base);
+        pkt.duration = av_rescale_q(pkt.duration, encoder->time_base, st->time_base);
+
         OnPacketed(&pkt);
+
+        av_packet_unref(&pkt);
     }
-    av_packet_unref(&pkt);
 }
 
 void AudioRecorder::OnBuffer(PaBuffer &buffer) {
@@ -126,5 +133,10 @@ bool AudioRecorder::ConsumeBuffer() {
 }
 
 void AudioRecorder::PreStart() {
+    std::lock_guard<std::mutex> lock(queue_mutex_);
     frame_count = 0;
+    // Skip redundant frame to ensure sync
+    while (av_audio_fifo_size(fifo_buffer) >= 2 * frame_size) {
+        av_audio_fifo_drain(fifo_buffer, frame_size);
+    }
 }
