@@ -7,28 +7,34 @@
 
 #include <csignal>
 #include <filesystem>
+#include <mutex>
+#include <condition_variable>
 
 const double SECOND_PER_FILE = 60.0;
-std::unique_ptr<RecorderManager> RecorderManager::instance = nullptr;
 
-void RecorderManager::Create(
-        std::shared_ptr<V4L2Capture> video_src,
-        std::shared_ptr<PaCapture> audio_src,
+std::unique_ptr<RecorderManager> RecorderManager::Create(
+        std::shared_ptr<Conductor> conductor,
         std::string record_path) {
-    instance = std::make_unique<RecorderManager>(video_src, audio_src, record_path);
+    auto instance = std::make_unique<RecorderManager>(record_path);
+
+    auto video_src = conductor->VideoSource();
     if (video_src) {
         instance->CreateVideoRecorder(video_src);
         instance->SubscribeVideoSource(video_src);
     }
+    auto audio_src = conductor->AudioSource();
     if (audio_src) {
         instance->CreateAudioRecorder(audio_src);
         instance->SubscribeAudioSource(audio_src);
     }
+    return instance;
 }
 
 void RecorderManager::CreateVideoRecorder(
     std::shared_ptr<V4L2Capture> capture) {
     fps = capture->fps();
+    width = capture->width();
+    height = capture->height();
     video_recorder = ([capture]() -> std::unique_ptr<VideoRecorder> {
         if (capture->format() == V4L2_PIX_FMT_H264) {
             return RawH264Recorder::Create(capture->config());
@@ -44,18 +50,11 @@ void RecorderManager::CreateAudioRecorder(std::shared_ptr<PaCapture> capture) {
     })();
 }
 
-RecorderManager::RecorderManager(std::shared_ptr<V4L2Capture> video_src, 
-            std::shared_ptr<PaCapture> audio_src,
-            std::string record_path)
+RecorderManager::RecorderManager(std::string record_path)
     : fmt_ctx(nullptr),
       has_first_keyframe(false),
       record_path(record_path),
-      video_src(video_src),
-      audio_src(audio_src),
-      elapsed_time_(0.0) {
-    signal(SIGINT, RecorderManager::SignalHandler);
-    signal(SIGTERM, RecorderManager::SignalHandler);
-}
+      elapsed_time_(0.0) {}
 
 void RecorderManager::SubscribeVideoSource(std::shared_ptr<V4L2Capture> video_src) {
     video_observer = video_src->AsObservable();
@@ -67,21 +66,16 @@ void RecorderManager::SubscribeVideoSource(std::shared_ptr<V4L2Capture> video_sr
         }
 
         // restart to write in the new file.
-        
         if (elapsed_time_ >= SECOND_PER_FILE && buffer.flags & V4L2_BUF_FLAG_KEYFRAME) {
             last_created_time_ = buffer.timestamp;
-            thumbnail_task = std::async(std::launch::async, 
-                [this, path = this->record_path, file = this->filename]() {
-                    Stop();
-                    RecUtil::CreateThumbnail(path, file);
-                    Start();
-                });
+            Stop();
+            Start();
         }
 
         if (has_first_keyframe && video_recorder) {
             video_recorder->OnBuffer(buffer);
             elapsed_time_ = (buffer.timestamp.tv_sec - last_created_time_.tv_sec) +
-                           (buffer.timestamp.tv_usec - last_created_time_.tv_usec) / 1000000.0;
+                            (buffer.timestamp.tv_usec - last_created_time_.tv_usec) / 1000000.0;
         }
     });
 
@@ -125,6 +119,7 @@ void RecorderManager::Start() {
     fmt_ctx = RecUtil::CreateContainer(record_path, filename);
 
     if (video_recorder) {
+        video_recorder->SetFilename(filename);
         video_recorder->AddStream(fmt_ctx);
         video_recorder->Start();
     }
@@ -152,20 +147,10 @@ void RecorderManager::Stop() {
     }
 }
 
-void RecorderManager::SignalHandler(int signum) {
-    // trigger destrctor to terminate recording before closing
-    printf("[RecorderManager] Interrupt signal (%d) received.\n", signum);
-    instance.reset();
-    sleep(2);
-    exit(signum);
-}
-
 RecorderManager::~RecorderManager() {
     video_recorder.reset();
     audio_recorder.reset();
     video_observer->UnSubscribe();
     audio_observer->UnSubscribe();
-    Stop();
-
-    RecUtil::CreateThumbnail(record_path, filename);
+    Stop();    
 }

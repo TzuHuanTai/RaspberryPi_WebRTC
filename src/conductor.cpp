@@ -99,10 +99,6 @@ void Conductor::AddTracks(rtc::scoped_refptr<webrtc::PeerConnectionInterface> pe
     }
 }
 
-rtc::scoped_refptr<webrtc::I420BufferInterface> Conductor::GetI420Frame() {
-    return video_track_source_ ? video_track_source_->GetI420Frame() : nullptr;
-}
-
 bool Conductor::CreatePeerConnection() {
     webrtc::PeerConnectionInterface::RTCConfiguration config;
     config.sdp_semantics = webrtc::SdpSemantics::kUnifiedPlan;
@@ -127,7 +123,7 @@ bool Conductor::CreatePeerConnection() {
         auto datachannel = peer_->CreateDataChannel();
         peer_->OnSnapshot([this, datachannel]() {
             try {
-                auto i420buff = GetI420Frame();
+                auto i420buff = video_track_source_->GetI420Frame();
                 auto jpg_buffer = Utils::ConvertYuvToJpeg(i420buff->DataY(), args.width, args.height);
 
                 const int chunk_size = 16384; // 1024*16

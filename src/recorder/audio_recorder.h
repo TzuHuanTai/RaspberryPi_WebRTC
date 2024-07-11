@@ -4,8 +4,6 @@
 #include "capture/pa_capture.h"
 #include "recorder/recorder.h"
 
-#include <mutex>
-
 extern "C"
 {
 #include <libavcodec/avcodec.h>
@@ -24,17 +22,17 @@ public:
 private:
     int sample_rate;;
     int channels = 2;
+    int frame_size;
     unsigned int frame_count;
     std::string encoder_name;
     AVAudioFifo* fifo_buffer;
     AVSampleFormat sample_fmt = AV_SAMPLE_FMT_FLTP;
     AVFrame *frame;
-    std::mutex queue_mutex_;
 
     void Encode();
     void InitializeFrame();
     void InitializeFifoBuffer();
-    AVCodecContext* InitializeEncoderCtx() override;
+    void InitializeEncoderCtx(AVCodecContext* &encoder) override;
     bool ConsumeBuffer() override;
 };
 

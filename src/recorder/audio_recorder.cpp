@@ -11,13 +11,14 @@ std::unique_ptr<AudioRecorder> AudioRecorder::Create(Args config) {
 AudioRecorder::AudioRecorder(Args config)
     : Recorder(),
       sample_rate(config.sample_rate),
+      channels(2),
       encoder_name("aac") { }
 
 AudioRecorder::~AudioRecorder() {}
 
-AVCodecContext* AudioRecorder::InitializeEncoderCtx() {
+void AudioRecorder::InitializeEncoderCtx(AVCodecContext* &encoder) {
     const AVCodec *codec = avcodec_find_encoder_by_name(encoder_name.c_str());
-    auto encoder = avcodec_alloc_context3(codec);
+    encoder = avcodec_alloc_context3(codec);
     encoder->codec_type = AVMEDIA_TYPE_AUDIO;
     encoder->sample_fmt = sample_fmt;
     encoder->bit_rate = 128000;
@@ -28,14 +29,14 @@ AVCodecContext* AudioRecorder::InitializeEncoderCtx() {
     encoder->channels = channels;
     encoder->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
     avcodec_open2(encoder, codec, nullptr);
-    return encoder;
 }
 
 void AudioRecorder::InitializeFrame() {
     frame = av_frame_alloc();
+    frame_size = encoder->frame_size;
     if (frame != nullptr) {
         frame->pts = 0;
-        frame->nb_samples = encoder->frame_size;
+        frame->nb_samples = frame_size;
         frame->format = encoder->sample_fmt;
         frame->channel_layout = encoder->channel_layout;
         frame->sample_rate = encoder->sample_rate;
@@ -54,13 +55,15 @@ void AudioRecorder::InitializeFifoBuffer() {
 void AudioRecorder::Encode() {
     AVPacket pkt;
     av_init_packet(&pkt);
+    pkt.data = nullptr;
+    pkt.size = 0;
 
-    if(av_audio_fifo_read(fifo_buffer, (void**)&frame->data, encoder->frame_size) < 0) {
+    if (av_audio_fifo_read(fifo_buffer, (void**)&frame->data, frame_size) < 0) {
         printf("Read fifo fail");
     }
 
-    frame->pts = av_rescale_q(frame_count++ * frame->nb_samples, 
-                              encoder->time_base, st->time_base);
+    frame->pts = frame_count * frame->nb_samples;
+    frame_count++;
 
     int ret = avcodec_send_frame(encoder, frame);
     if (ret < 0 || ret == AVERROR_EOF) {
@@ -78,13 +81,17 @@ void AudioRecorder::Encode() {
         }
 
         pkt.stream_index = st->index;
+        pkt.pts = av_rescale_q(pkt.pts, encoder->time_base, st->time_base);
+        pkt.dts = av_rescale_q(pkt.dts, encoder->time_base, st->time_base);
+        pkt.duration = av_rescale_q(pkt.duration, encoder->time_base, st->time_base);
+
         OnPacketed(&pkt);
+
+        av_packet_unref(&pkt);
     }
-    av_packet_unref(&pkt);
 }
 
 void AudioRecorder::OnBuffer(PaBuffer &buffer) {
-    std::lock_guard<std::mutex> lock(queue_mutex_);
     uint8_t **converted_input_samples = nullptr;
     int samples_per_channel = buffer.length / buffer.channels;
 
@@ -116,8 +123,7 @@ void AudioRecorder::OnBuffer(PaBuffer &buffer) {
 }
 
 bool AudioRecorder::ConsumeBuffer() {
-    std::lock_guard<std::mutex> lock(queue_mutex_);
-    if (av_audio_fifo_size(fifo_buffer) < encoder->frame_size) {
+    if (av_audio_fifo_size(fifo_buffer) < frame_size) {
         return false;
     }
     Encode();
@@ -126,5 +132,7 @@ bool AudioRecorder::ConsumeBuffer() {
 
 void AudioRecorder::PreStart() {
     frame_count = 0;
-}
 
+    // Skip redundant frame to ensure sync
+    av_audio_fifo_drain(fifo_buffer, av_audio_fifo_size(fifo_buffer));
+}

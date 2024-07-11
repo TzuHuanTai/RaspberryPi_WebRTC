@@ -32,7 +32,6 @@ public:
     void SetSink(rtc::VideoSinkInterface<webrtc::VideoFrame> *video_sink_obj);
     bool IsReady() const;
     void AwaitCompletion();
-    rtc::scoped_refptr<webrtc::I420BufferInterface> GetI420Frame();
 
 private:
     Args args;

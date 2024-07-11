@@ -15,27 +15,31 @@ public:
     using OnPacketedFunc = std::function<void(AVPacket *pkt)>;
 
     Recorder() : is_started(false) {};
-    ~Recorder() { };
+    ~Recorder() {
+        avcodec_free_context(&encoder);
+    };
 
     virtual void OnBuffer(T &buffer) = 0;
 
     void Initialize() {
-        encoder = InitializeEncoderCtx();
+        InitializeEncoderCtx(encoder);
         worker.reset(new Worker("Recorder", [this]() { 
             while (is_started && ConsumeBuffer()) {}
-            usleep(15000);
+            usleep(100000);
         }));
         worker->Run();
     }
 
     void ResetCodecCtx() {
-        encoder = InitializeEncoderCtx();
+        avcodec_free_context(&encoder);
+        InitializeEncoderCtx(encoder);
     }
 
     virtual void PostStop() {};
     virtual void PreStart() {};
 
     bool AddStream(AVFormatContext *output_fmt_ctx) {
+        ResetCodecCtx();
         st = avformat_new_stream(output_fmt_ctx, encoder->codec);
         avcodec_parameters_from_context(st->codecpar, encoder);
 
@@ -49,7 +53,6 @@ public:
     void Stop() {
         is_started = false;
         PostStop();
-        ResetCodecCtx();
     }
 
     void Start() {
@@ -64,7 +67,7 @@ protected:
     AVCodecContext *encoder;
     AVStream *st;
 
-    virtual AVCodecContext* InitializeEncoderCtx() = 0;
+    virtual void InitializeEncoderCtx(AVCodecContext* &encoder) = 0;
     virtual bool ConsumeBuffer() = 0;
     void OnPacketed(AVPacket *pkt) {
         if (on_packeted){

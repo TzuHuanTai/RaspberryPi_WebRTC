@@ -224,6 +224,7 @@ void V4l2Util::UnMap(V4l2BufferGroup *gbuffer) {
         if (gbuffer->buffers[i].start != nullptr) {
             printf("unmapped (%d) buffers\n", gbuffer->fd);
             munmap(gbuffer->buffers[i].start, gbuffer->buffers[i].length);
+            gbuffer->buffers[i].start = nullptr;
         }
     }
 }
@@ -272,6 +273,7 @@ bool V4l2Util::MMap(int fd, V4l2BufferGroup *gbuffer) {
         if (MAP_FAILED == buffer->start) {
             perror("MAP FAILED");
             munmap(buffer->start, buffer->length);
+            buffer->start = nullptr;
             return false;
         }
 

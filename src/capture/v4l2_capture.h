@@ -6,8 +6,6 @@
 #include "common/interface/subject.h"
 #include "common/worker.h"
 
-#include "mutex"
-
 #include <modules/video_capture/video_capture.h>
 
 class V4L2Capture : public Subject<V4l2Buffer>
@@ -29,6 +27,7 @@ public:
     V4L2Capture &SetRotation(int angle);
     void StartCapture();
     const V4l2Buffer& GetImage() const;
+    void Next(V4l2Buffer message) override;
 
 private:
     int fd_;
@@ -43,7 +42,6 @@ private:
     V4l2BufferGroup capture_;
     V4l2Buffer shared_buffer_;
     webrtc::VideoType video_type_;
-    std::mutex capture_lock_;
     std::unique_ptr<Worker> worker_;
 
     void Init(std::string device);

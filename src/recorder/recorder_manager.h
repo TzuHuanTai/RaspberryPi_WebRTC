@@ -3,8 +3,10 @@
 
 #include "capture/v4l2_capture.h"
 #include "capture/pa_capture.h"
+#include "conductor.h"
 #include "recorder/audio_recorder.h"
 #include "recorder/video_recorder.h"
+#include "common/worker.h"
 
 #include <mutex>
 
@@ -16,13 +18,10 @@ extern "C"
 
 class RecorderManager {
 public:
-    static void Create(
-            std::shared_ptr<V4L2Capture> video_src, 
-            std::shared_ptr<PaCapture> audio_src,
-            std::string record_path);
-    RecorderManager(std::shared_ptr<V4L2Capture> video_src, 
-            std::shared_ptr<PaCapture> audio_src,
-            std::string record_path);
+    static std::unique_ptr<RecorderManager> Create(
+        std::shared_ptr<Conductor> conductor, 
+        std::string record_path);
+    RecorderManager(std::string record_path);
     ~RecorderManager();
     void WriteIntoFile(AVPacket *pkt);
     void Start();
@@ -31,14 +30,14 @@ public:
 protected:
     std::mutex ctx_mux;
     uint fps;
+    int width;
+    int height;
     std::string record_path;
     std::string filename;
     AVFormatContext *fmt_ctx;
     bool has_first_keyframe;
     std::shared_ptr<Observable<V4l2Buffer>> video_observer;
     std::shared_ptr<Observable<PaBuffer>> audio_observer;
-    std::shared_ptr<V4L2Capture> video_src; 
-    std::shared_ptr<PaCapture> audio_src;
     std::unique_ptr<VideoRecorder> video_recorder;
     std::unique_ptr<AudioRecorder> audio_recorder;
 
@@ -50,10 +49,6 @@ protected:
 private:
     double elapsed_time_;
     struct timeval last_created_time_;
-    std::future<void> thumbnail_task;
-    static std::unique_ptr<RecorderManager> instance;
-
-    static void SignalHandler(int signum);
 };
 
 #endif
