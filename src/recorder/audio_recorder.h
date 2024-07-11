@@ -28,7 +28,6 @@ private:
     AVAudioFifo* fifo_buffer;
     AVSampleFormat sample_fmt = AV_SAMPLE_FMT_FLTP;
     AVFrame *frame;
-    std::mutex queue_mutex_;
 
     void Encode();
     void InitializeFrame();

@@ -3,8 +3,6 @@
 #include "common/interface/subject.h"
 #include "common/worker.h"
 
-#include "atomic"
-
 extern "C"
 {
 #include <libavcodec/avcodec.h>
@@ -27,7 +25,7 @@ public:
         InitializeEncoderCtx(encoder);
         worker.reset(new Worker("Recorder", [this]() { 
             while (is_started && ConsumeBuffer()) {}
-            usleep(15000);
+            usleep(100000);
         }));
         worker->Run();
     }
@@ -63,7 +61,7 @@ public:
     }
 
 protected:
-    std::atomic<bool> is_started;
+    bool is_started;
     OnPacketedFunc on_packeted;
     std::unique_ptr<Worker> worker;
     AVCodecContext *encoder;

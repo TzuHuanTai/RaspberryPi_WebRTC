@@ -27,6 +27,7 @@ public:
     V4L2Capture &SetRotation(int angle);
     void StartCapture();
     const V4l2Buffer& GetImage() const;
+    void Next(V4l2Buffer message) override;
 
 private:
     int fd_;

@@ -41,7 +41,7 @@ void VideoRecorder::SetFilename(std::string &name) {
 void VideoRecorder::PostStop() {
     // Wait P-frames are all consumed until I-frame appear.
     while (!raw_buffer_queue.empty() && 
-           !(raw_buffer_queue.front().flags & V4L2_BUF_FLAG_KEYFRAME)) {
+           (raw_buffer_queue.front().flags & V4L2_BUF_FLAG_KEYFRAME) != 0) {
         ConsumeBuffer();
     }
     feeded_frames = 0;

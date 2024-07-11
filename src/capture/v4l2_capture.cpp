@@ -22,7 +22,7 @@ std::shared_ptr<V4L2Capture> V4L2Capture::Create(Args args) {
 }
 
 V4L2Capture::V4L2Capture(Args args)
-    : buffer_count_(2),
+    : buffer_count_(4),
       is_dma_(args.enable_v4l2_dma),
       config_(args) {}
 
@@ -152,9 +152,11 @@ void V4L2Capture::CaptureImage() {
     tv.tv_sec = 0;
     tv.tv_usec = 100000;
     int r = select(fd_ + 1, &fds, NULL, NULL, &tv);
-
-    if (r <= 0) { // timeout or failed
-        printf("[V4l2Capture]: capture timeout or failed!\n");
+    if (r == -1) {
+        perror("[V4l2Capture]: select failed");
+        return;
+    } else if (r == 0) { // timeout
+        printf("[V4l2Capture]: capture timeout\n");
         return;
     }
 
@@ -162,7 +164,7 @@ void V4L2Capture::CaptureImage() {
     buf.type = capture_.type;
     buf.memory = capture_.memory;
 
-    if(!V4l2Util::DequeueBuffer(fd_, &buf)) {
+    if (!V4l2Util::DequeueBuffer(fd_, &buf)) {
         return;
     }
 
@@ -171,12 +173,20 @@ void V4L2Capture::CaptureImage() {
     shared_buffer_.flags = buf.flags;
     shared_buffer_.timestamp = buf.timestamp;
 
-    if(!V4l2Util::QueueBuffer(fd_, &buf)) {
+    if (!V4l2Util::QueueBuffer(fd_, &buf)) {
         return;
     }
 
     Next(shared_buffer_);
 }
+
+void V4L2Capture::Next(V4l2Buffer buffer) {
+     for (auto &observer : observers_) {
+        if (observer && observer->subscribed_func_ != nullptr) {
+            observer->subscribed_func_(buffer);
+        }
+    }
+}        
 
 const V4l2Buffer& V4L2Capture::GetImage() const {
     return shared_buffer_;

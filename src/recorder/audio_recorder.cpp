@@ -92,7 +92,6 @@ void AudioRecorder::Encode() {
 }
 
 void AudioRecorder::OnBuffer(PaBuffer &buffer) {
-    std::lock_guard<std::mutex> lock(queue_mutex_);
     uint8_t **converted_input_samples = nullptr;
     int samples_per_channel = buffer.length / buffer.channels;
 
@@ -124,7 +123,6 @@ void AudioRecorder::OnBuffer(PaBuffer &buffer) {
 }
 
 bool AudioRecorder::ConsumeBuffer() {
-    std::lock_guard<std::mutex> lock(queue_mutex_);
     if (av_audio_fifo_size(fifo_buffer) < frame_size) {
         return false;
     }
@@ -133,10 +131,8 @@ bool AudioRecorder::ConsumeBuffer() {
 }
 
 void AudioRecorder::PreStart() {
-    std::lock_guard<std::mutex> lock(queue_mutex_);
     frame_count = 0;
+
     // Skip redundant frame to ensure sync
-    while (av_audio_fifo_size(fifo_buffer) >= 2 * frame_size) {
-        av_audio_fifo_drain(fifo_buffer, frame_size);
-    }
+    av_audio_fifo_drain(fifo_buffer, av_audio_fifo_size(fifo_buffer));
 }

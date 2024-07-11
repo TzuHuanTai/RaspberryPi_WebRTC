@@ -11,9 +11,9 @@
 #include <vector>
 
 struct V4l2Buffer : public Buffer {
-    unsigned int flags;
+    unsigned int flags = 0;
     int dmafd = 0;
-    struct timeval timestamp;
+    struct timeval timestamp = {0, 0};
     struct v4l2_buffer inner;
     struct v4l2_plane plane;
 
