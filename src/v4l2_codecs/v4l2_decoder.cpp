@@ -15,7 +15,7 @@
 #include <stdio.h>
 
 const char *DECODER_FILE = "/dev/video10";
-const int BUFFER_NUM = 4;
+const int BUFFER_NUM = 2;
 
 bool V4l2Decoder::Configure(int width, int height, uint32_t src_pix_fmt, bool is_drm_dst) {
     if(!Open(DECODER_FILE)) {

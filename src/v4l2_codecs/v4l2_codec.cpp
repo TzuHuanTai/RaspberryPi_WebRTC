@@ -87,8 +87,8 @@ bool V4l2Codec::CaptureBuffer(V4l2Buffer &buffer) {
     FD_ZERO(ex_fds);
     FD_SET(fd_, ex_fds);
     struct timeval tv;
-    tv.tv_sec = 1;
-    tv.tv_usec = 0;
+    tv.tv_sec = 0;
+    tv.tv_usec = 100000;
 
     int r = select(fd_ + 1, rd_fds, NULL, ex_fds, &tv);
 
