@@ -56,9 +56,7 @@ void RtcPeer::InitSignalingClient(Args args) {
     signaling_client_->ResetCallback(this);
 }
 
-std::shared_ptr<DataChannelSubject> RtcPeer::CreateDataChannel() {
-    data_channel_subject_ = std::make_shared<DataChannelSubject>();
-
+void RtcPeer::CreateDataChannel() {
     struct webrtc::DataChannelInit init;
     init.ordered = true;
     init.reliable = true;
@@ -67,10 +65,11 @@ std::shared_ptr<DataChannelSubject> RtcPeer::CreateDataChannel() {
 
     if (!result.ok()) {
         std::cout << "[RtcPeer] Fails to create data channel" << std::endl;
-        return nullptr;
+        return;
     }
 
     std::cout << "[RtcPeer] Succeeds to create data channel" << std::endl;
+    data_channel_subject_ = std::make_shared<DataChannelSubject>();
     data_channel_subject_->SetDataChannel(result.MoveValue());
 
     auto conn_observer = data_channel_subject_->AsObservable(CommandType::CONNECT);
@@ -79,23 +78,21 @@ std::shared_ptr<DataChannelSubject> RtcPeer::CreateDataChannel() {
             peer_connection_->Close();
         }
     });
-
-    return data_channel_subject_;
 }
 
-void RtcPeer::OnSnapshot(std::function<void()> func) {
+void RtcPeer::OnSnapshot(OnCommand func) {
     SubscribeCommandChannel(CommandType::SNAPSHOT, func);
 }
 
-void RtcPeer::OnThumbnail(std::function<void()> func) {
+void RtcPeer::OnThumbnail(OnCommand func) {
     SubscribeCommandChannel(CommandType::THUMBNAIL, func);
 }
 
-void RtcPeer::SubscribeCommandChannel(CommandType type, std::function<void()> func) {
+void RtcPeer::SubscribeCommandChannel(CommandType type, OnCommand func) {
     auto thumb_observer = data_channel_subject_->AsObservable(type);
-    thumb_observer->Subscribe([func](char *message) {
+    thumb_observer->Subscribe([this, func](char *message) {
         if (strcmp(message, "get") == 0) {
-            func();
+            func(data_channel_subject_);
         }
     });
 }

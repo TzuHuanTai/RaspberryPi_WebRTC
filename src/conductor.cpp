@@ -120,8 +120,8 @@ bool Conductor::CreatePeerConnection() {
 
     if (result.ok()) {
         peer_->SetPeer(result.MoveValue());
-        auto datachannel = peer_->CreateDataChannel();
-        peer_->OnSnapshot([this, datachannel]() {
+        peer_->CreateDataChannel();
+        peer_->OnSnapshot([this](std::shared_ptr<DataChannelSubject> datachannel) {
             try {
                 auto i420buff = video_track_source_->GetI420Frame();
                 auto jpg_buffer = Utils::ConvertYuvToJpeg(i420buff->DataY(), args.width, args.height);
@@ -143,7 +143,7 @@ bool Conductor::CreatePeerConnection() {
                 std::cerr << "Error: " << e.what() << std::endl;
             }
         });
-        peer_->OnThumbnail([this, datachannel]() {
+        peer_->OnThumbnail([this](std::shared_ptr<DataChannelSubject> datachannel) {
             if (args.record_path.empty()) {
                 return;
             }
