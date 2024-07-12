@@ -1,25 +1,16 @@
 #include "v4l2_codecs/v4l2_decoder.h"
 #include "v4l2_codecs/raw_buffer.h"
+#include "common/logging.h"
 
-#include <sys/mman.h>
 #include <sys/ioctl.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <unistd.h>
-
-#include <memory>
-#include <iostream>
-#include <string>
-#include <cstring>
-#include <cstdio>
-#include <stdio.h>
 
 const char *DECODER_FILE = "/dev/video10";
 const int BUFFER_NUM = 2;
 
 bool V4l2Decoder::Configure(int width, int height, uint32_t src_pix_fmt, bool is_drm_dst) {
     if(!Open(DECODER_FILE)) {
-        printf("failed to open scaler: /dev/video10\n");
+        DEBUG_PRINT("Failed to turn on decoder: %s", DECODER_FILE);
+        return false;
     }
 
     PrepareBuffer(&output_, width, height, src_pix_fmt,
@@ -35,7 +26,6 @@ bool V4l2Decoder::Configure(int width, int height, uint32_t src_pix_fmt, bool is
 
     ResetWorker();
 
-    std::cout << "[V4l2Decoder]: prepare done" << std::endl;
     return true;
 }
 
@@ -44,7 +34,7 @@ void V4l2Decoder::HandleEvent() {
     while (!ioctl(fd_, VIDIOC_DQEVENT, &ev)) {
         switch (ev.type) {
         case V4L2_EVENT_SOURCE_CHANGE:
-            printf("[V4l2m2mDecoder]: Source changed!\n");
+            DEBUG_PRINT("Source changed!");
             V4l2Util::StreamOff(fd_, capture_.type);
             V4l2Util::DeallocateBuffer(fd_, &capture_);
             V4l2Util::SetFormat(fd_, &capture_, 0 ,0 ,0);
@@ -52,7 +42,7 @@ void V4l2Decoder::HandleEvent() {
             V4l2Util::StreamOn(fd_, capture_.type);
             break;
         case V4L2_EVENT_EOS:
-            printf("[V4l2m2mDecoder]: EOS!\n");
+            DEBUG_PRINT("EOS!");
             break;
         }
     }

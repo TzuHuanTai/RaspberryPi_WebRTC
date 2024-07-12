@@ -1,4 +1,5 @@
 #include "track/swscale_track_source.h"
+#include "common/logging.h"
 
 #include <cmath>
 
@@ -31,8 +32,6 @@ SwScaleTrackSource::~SwScaleTrackSource() {
 }
 
 void SwScaleTrackSource::StartTrack() {
-    
-
     auto observer = capture_->AsObservable();
     observer->Subscribe([this](V4l2Buffer buffer) {
         OnFrameCaptured(buffer);
@@ -61,7 +60,7 @@ void SwScaleTrackSource::OnFrameCaptured(V4l2Buffer buffer) {
                               i420_buffer.get()->MutableDataV(), i420_buffer.get()->StrideV(),
                               0, 0, width_, height_, width_, height_, libyuv::kRotate0,
                               ConvertVideoType(src_video_type_)) < 0) {
-        // "ConvertToI420 Failed"
+        ERROR_PRINT("ConvertToI420 Failed");
     }
 
     i420_raw_buffer_ = i420_buffer;

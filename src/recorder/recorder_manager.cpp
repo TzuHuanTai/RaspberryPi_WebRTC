@@ -4,6 +4,7 @@
 #include "recorder/raw_h264_recorder.h"
 #include "recorder/utils.h"
 #include "common/utils.h"
+#include "common/logging.h"
 
 #include <csignal>
 #include <filesystem>
@@ -110,7 +111,7 @@ void RecorderManager::WriteIntoFile(AVPacket *pkt) {
 
 void RecorderManager::Start() {
     if (!Utils::CheckDriveSpace(record_path, 100)) {
-        printf("[RecorderManager] Skip recording since not enough free space!\n");
+        DEBUG_PRINT("Skip recording since not enough free space!");
         return;
     }
 

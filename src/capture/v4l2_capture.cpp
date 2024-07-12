@@ -1,4 +1,5 @@
 #include "v4l2_capture.h"
+#include "common/logging.h"
 
 // Linux
 #include <linux/videodev2.h>
@@ -7,9 +8,6 @@
 
 // WebRTC
 #include <modules/video_capture/video_capture_factory.h>
-
-#include <iostream>
-#include <future>
 
 std::shared_ptr<V4L2Capture> V4L2Capture::Create(Args args) {
     auto ptr = std::make_shared<V4L2Capture>(args);
@@ -88,9 +86,8 @@ int V4L2Capture::GetCameraIndex(webrtc::VideoCaptureModule::DeviceInfo *device_i
                                        sizeof(device_name), unique_name,
                                        sizeof(unique_name)) == 0
             && CheckMatchingDevice(unique_name)) {
-            std::cout << "GetDeviceName(" << i
-                      << "): device_name=" << device_name
-                      << ", unique_name=" << unique_name << std::endl;
+            DEBUG_PRINT("GetDeviceName(%d): device_name=%s, unique_name=%s",
+                        i, device_name, unique_name);
             return i;
         }
     }
@@ -102,13 +99,13 @@ V4L2Capture &V4L2Capture::SetFormat(int width, int height, std::string video_typ
     height_ = height;
 
     if (video_type == "mjpeg") {
-        std::cout << "Use mjpeg format source in v4l2" << std::endl;
+        DEBUG_PRINT("Use mjpeg format source in v4l2");
         V4l2Util::SetFormat(fd_, &capture_, width, height, V4L2_PIX_FMT_MJPEG);
         V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_BITRATE, 10000000);
         format_ = V4L2_PIX_FMT_MJPEG;
         video_type_ = webrtc::VideoType::kMJPEG;
     } else if (video_type == "h264") {
-        std::cout << "Use h264 format source in v4l2" << std::endl;
+        DEBUG_PRINT("Use h264 format source in v4l2");
         V4l2Util::SetFormat(fd_, &capture_, width, height, V4L2_PIX_FMT_H264);
         V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_BITRATE_MODE, V4L2_MPEG_VIDEO_BITRATE_MODE_VBR);
         V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_H264_PROFILE, V4L2_MPEG_VIDEO_H264_PROFILE_HIGH);
@@ -120,7 +117,7 @@ V4L2Capture &V4L2Capture::SetFormat(int width, int height, std::string video_typ
         format_ = V4L2_PIX_FMT_H264;
         video_type_ = webrtc::VideoType::kUnknown;
     } else {
-        std::cout << "Use yuv420(i420) format source in v4l2" << std::endl;
+        DEBUG_PRINT("Use yuv420(i420) format source in v4l2");
         V4l2Util::SetFormat(fd_, &capture_, width, height, V4L2_PIX_FMT_YUV420);
         V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_BITRATE, 10000000);
         format_ = V4L2_PIX_FMT_YUV420;
@@ -131,7 +128,7 @@ V4L2Capture &V4L2Capture::SetFormat(int width, int height, std::string video_typ
 
 V4L2Capture &V4L2Capture::SetFps(int fps) {
     fps_ = fps;
-    printf("  Fps: %d\n", fps);
+    DEBUG_PRINT("  Fps: %d", fps);
     if (!V4l2Util::SetFps(fd_, capture_.type, fps)) {
         exit(0);
     }
@@ -139,7 +136,7 @@ V4L2Capture &V4L2Capture::SetFps(int fps) {
 }
 
 V4L2Capture &V4L2Capture::SetRotation(int angle) {
-    printf("  Rotation: %d\n", angle);
+    DEBUG_PRINT("  Rotation: %d", angle);
     V4l2Util::SetCtrl(fd_, V4L2_CID_ROTATE, angle);
     return *this;
 }
@@ -153,10 +150,10 @@ void V4L2Capture::CaptureImage() {
     tv.tv_usec = 100000;
     int r = select(fd_ + 1, &fds, NULL, NULL, &tv);
     if (r == -1) {
-        perror("[V4l2Capture]: select failed");
+        ERROR_PRINT("select failed");
         return;
     } else if (r == 0) { // timeout
-        printf("[V4l2Capture]: capture timeout\n");
+        DEBUG_PRINT("capture timeout");
         return;
     }
 

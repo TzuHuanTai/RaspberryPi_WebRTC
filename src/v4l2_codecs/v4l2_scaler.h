@@ -3,10 +3,6 @@
 
 #include "v4l2_codecs/v4l2_codec.h"
 
-// Linux
-#include <linux/videodev2.h>
-#include <stdint.h>
-
 class V4l2Scaler : public V4l2Codec {
 public:
     V4l2Scaler() {};

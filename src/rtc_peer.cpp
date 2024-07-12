@@ -1,4 +1,5 @@
 #include "rtc_peer.h"
+#include "common/logging.h"
 #if USE_MQTT_SIGNALING
 #include "signaling/mqtt_service.h"
 #endif
@@ -20,7 +21,7 @@ RtcPeer::~RtcPeer() {
     peer_connection_ = nullptr;
     signaling_client_.reset();
     data_channel_subject_.reset();
-    std::cout << "[RtcPeer] ("<< id_ <<") was destroyed!" << std::endl;
+    DEBUG_PRINT("peer connection (%d) was destroyed!", id_);
 }
 
 int RtcPeer::GetId() const {
@@ -64,11 +65,11 @@ void RtcPeer::CreateDataChannel() {
     auto result = peer_connection_->CreateDataChannelOrError("cmd_channel", &init);
 
     if (!result.ok()) {
-        std::cout << "[RtcPeer] Fails to create data channel" << std::endl;
+        ERROR_PRINT("Failed to create data channel.");
         return;
     }
 
-    std::cout << "[RtcPeer] Succeeds to create data channel" << std::endl;
+    DEBUG_PRINT("The data channel is established successfully.");
     data_channel_subject_ = std::make_shared<DataChannelSubject>();
     data_channel_subject_->SetDataChannel(result.MoveValue());
 
@@ -113,26 +114,28 @@ void RtcPeer::EmitReadyToConnect(bool is_ready) {
 }
 
 void RtcPeer::OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState new_state) {
-    std::cout << "[RtcPeer] OnSignalingChange: ";
-    std::cout << webrtc::PeerConnectionInterface::PeerConnectionInterface::AsString(new_state) << std::endl;
+    auto state = webrtc::PeerConnectionInterface::AsString(new_state);
+    DEBUG_PRINT("OnSignalingChange => %s", std::string(state).c_str());
     if (new_state == webrtc::PeerConnectionInterface::SignalingState::kClosed) {
         signaling_client_.reset();
     }
 }
 
 void RtcPeer::OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> channel) {
-    std::cout << "[RtcPeer] OnDataChannel: connected to '" << channel->label() << "'" << std::endl;
+    DEBUG_PRINT("Connected to data channel => %s",  channel->label().c_str());
 }
 
 void RtcPeer::OnIceGatheringChange(webrtc::PeerConnectionInterface::IceGatheringState new_state) {
-    std::cout << "[RtcPeer] OnIceGatheringChange: " << webrtc::PeerConnectionInterface::PeerConnectionInterface::AsString(new_state) << std::endl;
+    auto state = webrtc::PeerConnectionInterface::AsString(new_state);
+    DEBUG_PRINT("OnIceGatheringChange => %s", std::string(state).c_str());
     if (new_state == webrtc::PeerConnectionInterface::IceGatheringState::kIceGatheringGathering) {
         EmitReadyToConnect(true);
     }
 }
 
 void RtcPeer::OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionState new_state) {
-    std::cout << "[RtcPeer] OnConnectionChange: " << webrtc::PeerConnectionInterface::PeerConnectionInterface::AsString(new_state) << std::endl;
+    auto state = webrtc::PeerConnectionInterface::AsString(new_state);
+    DEBUG_PRINT("OnConnectionChange => %s", std::string(state).c_str());
     if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kConnected) {
         signaling_client_.reset();
         is_connected_ = true;
@@ -162,7 +165,7 @@ void RtcPeer::OnTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transc
         && custom_video_sink_) {
         auto track = transceiver->receiver()->track();
         auto remote_video_track = static_cast<webrtc::VideoTrackInterface*>(track.get());
-        std::cout << "[RtcPeer] OnTrack: custom sink is added!" << std::endl;
+        DEBUG_PRINT("OnTrack => custom sink(%s) is added!", track->id().c_str());
         remote_video_track->AddOrUpdateSink(custom_video_sink_, rtc::VideoSinkWants());
     }
 }
@@ -180,7 +183,8 @@ void RtcPeer::OnSuccess(webrtc::SessionDescriptionInterface* desc) {
 }
 
 void RtcPeer::OnFailure(webrtc::RTCError error) {
-    std::cout << ToString(error.type()) << ": " << error.message() << std::endl;
+    auto type = ToString(error.type());
+    ERROR_PRINT("%s; %s", std::string(type).c_str(), error.message());
 }
 
 void RtcPeer::OnRemoteSdp(std::string sdp, std::string sdp_type) {
@@ -191,7 +195,7 @@ void RtcPeer::OnRemoteSdp(std::string sdp, std::string sdp_type) {
     absl::optional<webrtc::SdpType> type_maybe =
         webrtc::SdpTypeFromString(sdp_type);
     if (!type_maybe) {
-      std::cout << "[RtcPeer] Unknown SDP type: " << sdp_type << std::endl;
+      ERROR_PRINT("Unknown SDP type: %s", sdp_type.c_str());
       return;
     }
     webrtc::SdpType type = *type_maybe;
@@ -200,8 +204,8 @@ void RtcPeer::OnRemoteSdp(std::string sdp, std::string sdp_type) {
     std::unique_ptr<webrtc::SessionDescriptionInterface> session_description =
         webrtc::CreateSessionDescription(type, sdp, &error);
     if (!session_description) {
-        std::cout << "[RtcPeer] Can't parse received session description message. \n"
-                  << error.description.c_str() << std::endl;
+        ERROR_PRINT("Can't parse received session description message. %s",
+                    error.description.c_str());
         return;
     }
 
@@ -224,13 +228,13 @@ void RtcPeer::OnRemoteIce(std::string sdp_mid, int sdp_mline_index, std::string 
     std::unique_ptr<webrtc::IceCandidateInterface> candidate(
         webrtc::CreateIceCandidate(sdp_mid, sdp_mline_index, sdp, &error));
     if (!candidate.get()) {
-        std::cout << "[RtcPeer] Can't parse received candidate message. \n"
-                  << error.description.c_str() << std::endl;
+        ERROR_PRINT("Can't parse received candidate message. %s",
+                    error.description.c_str());
         return;
     }
 
     if (!peer_connection_->AddIceCandidate(candidate.get())) {
-        std::cout << "[RtcPeer] Failed to apply the received candidate" << std::endl;
+        ERROR_PRINT("Failed to apply the received candidate!");
         return;
     }
 }

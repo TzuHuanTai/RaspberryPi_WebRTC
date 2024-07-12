@@ -1,4 +1,5 @@
 #include "recorder/utils.h"
+#include "common/logging.h"
 
 AVFormatContext* RecUtil::CreateContainer(std::string record_path, std::string filename) {
     AVFormatContext* fmt_ctx = nullptr;
@@ -8,13 +9,13 @@ AVFormatContext* RecUtil::CreateContainer(std::string record_path, std::string f
     if (avformat_alloc_output_context2(&fmt_ctx, nullptr,
                                        container.c_str(),
                                        full_path.c_str()) < 0) {
-        fprintf(stderr, "Could not alloc output context");
+        ERROR_PRINT("Could not alloc output context");
         return nullptr;
     }
 
     if (!(fmt_ctx->oformat->flags & AVFMT_NOFILE)) {
         if (avio_open(&fmt_ctx->pb, full_path.c_str(), AVIO_FLAG_WRITE) < 0) {
-            fprintf(stderr, "Could not open '%s'\n", full_path.c_str());
+            ERROR_PRINT("Could not open %s", full_path.c_str());
             return nullptr;
         }
     }
@@ -31,22 +32,22 @@ void RecUtil::CreateThumbnail(std::string record_path, std::string filename) {
         " -i " + record_path + "/" + filename + ".mp4" +
         " -vf \"select=eq(pict_type\\,I)\" -vsync vfr -frames:v 1 " +
         record_path + "/" + filename + ".jpg";
-    printf("%s\n", ffmpegCommand.c_str());
+    DEBUG_PRINT("%s", ffmpegCommand.c_str());
 
     // Execute the command
     int result = std::system(ffmpegCommand.c_str());
 
     // Check the result
     if (result == 0) {
-        printf("Thumbnail created successfully.\n");
+        DEBUG_PRINT("Thumbnail created successfully.");
     } else {
-        printf("Error executing FFmpeg command.\n");
+        DEBUG_PRINT("Error executing FFmpeg command.");
     }
 }
 
 bool RecUtil::WriteFormatHeader(AVFormatContext* fmt_ctx) {
     if (avformat_write_header(fmt_ctx, nullptr) < 0) {
-        fprintf(stderr, "Error occurred when opening output file\n");
+        ERROR_PRINT("Error occurred when opening output file");
         return false;
     }
     return true;

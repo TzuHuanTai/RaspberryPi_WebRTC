@@ -1,4 +1,5 @@
 #include "recorder/raw_h264_recorder.h"
+#include "common/logging.h"
 
 #define NAL_UNIT_TYPE_IDR 5
 #define NAL_UNIT_TYPE_SPS 7
@@ -53,14 +54,14 @@ bool RawH264Recorder::CheckNALUnits(const V4l2Buffer& buffer) {
             uint8_t nalUnitType = data[i + startCodeSize] & 0x1F;
             switch (nalUnitType) {
                 case NAL_UNIT_TYPE_IDR:
-                    printf("Found IDR frame\n");
+                    DEBUG_PRINT("Found IDR frame");
                     break;
                 case NAL_UNIT_TYPE_SPS:
-                    printf("Found SPS NAL unit\n");
+                    DEBUG_PRINT("Found SPS NAL unit");
                     has_sps_ = true;
                     break;
                 case NAL_UNIT_TYPE_PPS:
-                    printf("Found PPS NAL unit\n");
+                    DEBUG_PRINT("Found PPS NAL unit");
                     has_pps_ = true;
                     break;
                 default:

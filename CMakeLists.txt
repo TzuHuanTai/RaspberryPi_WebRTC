@@ -4,6 +4,12 @@ project(pi_webrtc)
 set(CMAKE_CXX_STANDARD 17)
 set(BUILD_TEST "" CACHE STRING "test")
 
+string(TOLOWER "${CMAKE_BUILD_TYPE}" BUILD_TYPE_LOWER)
+if(NOT BUILD_TYPE_LOWER OR BUILD_TYPE_LOWER STREQUAL "debug")
+    set(CMAKE_BUILD_TYPE Debug CACHE STRING "Choose the type of build (Debug or Release)" FORCE)
+    add_definitions(-DDEBUG_MODE)
+endif()
+
 if(USE_BUILT_IN_H264)
     add_definitions(-DUSE_BUILT_IN_H264)
     add_compile_definitions(WEBRTC_USE_H264)

@@ -60,6 +60,5 @@ void BackgroundRecorder::Start() {
 }
 
 void BackgroundRecorder::Stop() {
-    std::cout << "[BackgroundRecorder] released." << std::endl;
     worker_.reset();
 }

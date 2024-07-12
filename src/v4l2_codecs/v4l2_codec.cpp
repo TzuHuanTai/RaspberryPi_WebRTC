@@ -1,4 +1,5 @@
 #include "v4l2_codecs/v4l2_codec.h"
+#include "common/logging.h"
 
 V4l2Codec::~V4l2Codec() {
     ReleaseCodec();
@@ -70,8 +71,8 @@ bool V4l2Codec::OutputBuffer(V4l2Buffer &buffer) {
     }
     
     if (!V4l2Util::QueueBuffer(fd_, &output_.buffers[index].inner)) {
-        printf("error: QueueBuffer V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE. fd(%d) at index %d\n",
-               fd_, index);
+        ERROR_PRINT("QueueBuffer V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE. fd(%d) at index %d",
+                    fd_, index);
         output_buffer_index_.push(index);
         return false;
     }
@@ -92,7 +93,9 @@ bool V4l2Codec::CaptureBuffer(V4l2Buffer &buffer) {
 
     int r = select(fd_ + 1, rd_fds, NULL, ex_fds, &tv);
 
-    if (r <= 0) { // timeout or failed
+    if (r == -1) { // failed
+        return false;
+    } else if (r == 0) { // timeout
         return false;
     }
 
@@ -129,7 +132,7 @@ bool V4l2Codec::CaptureBuffer(V4l2Buffer &buffer) {
     }
 
     if (ex_fds && FD_ISSET(fd_, ex_fds)) {
-        fprintf(stderr, "Exception in fd(%d).\n", fd_);
+        ERROR_PRINT("Exception in fd(%d).", fd_);
         HandleEvent();
     }
     return true;

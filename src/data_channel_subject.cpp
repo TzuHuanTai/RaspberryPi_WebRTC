@@ -1,4 +1,5 @@
 #include "data_channel_subject.h"
+#include "common/logging.h"
 
 #include <iostream>
 #include <memory>
@@ -11,7 +12,7 @@ DataChannelSubject::~DataChannelSubject() {
 
 void DataChannelSubject::OnStateChange() {
     webrtc::DataChannelInterface::DataState state = data_channel_->state();
-    std::cout << "=> datachannel OnStateChange: " << webrtc::DataChannelInterface::DataStateString(state) << std::endl;
+    DEBUG_PRINT("OnStateChange => %s", webrtc::DataChannelInterface::DataStateString(state));
 }
 
 void DataChannelSubject::OnMessage(const webrtc::DataBuffer &buffer) {
@@ -31,7 +32,7 @@ void DataChannelSubject::Next(char *message) {
         json jsonObj = json::parse(message);
 
         std::string jsonStr = jsonObj.dump();
-        std::cout << "DataChannel Next() => " << jsonStr << std::endl;
+        DEBUG_PRINT("Receive message => %s", jsonStr.c_str());
 
         CommandType type = jsonObj["type"];
         std::string content = jsonObj["message"];
@@ -50,8 +51,7 @@ void DataChannelSubject::Next(char *message) {
             }
         }
     } catch(const json::parse_error& e) {
-        std::cerr << "JSON parse error: " << e.what() << std::endl;
-        std::cerr << "Error occurred at byte position: " << e.byte << std::endl;
+        ERROR_PRINT("JSON parse error, %s, occur at position: %lu", e.what(), e.byte);
     }
 }
 
