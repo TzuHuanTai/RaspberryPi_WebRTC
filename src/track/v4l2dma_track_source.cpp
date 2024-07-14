@@ -38,7 +38,7 @@ void V4l2DmaTrackSource::Init() {
     });
 }
 
-void V4l2DmaTrackSource::OnFrameCaptured(V4l2Buffer buffer) {
+void V4l2DmaTrackSource::OnFrameCaptured(V4l2Buffer &buffer) {
     rtc::TimestampAligner timestamp_aligner_;
     const int64_t timestamp_us = rtc::TimeMicros();
     const int64_t translated_timestamp_us =

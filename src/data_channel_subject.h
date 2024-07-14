@@ -31,7 +31,7 @@ struct RtcMessage {
 };
 
 class DataChannelSubject : public webrtc::DataChannelObserver,
-                           public Subject<char*> {
+                           public Subject<std::string> {
 public:
     DataChannelSubject(){};
     ~DataChannelSubject();
@@ -41,9 +41,9 @@ public:
     void OnMessage(const webrtc::DataBuffer &buffer) override;
 
     // Subject
-    void Next(char *message) override;
-    std::shared_ptr<Observable<char*>> AsObservable() override;
-    std::shared_ptr<Observable<char*>> AsObservable(CommandType type);
+    void Next(std::string &message) override;
+    std::shared_ptr<Observable<std::string>> AsObservable() override;
+    std::shared_ptr<Observable<std::string>> AsObservable(CommandType type);
     void UnSubscribe() override;
 
     void Send(CommandType type, const std::string data);
@@ -52,7 +52,7 @@ public:
 
 private:
     rtc::scoped_refptr<webrtc::DataChannelInterface> data_channel_;
-    std::map<CommandType, std::vector<std::shared_ptr<Observable<char*>>>> observers_map_;
+    std::map<CommandType, std::vector<std::shared_ptr<Observable<std::string>>>> observers_map_;
 };
 
 #endif

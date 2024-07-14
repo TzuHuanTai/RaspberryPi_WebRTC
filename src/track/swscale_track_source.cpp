@@ -33,12 +33,12 @@ SwScaleTrackSource::~SwScaleTrackSource() {
 
 void SwScaleTrackSource::StartTrack() {
     auto observer = capture_->AsObservable();
-    observer->Subscribe([this](V4l2Buffer buffer) {
+    observer->Subscribe([this](V4l2Buffer &buffer) {
         OnFrameCaptured(buffer);
     });
 }
 
-void SwScaleTrackSource::OnFrameCaptured(V4l2Buffer buffer) {
+void SwScaleTrackSource::OnFrameCaptured(V4l2Buffer &buffer) {
     rtc::scoped_refptr<webrtc::VideoFrameBuffer> dst_buffer = nullptr;
     rtc::TimestampAligner timestamp_aligner_;
     const int64_t timestamp_us = rtc::TimeMicros();

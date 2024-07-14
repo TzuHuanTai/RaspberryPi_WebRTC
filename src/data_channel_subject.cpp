@@ -18,18 +18,14 @@ void DataChannelSubject::OnStateChange() {
 void DataChannelSubject::OnMessage(const webrtc::DataBuffer &buffer) {
     const uint8_t *data = buffer.data.data<uint8_t>();
     size_t length = buffer.data.size();
+    std::string message(reinterpret_cast<const char*>(data), length);
 
-    char *msg = new char[length + 1];
-    memcpy(msg, data, length);
-    msg[length] = 0;
-    Next(msg);
-
-    delete[] msg;
+    Next(message);
 }
 
-void DataChannelSubject::Next(char *message) {
+void DataChannelSubject::Next(std::string &message) {
     try {
-        json jsonObj = json::parse(message);
+        json jsonObj = json::parse(message.c_str());
 
         std::string jsonStr = jsonObj.dump();
         DEBUG_PRINT("Receive message => %s", jsonStr.c_str());
@@ -47,7 +43,7 @@ void DataChannelSubject::Next(char *message) {
 
         for (auto observer : observers_) {
             if (observer->subscribed_func_ != nullptr) {
-                observer->subscribed_func_(content.data());
+                observer->subscribed_func_(content);
             }
         }
     } catch(const json::parse_error& e) {
@@ -55,14 +51,14 @@ void DataChannelSubject::Next(char *message) {
     }
 }
 
-std::shared_ptr<Observable<char *>> DataChannelSubject::AsObservable() {
-    auto observer = std::make_shared<Observable<char *>>();
+std::shared_ptr<Observable<std::string>> DataChannelSubject::AsObservable() {
+    auto observer = std::make_shared<Observable<std::string>>();
     observers_map_[CommandType::UNKNOWN].push_back(observer);
     return observer;
 }
 
-std::shared_ptr<Observable<char *>> DataChannelSubject::AsObservable(CommandType type) {
-    auto observer = std::make_shared<Observable<char *>>();
+std::shared_ptr<Observable<std::string>> DataChannelSubject::AsObservable(CommandType type) {
+    auto observer = std::make_shared<Observable<std::string>>();
     observers_map_[type].push_back(observer);
     return observer;
 }
