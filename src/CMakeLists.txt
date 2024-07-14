@@ -12,7 +12,7 @@ add_library(${PROJECT_NAME}
     customized_video_encoder_factory.cpp
     data_channel_subject.cpp
     parser.cpp
-    rtc_peer
+    rtc_peer.cpp
 )
 
 target_link_libraries(${PROJECT_NAME} PUBLIC track capture v4l2_codecs signaling recorder common)
