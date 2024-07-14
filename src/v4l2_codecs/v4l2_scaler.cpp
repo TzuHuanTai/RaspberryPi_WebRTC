@@ -20,7 +20,5 @@ bool V4l2Scaler::Configure(int src_width, int src_height, int dst_width,
     V4l2Util::StreamOn(fd_, output_.type);
     V4l2Util::StreamOn(fd_, capture_.type);
 
-    ResetWorker();
-
     return true;
 }

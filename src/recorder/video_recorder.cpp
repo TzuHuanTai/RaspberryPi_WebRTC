@@ -86,8 +86,8 @@ bool VideoRecorder::ConsumeBuffer() {
 
     if (feeded_frames >= 0) {
         MakePreviewImage(buffer);
-    } else if (feeded_frames < 0 && image_decoder_ != nullptr) {
-        image_decoder_.reset();
+    } else if (feeded_frames < 0 && image_decoder_->IsCapturing()) {
+        image_decoder_->ReleaseCodec();
     }
 
     if (buffer.start != nullptr) {
@@ -102,6 +102,7 @@ void VideoRecorder::MakePreviewImage(V4l2Buffer &buffer) {
     if (feeded_frames == 0 || buffer.flags & V4L2_BUF_FLAG_KEYFRAME) {
         image_decoder_ = std::make_unique<V4l2Decoder>();
         image_decoder_->Configure(config.width, config.height, V4L2_PIX_FMT_H264, false);
+        image_decoder_->Start();
     }
 
     if (feeded_frames >= 0) {

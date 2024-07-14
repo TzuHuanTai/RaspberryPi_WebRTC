@@ -15,7 +15,7 @@ public:
     ~V4l2DmaTrackSource();
 
 protected:
-    void Init() override;
+    void Init();
     void OnFrameCaptured(V4l2Buffer &buffer) override;
 
 private:

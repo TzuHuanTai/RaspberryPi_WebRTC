@@ -24,8 +24,6 @@ bool V4l2Decoder::Configure(int width, int height, uint32_t src_pix_fmt, bool is
     V4l2Util::StreamOn(fd_, output_.type);
     V4l2Util::StreamOn(fd_, capture_.type);
 
-    ResetWorker();
-
     return true;
 }
 

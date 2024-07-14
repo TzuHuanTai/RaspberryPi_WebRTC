@@ -14,7 +14,6 @@ static const int kBufferAlignment = 64;
 rtc::scoped_refptr<SwScaleTrackSource> SwScaleTrackSource::Create(
     std::shared_ptr<V4L2Capture> capture) {
     auto obj = rtc::make_ref_counted<SwScaleTrackSource>(std::move(capture));
-    obj->Init();
     obj->StartTrack();
     return obj;
 }

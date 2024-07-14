@@ -31,6 +31,7 @@ int32_t V4l2H264Encoder::InitEncode(
 
     encoder_ = std::make_unique<V4l2Encoder>();
     encoder_->Configure(width_, height_, is_dma_);
+    encoder_->Start();
 
     return WEBRTC_VIDEO_CODEC_OK;
 }
