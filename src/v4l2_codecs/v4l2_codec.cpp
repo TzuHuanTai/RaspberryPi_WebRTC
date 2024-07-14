@@ -6,6 +6,7 @@ V4l2Codec::~V4l2Codec() {
 }
 
 bool V4l2Codec::Open(const char *file_name) {
+    file_name_ = file_name;
     fd_ = V4l2Util::OpenDevice(file_name);
     if (fd_ < 0) {
         return false;
@@ -41,9 +42,19 @@ bool V4l2Codec::PrepareBuffer(V4l2BufferGroup *gbuffer, int width, int height,
     return true;
 }
 
-void V4l2Codec::ResetWorker() {
-    worker_.reset(new Worker("V4l2Codec", [this]() { CapturingFunction();}));
+void V4l2Codec::Start() {
+    worker_.reset(new Worker(file_name_, [this]() { CapturingFunction(); }));
     worker_->Run();
+    is_capturing = true;
+}
+
+void V4l2Codec::Stop() {
+    worker_.reset();
+    is_capturing = false;
+}
+
+bool V4l2Codec::IsCapturing() {
+    return is_capturing;
 }
 
 void V4l2Codec::EmplaceBuffer(V4l2Buffer &buffer, 
@@ -153,7 +164,7 @@ void V4l2Codec::ReleaseCodec() {
     }
     capturing_tasks_ = {};
     output_buffer_index_ = {};
-    worker_.reset();
+    Stop();
 
     V4l2Util::StreamOff(fd_, output_.type);
     V4l2Util::StreamOff(fd_, capture_.type);

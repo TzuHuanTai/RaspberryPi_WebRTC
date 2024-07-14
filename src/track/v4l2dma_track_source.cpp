@@ -27,18 +27,14 @@ V4l2DmaTrackSource::~V4l2DmaTrackSource() {
 }
 
 void V4l2DmaTrackSource::Init() {
-    auto s = std::async(std::launch::async, [this]() {
-        scaler_ = std::make_unique<V4l2Scaler>();
-        scaler_->Configure(width_, height_, width_, height_, true, capture_->is_dma());
-    });
+    scaler_ = std::make_unique<V4l2Scaler>();
+    scaler_->Configure(width_, height_, width_, height_, true, capture_->is_dma());
 
-    auto d = std::async(std::launch::async, [this]() {
-        decoder_ = std::make_unique<V4l2Decoder>();
-        decoder_->Configure(width_, height_, capture_->format(), true);
-    });
+    decoder_ = std::make_unique<V4l2Decoder>();
+    decoder_->Configure(width_, height_, capture_->format(), true);
 }
 
-void V4l2DmaTrackSource::OnFrameCaptured(V4l2Buffer buffer) {
+void V4l2DmaTrackSource::OnFrameCaptured(V4l2Buffer &buffer) {
     rtc::TimestampAligner timestamp_aligner_;
     const int64_t timestamp_us = rtc::TimeMicros();
     const int64_t translated_timestamp_us =
@@ -56,10 +52,22 @@ void V4l2DmaTrackSource::OnFrameCaptured(V4l2Buffer buffer) {
         scaler_->ReleaseCodec();
         scaler_->Configure(width_, height_, config_width_,
                             config_height_, true, capture_->is_dma());
+        scaler_->Start();
         if (capture_->format() == V4L2_PIX_FMT_MJPEG) {
             decoder_->ReleaseCodec();
             decoder_->Configure(width_, height_, capture_->format(), true);
+            decoder_->Start();
         }
+    }
+
+    if (!decoder_->IsCapturing()) {
+        printf("!decoder_->IsCapturing(), width: %d, height: %d\n", width_, height_);
+        decoder_->Start();
+    }
+
+    if (!scaler_->IsCapturing()) {
+        printf("!scaler_->IsCapturing(), width: %d, height: %d\n", adapted_width, adapted_height);
+        scaler_->Start();
     }
 
     if (capture_->format() == V4L2_PIX_FMT_H264 && !has_first_keyframe_) {
@@ -77,16 +85,8 @@ void V4l2DmaTrackSource::OnFrameCaptured(V4l2Buffer buffer) {
         }
 
         scaler_->EmplaceBuffer(decoded_buffer, [this, translated_timestamp_us](V4l2Buffer scaled_buffer) {
-            rtc::scoped_refptr<webrtc::VideoFrameBuffer> dst_buffer = nullptr;
 
-            if (!capture_->is_dma()) {
-                auto i420_buffer = webrtc::I420Buffer::Create(config_width_, config_height_);
-                memcpy(i420_buffer->MutableDataY(), (uint8_t*)scaled_buffer.start, scaled_buffer.length);
-                dst_buffer = i420_buffer;
-            } else {
-                dst_buffer = RawBuffer::Create(config_width_, config_height_,
-                                                0, scaled_buffer);
-            }
+            auto dst_buffer = RawBuffer::Create(config_width_, config_height_, 0, scaled_buffer);
 
             OnFrame(webrtc::VideoFrame::Builder()
                     .set_video_frame_buffer(dst_buffer)

@@ -74,8 +74,8 @@ void RtcPeer::CreateDataChannel() {
     data_channel_subject_->SetDataChannel(result.MoveValue());
 
     auto conn_observer = data_channel_subject_->AsObservable(CommandType::CONNECT);
-    conn_observer->Subscribe([this](char *message) {
-        if (strcmp(message, "false") == 0) {
+    conn_observer->Subscribe([this](std::string message) {
+        if (message == "false") { // todo: use enum or so.
             peer_connection_->Close();
         }
     });
@@ -91,8 +91,8 @@ void RtcPeer::OnThumbnail(OnCommand func) {
 
 void RtcPeer::SubscribeCommandChannel(CommandType type, OnCommand func) {
     auto thumb_observer = data_channel_subject_->AsObservable(type);
-    thumb_observer->Subscribe([this, func](char *message) {
-        if (strcmp(message, "get") == 0) {
+    thumb_observer->Subscribe([this, func](std::string message) {
+        if (message == "get") { // todo: use enum or so.
             func(data_channel_subject_);
         }
     });

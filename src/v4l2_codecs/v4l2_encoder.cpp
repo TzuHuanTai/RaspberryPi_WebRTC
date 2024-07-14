@@ -30,8 +30,6 @@ bool V4l2Encoder::Configure(int width, int height, bool is_drm_src) {
     V4l2Util::StreamOn(fd_, output_.type);
     V4l2Util::StreamOn(fd_, capture_.type);
 
-    ResetWorker();
-
     return true;
 }
 

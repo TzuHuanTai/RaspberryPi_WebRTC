@@ -15,8 +15,8 @@ public:
     ~V4l2DmaTrackSource();
 
 protected:
-    void Init() override;
-    void OnFrameCaptured(V4l2Buffer buffer) override;
+    void Init();
+    void OnFrameCaptured(V4l2Buffer &buffer) override;
 
 private:
     bool has_first_keyframe_;

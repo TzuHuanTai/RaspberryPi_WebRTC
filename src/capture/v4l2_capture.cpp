@@ -177,7 +177,7 @@ void V4L2Capture::CaptureImage() {
     Next(shared_buffer_);
 }
 
-void V4L2Capture::Next(V4l2Buffer buffer) {
+void V4L2Capture::Next(V4l2Buffer &buffer) {
      for (auto &observer : observers_) {
         if (observer && observer->subscribed_func_ != nullptr) {
             observer->subscribed_func_(buffer);

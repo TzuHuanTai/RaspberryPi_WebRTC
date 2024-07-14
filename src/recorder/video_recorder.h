@@ -6,6 +6,7 @@
 #include "recorder/recorder.h"
 #include "v4l2_codecs/v4l2_decoder.h"
 
+#include <atomic>
 #include <queue>
 
 extern "C"
@@ -24,7 +25,7 @@ public:
 
 protected:
     Args config;
-    int feeded_frames;
+    std::atomic<int> feeded_frames;
     bool has_first_keyframe;
     std::string filename;
     std::string encoder_name;

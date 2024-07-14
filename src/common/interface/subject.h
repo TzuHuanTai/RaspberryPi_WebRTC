@@ -12,7 +12,7 @@ class Observable {
 public:
     Observable() {};
     ~Observable() {};
-    typedef std::function<void(T)> OnMessageFunc;
+    using OnMessageFunc = std::function<void(T&)>;
 
     void Subscribe(OnMessageFunc func) {
         subscribed_func_ = func;
@@ -29,10 +29,10 @@ template<typename T>
 class Subject {
 public:
     virtual ~Subject(){};
-    virtual void Next(T message) {
+    virtual void Next(T &message) {
         for (auto &observer : observers_) {
             if (observer && observer->subscribed_func_ != nullptr) {
-                auto task = std::async(std::launch::async, observer->subscribed_func_, message);
+                auto task = std::async(std::launch::async, observer->subscribed_func_, std::ref(message));
             }
         }
     }

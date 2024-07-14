@@ -14,7 +14,6 @@ static const int kBufferAlignment = 64;
 rtc::scoped_refptr<SwScaleTrackSource> SwScaleTrackSource::Create(
     std::shared_ptr<V4L2Capture> capture) {
     auto obj = rtc::make_ref_counted<SwScaleTrackSource>(std::move(capture));
-    obj->Init();
     obj->StartTrack();
     return obj;
 }
@@ -33,12 +32,12 @@ SwScaleTrackSource::~SwScaleTrackSource() {
 
 void SwScaleTrackSource::StartTrack() {
     auto observer = capture_->AsObservable();
-    observer->Subscribe([this](V4l2Buffer buffer) {
+    observer->Subscribe([this](V4l2Buffer &buffer) {
         OnFrameCaptured(buffer);
     });
 }
 
-void SwScaleTrackSource::OnFrameCaptured(V4l2Buffer buffer) {
+void SwScaleTrackSource::OnFrameCaptured(V4l2Buffer &buffer) {
     rtc::scoped_refptr<webrtc::VideoFrameBuffer> dst_buffer = nullptr;
     rtc::TimestampAligner timestamp_aligner_;
     const int64_t timestamp_us = rtc::TimeMicros();

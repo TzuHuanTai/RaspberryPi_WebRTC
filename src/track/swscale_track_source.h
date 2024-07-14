@@ -29,8 +29,7 @@ protected:
     std::shared_ptr<V4L2Capture> capture_;
     rtc::scoped_refptr<webrtc::VideoFrameBuffer> i420_raw_buffer_;
 
-    virtual void Init() {};
-    virtual void OnFrameCaptured(V4l2Buffer buffer);
+    virtual void OnFrameCaptured(V4l2Buffer &buffer);
 };
 
 #endif
