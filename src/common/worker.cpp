@@ -1,4 +1,5 @@
 #include "worker.h"
+#include "common/logging.h"
 
 Worker::Worker(std::string name, std::function<void()> excuting_function)
     : abort_(false),
@@ -12,7 +13,7 @@ Worker::~Worker() {
 void Worker::Release() {
     abort_ = true;
     thread_.Finalize();
-    printf("[Worker] %s was released!\n", name_.c_str());
+    DEBUG_PRINT("'%s' was released!", name_.c_str());
 }
 
 void Worker::Run() {

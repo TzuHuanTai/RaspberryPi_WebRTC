@@ -1,4 +1,5 @@
 #include "recorder/audio_recorder.h"
+#include "common/logging.h"
 
 std::unique_ptr<AudioRecorder> AudioRecorder::Create(Args config) {
     auto ptr = std::make_unique<AudioRecorder>(config);
@@ -48,7 +49,7 @@ void AudioRecorder::InitializeFrame() {
 void AudioRecorder::InitializeFifoBuffer() {
     fifo_buffer = av_audio_fifo_alloc(encoder->sample_fmt, encoder->channels, 1);
     if (fifo_buffer == nullptr) {
-        printf("Init fifo fail.\n");
+        DEBUG_PRINT("Failed to initialize audio fifo buffer.");
     }
 }
 
@@ -59,7 +60,7 @@ void AudioRecorder::Encode() {
     pkt.size = 0;
 
     if (av_audio_fifo_read(fifo_buffer, (void**)&frame->data, frame_size) < 0) {
-        printf("Read fifo fail");
+        DEBUG_PRINT("Failed to read audio fifo buffer.");
     }
 
     frame->pts = frame_count * frame->nb_samples;
@@ -67,7 +68,7 @@ void AudioRecorder::Encode() {
 
     int ret = avcodec_send_frame(encoder, frame);
     if (ret < 0 || ret == AVERROR_EOF) {
-        printf("Could not send packet for encoding\n");
+        DEBUG_PRINT("Could not send packet to encoder");
         return;
     }
 
@@ -76,7 +77,7 @@ void AudioRecorder::Encode() {
         if (ret == AVERROR(EAGAIN)) {
             break;
         } else if (ret < 0) {
-            printf("Error encoding frame\n");
+            DEBUG_PRINT("Failed to encode the frame");
             break;
         }
 

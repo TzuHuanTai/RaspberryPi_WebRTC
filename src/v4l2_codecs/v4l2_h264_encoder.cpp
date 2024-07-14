@@ -1,5 +1,6 @@
 #include "v4l2_codecs/v4l2_h264_encoder.h"
 #include "v4l2_codecs/raw_buffer.h"
+#include "common/logging.h"
 
 std::unique_ptr<webrtc::VideoEncoder> V4l2H264Encoder::Create(bool is_dma) {
     return std::make_unique<V4l2H264Encoder>(is_dma);
@@ -122,6 +123,6 @@ void V4l2H264Encoder::SendFrame(const webrtc::VideoFrame &frame, V4l2Buffer &enc
 
     auto result = callback_->OnEncodedImage(encoded_image_, &codec_specific);
     if (result.error != webrtc::EncodedImageCallback::Result::OK) {
-        printf("OnEncodedImage failed error: %d", result.error);
+        ERROR_PRINT("Failed to send the frame => %d", result.error);
     }
 }

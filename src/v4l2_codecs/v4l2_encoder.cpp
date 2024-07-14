@@ -1,8 +1,5 @@
 #include "v4l2_codecs/v4l2_encoder.h"
-
-#include <sys/mman.h>
-#include <iostream>
-#include <memory>
+#include "common/logging.h"
 
 const char *ENCODER_FILE = "/dev/video11";
 const int BUFFER_NUM = 4;
@@ -15,6 +12,7 @@ V4l2Encoder::V4l2Encoder()
 
 bool V4l2Encoder::Configure(int width, int height, bool is_drm_src) {
     if (!Open(ENCODER_FILE)) {
+        DEBUG_PRINT("Failed to turn on encoder: %s", ENCODER_FILE);
         return false;
     }
 
@@ -51,7 +49,7 @@ void V4l2Encoder::SetBitrate(uint32_t adjusted_bitrate_bps) {
     if (bitrate_bps_ != adjusted_bitrate_bps) {
         bitrate_bps_ = adjusted_bitrate_bps;
         if (!V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_BITRATE, bitrate_bps_)) {
-            printf("Encoder failed set bitrate: %d bps\n", bitrate_bps_);
+            DEBUG_PRINT("Failed to set bitrate: %d bps", bitrate_bps_);
         }
     }
 }
@@ -60,7 +58,7 @@ void V4l2Encoder::SetFps(int adjusted_fps) {
     if (framerate_ != adjusted_fps) {
         framerate_ = adjusted_fps;
         if (!V4l2Util::SetFps(fd_, output_.type, framerate_)) {
-            printf("Encoder failed set output fps: %d\n", framerate_);
+            DEBUG_PRINT("Failed to set output fps: %d", framerate_);
         }
     }
 }

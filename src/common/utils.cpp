@@ -1,4 +1,5 @@
 #include "utils.h"
+#include "common/logging.h"
 
 #include <third_party/libyuv/include/libyuv.h>
 #include <jpeglib.h>
@@ -12,9 +13,9 @@ bool Utils::CreateFolder(const std::string& folder_path) {
             std::cerr << "Failed to create directory: " << folder_path << std::endl;
             return false;
         }
-        std::cout << "Directory created: " << folder_path << std::endl;
+        DEBUG_PRINT("Directory created: %s", folder_path.c_str());
     } else {
-        std::cout << "Directory already exists: " << folder_path << std::endl;
+        DEBUG_PRINT("Directory already exists: %s", folder_path.c_str());
     }
     return true;
 }
@@ -157,9 +158,9 @@ void Utils::WriteJpegImage(Buffer buffer, std::string record_path, std::string f
     if (file) {
         fwrite((uint8_t*)buffer.start, 1, buffer.length, file);
         fclose(file);
-        printf("JPEG data successfully written to %s\n", full_path.c_str());
+        DEBUG_PRINT("JPEG data successfully written to %s", full_path.c_str());
     } else {
-        fprintf(stderr, "Failed to open file for writing: %s\n", full_path.c_str());
+        ERROR_PRINT("Failed to open file for writing: %s", full_path.c_str());
     }
 }
 

@@ -1,4 +1,5 @@
 #include "capture/pa_capture.h"
+#include "common/logging.h"
 
 #define BUFSIZE 1024
 #define CHANNELS 2
@@ -34,7 +35,7 @@ void PaCapture::CreateFloat32Source(int sample_rate) {
     src = pa_simple_new(nullptr, "Microphone", PA_STREAM_RECORD, nullptr, 
                         "record", &ss, nullptr, nullptr, &error);
     if (!src) {
-        printf("pa_simple_new() failed: %s", pa_strerror(error));
+        ERROR_PRINT("%s", pa_strerror(error));
         return;
     }
 }

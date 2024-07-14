@@ -1,7 +1,7 @@
 #include "signaling/signalr_service.h"
+#include "common/logging.h"
 
 #include <future>
-#include <iostream>
 #include <sstream>
 #include <map>
 #include <unistd.h>
@@ -20,15 +20,13 @@ SignalrService::SignalrService(Args args)
 
 void SignalrService::ListenClientId() {
     Subscribe(topics.connected_client, [this](const std::vector<signalr::value> &m) {
-        std::cout << "[SignalR] ConnectedClient: " << std::endl;
         std::unique_lock<std::mutex> lock(mtx);
         if (client_id_.empty()) {
             client_id_ = m[0].as_string();
-            std::cout << client_id_ << std::endl;
         } else {
-            std::cout << m[0].as_string() << " want to replace " << client_id_ << std::endl;
+            DEBUG_PRINT("Client %s want to replace exist client %s", m[0].as_string().c_str(), client_id_.c_str(), );
         }
-
+        DEBUG_PRINT("Connected client %s", client_id_.c_str(), );
         ready = true;
         cond_var.notify_all();
     });
@@ -36,19 +34,18 @@ void SignalrService::ListenClientId() {
 
 void SignalrService::ListenOfferSdp() {
     Subscribe(topics.offer_sdp, [this](const std::vector<signalr::value> &m) {
-        std::cout << "[SignalR] OfferSDP: Received!" << std::endl;
         const std::map<std::string, signalr::value> object = m[0].as_map();
 
         std::string sdp;
         std::string type;
         for (const auto &s : object) {
-            std::cout << "=> key: " << s.first << ", value: " << s.second.as_string() << std::endl;
             if (s.first == "sdp") {
                 sdp = s.second.as_string();
             } else if (s.first == "type") {
                 type = s.second.as_string();
             }
         }
+        DEBUG_PRINT("Receive sdp: %s, type: %s", sdp.c_str(), type.c_str());
         if (callback_) {
             callback_->OnRemoteSdp(sdp, type);
         }
@@ -57,7 +54,6 @@ void SignalrService::ListenOfferSdp() {
 
 void SignalrService::ListenOfferIce() {
     Subscribe(topics.offer_ice, [this](const std::vector<signalr::value> &m) {
-        std::cout << "=> OfferICE: Received!" << std::endl;
         const std::map<std::string, signalr::value> ice = m[0].as_map();
 
         std::string sdp_mid;
@@ -73,7 +69,7 @@ void SignalrService::ListenOfferIce() {
                 sdp_mid = s.second.as_string();
             }
         }
-        std::cout << "=> OfferICE: " << sdp_mline_index << ", " << sdp_mid << ", " << candidate << std::endl;
+        DEBUG_PRINT("Receive ICE: %s, %d, %s", sdp_mline_index.c_str(), sdp_mid, candidate.c_str());
         if (callback_) {
             callback_->OnRemoteIce(sdp_mid, sdp_mline_index, candidate);
         }
@@ -82,14 +78,14 @@ void SignalrService::ListenOfferIce() {
 
 void SignalrService::AnswerLocalSdp(std::string sdp, std::string type) {
     std::unique_lock<std::mutex> lock(mtx);
-    std::cout << "[SignalR] Invoke AnswerSDP: " << sdp << std::endl;
+    DEBUG_PRINT("Invoke AnswerSDP: %s", sdp.c_str());
     std::map<std::string, signalr::value> sdp_message = {
             {"sdp", sdp},
             {"type", type}};
 
-    std::cout << "[SignalR] Invoke AnswerSDP: wait!" << std::endl;
+    DEBUG_PRINT("Invoke AnswerSDP: wait!");
     cond_var.wait(lock, [this]{ return ready; });
-    std::cout << "[SignalR] Invoke AnswerSDP: got clientId " << client_id_ << std::endl;
+    DEBUG_PRINT("Invoke AnswerSDP: got clientId %s", client_id_.c_str());
         
     std::vector<signalr::value> args{client_id_, sdp_message};
     SendMessage(topics.answer_sdp, args);
@@ -98,15 +94,15 @@ void SignalrService::AnswerLocalSdp(std::string sdp, std::string type) {
 void SignalrService::AnswerLocalIce(std::string sdp_mid, int sdp_mline_index,
                                   std::string candidate) {
     std::unique_lock<std::mutex> lock(mtx);
-    std::cout << "[SignalR] Invoke AnswerICE: " << sdp_mid << ", " << sdp_mline_index << ", " << candidate << std::endl;
+    DEBUG_PRINT("Invoke AnswerICE: %s, %d, %s", sdp_mid.c_str(), sdp_mline_index, candidate.c_str());
     std::map<std::string, signalr::value> ice_message = {
             {"sdpMid", sdp_mid},
             {"sdpMLineIndex", static_cast<double>(sdp_mline_index)},
             {"candidate", candidate}};
 
-    std::cout << "[SignalR] Invoke AnswerICE: wait!" << std::endl;
+    DEBUG_PRINT("Invoke AnswerICE: wait!");
     cond_var.wait(lock, [this]{ return ready; });
-    std::cout << "[SignalR] Invoke AnswerICE: got clientId " << client_id_ << std::endl;
+    DEBUG_PRINT("Invoke AnswerICE: got clientId %s", client_id_.c_str());
         
     std::vector<signalr::value> args{client_id_, ice_message};
     SendMessage(topics.answer_ice, args);
@@ -119,9 +115,9 @@ SignalrService &SignalrService::AutoReconnect() {
                 std::rethrow_exception(exception);
             }
 
-            std::cout << "[SignalR][WithReconnect]: normal disconnection successfully" << std::endl;
+            DEBUG_PRINT("Normal disconnection successfully!");
         } catch (const std::exception& e) {
-            std::cout << "[SignalR][WithReconnect]: exception about " << e.what() << std::endl;
+            ERROR_PRINT("Exception about %s", e.what());
             sleep(1);
             Connect();
         }
@@ -132,7 +128,7 @@ SignalrService &SignalrService::AutoReconnect() {
 
 void SignalrService::Start() {
     while (connection_.get_connection_state() != signalr::connection_state::connected) {
-        std::cout << "[SignalR][Connect] start connecting!" << std::endl;
+        ERROR_PRINT("Start connecting!");
         std::promise<void> start_task;
         connection_.start([&start_task](std::exception_ptr exception) {
             try {
@@ -140,7 +136,7 @@ void SignalrService::Start() {
                     std::rethrow_exception(exception);
                 }
             } catch (const std::exception& e) {
-                std::cout << "[SignalR][Connect] exception: " << e.what() << std::endl;
+                ERROR_PRINT("%s", e.what());
                 sleep(1);
             }
             start_task.set_value();   
@@ -176,7 +172,7 @@ void SignalrService::SendMessage(std::string method, std::vector<signalr::value>
                         });
         send_task.get_future().get();
     } else {
-        std::cout << "[SignalR][SendMessage]: not send msg due to disconnection" << std::endl;
+        ERROR_PRINT("Not send msg due to disconnection");
     }
 };
 
@@ -187,7 +183,6 @@ void SignalrService::JoinAsClient() {
 };
 
 void SignalrService::JoinAsServer() {
-    std::cout << "=> SignalrService: start setting!" << std::endl;
     ListenClientId();
     ListenOfferSdp();
     ListenOfferIce();

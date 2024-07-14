@@ -1,5 +1,6 @@
 #include "signaling/mqtt_service.h"
 #include "args.h"
+#include "common/logging.h"
 
 #include <functional>
 #include <future>
@@ -49,7 +50,7 @@ void MqttService::ListenOfferSdp(std::string message) {
     nlohmann::json jsonObj = nlohmann::json::parse(message);
     std::string sdp = jsonObj["sdp"];
     std::string type = jsonObj["type"];
-    std::cout << "Received remote [" << type << "] SDP:\n" << sdp << std::endl;
+    DEBUG_PRINT("Received remote [%s] SDP: %s", type.c_str(), sdp.c_str());
     if (callback_) {
         callback_->OnRemoteSdp(sdp, type);
     }
@@ -60,14 +61,15 @@ void MqttService::ListenOfferIce(std::string message) {
     std::string sdp_mid = jsonObj["sdpMid"];
     int sdp_mline_index = jsonObj["sdpMLineIndex"];
     std::string candidate = jsonObj["candidate"];
-    std::cout << "Received remote ICE: " << sdp_mline_index << ", " << sdp_mid << ", " << candidate << std::endl;
+    DEBUG_PRINT("Received remote ICE: %s, %d, %s",
+                sdp_mid.c_str(), sdp_mline_index, candidate.c_str());
     if (callback_) {
         callback_->OnRemoteIce(sdp_mid, sdp_mline_index, candidate);
     }
 }
 
 void MqttService::AnswerLocalSdp(std::string sdp, std::string type) {
-    std::cout << "Answer local [" << type << "] SDP:\n" << sdp << std::endl;
+    DEBUG_PRINT("Answer local [%s] SDP: %s", type.c_str(), sdp.c_str());
     nlohmann::json jsonData;
     jsonData["type"] = type;
     jsonData["sdp"] = sdp;
@@ -77,7 +79,8 @@ void MqttService::AnswerLocalSdp(std::string sdp, std::string type) {
 }
 
 void MqttService::AnswerLocalIce(std::string sdp_mid, int sdp_mline_index, std::string candidate) {
-    std::cout << "Sent local ICE: " << sdp_mid << ", " << sdp_mline_index << ", " << candidate << std::endl;
+    DEBUG_PRINT("Sent local ICE:  %s, %d, %s",
+                sdp_mid.c_str(), sdp_mline_index, candidate.c_str());
     nlohmann::json jsonData;
     jsonData["sdpMid"] = sdp_mid;
     jsonData["sdpMLineIndex"] = sdp_mline_index;
@@ -95,14 +98,14 @@ void MqttService::Disconnect() {
         connection_ = nullptr;
     }
     mosquitto_lib_cleanup();
-    std::cout << "MQTT service is released." << std::endl;
+    DEBUG_PRINT("MQTT service is released.");
 };
 
 void MqttService::Publish(const std::string& topic, const std::string& msg) {
     int rc = mosquitto_publish(connection_, NULL, topic.c_str(), 
                                msg.length(), msg.c_str(), 2, false);
     if (rc != MOSQ_ERR_SUCCESS) {
-        fprintf(stderr, "Error publishing: %s\n", mosquitto_strerror(rc));
+        ERROR_PRINT("Error publishing: %s", mosquitto_strerror(rc));
     }
 }
 
@@ -110,9 +113,9 @@ void MqttService::Subscribe(const std::string& topic) {
     int subscribe_result = mosquitto_subscribe_v5(
         connection_, nullptr, topic.c_str(), 0, MQTT_SUB_OPT_NO_LOCAL, nullptr);
     if (subscribe_result == MOSQ_ERR_SUCCESS) {
-        std::cout << "Successfully subscribed to topic: " << topic << std::endl;
+        DEBUG_PRINT("Successfully subscribed to topic: %s", topic.c_str());
     } else {
-        std::cout << "Failed to subscribe topic: " << topic << std::endl;
+        DEBUG_PRINT("Failed to subscribe topic: %s", topic.c_str());
     }
 }
 
@@ -120,10 +123,10 @@ void MqttService::OnConnect(struct mosquitto *mosq, void *obj, int result) {
     if (result == 0) {
         Subscribe(sdp_base_topic_ + "/+/offer");
         Subscribe(ice_base_topic_ + "/+/offer");
-        std::cout << "MQTT service is ready." << std::endl;
+        DEBUG_PRINT("MQTT service is ready.");
     } else {
         // todo: retry connection on failure
-        std::cerr << "Connect failed with error code: " << result << std::endl;
+        DEBUG_PRINT("Connect failed with error code: %d", result);
     }
 }
 
@@ -172,7 +175,7 @@ void MqttService::Connect() {
     }
 
     if (connection_ == nullptr) {
-        fprintf(stderr, "Error: fail to new mosquitto object.\n");
+        ERROR_PRINT("Failed to new mosquitto object.");
         return;
     }
 
@@ -193,12 +196,12 @@ void MqttService::Connect() {
     int rc = mosquitto_connect_async(connection_, hostname_.c_str(), port_, 60);
     if (rc != MOSQ_ERR_SUCCESS) {
         mosquitto_destroy(connection_);
-        fprintf(stderr, "Error: %s\n", mosquitto_strerror(rc));
+        ERROR_PRINT("%s", mosquitto_strerror(rc));
     }
 
     rc = mosquitto_loop_start(connection_); // already handle reconnections
     if (rc != MOSQ_ERR_SUCCESS) {
         mosquitto_destroy(connection_);
-        fprintf(stderr, "Error: %s\n", mosquitto_strerror(rc));
+        ERROR_PRINT("%s", mosquitto_strerror(rc));
     }
 }

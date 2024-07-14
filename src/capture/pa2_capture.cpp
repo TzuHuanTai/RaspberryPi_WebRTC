@@ -1,4 +1,5 @@
 #include "capture/pa2_capture.h"
+#include "common/logging.h"
 
 #define CHANNELS 2
 
@@ -64,13 +65,13 @@ void Pa2Capture::ReadCallback(pa_stream *s, size_t length, void *user_data) {
 void Pa2Capture::StateCallback(pa_stream *s, void *user_data) {
     switch (pa_stream_get_state(s)) {
         case PA_STREAM_READY:
-            std::cout << "Stream is ready." << std::endl;
+            DEBUG_PRINT("Stream is ready.");
             break;
         case PA_STREAM_FAILED:
-            std::cerr << "Stream failed: " << pa_strerror(pa_context_errno(pa_stream_get_context(s))) << std::endl;
+            ERROR_PRINT("%s", pa_strerror(pa_context_errno(pa_stream_get_context(s))));
             break;
         case PA_STREAM_TERMINATED:
-            std::cerr << "Stream terminated." << std::endl;
+            ERROR_PRINT("Stream terminated.");
             break;
         default:
             break;

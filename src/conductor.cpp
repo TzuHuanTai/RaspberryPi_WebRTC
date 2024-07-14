@@ -1,5 +1,6 @@
 #include "conductor.h"
 #include "common/utils.h"
+#include "common/logging.h"
 #include "track/v4l2dma_track_source.h"
 #include "customized_video_encoder_factory.h"
 
@@ -71,7 +72,7 @@ void Conductor::InitializeTracks() {
 
 void Conductor::AddTracks(rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer_connection) {
     if (!peer_connection->GetSenders().empty()) {
-        std::cout << "=> AddTracks: already add tracks." << std::endl;
+        DEBUG_PRINT("Already add tracks.");
         return;
     }
 
@@ -80,16 +81,14 @@ void Conductor::AddTracks(rtc::scoped_refptr<webrtc::PeerConnectionInterface> pe
     if (audio_track_) {
         auto audio_res = peer_connection->AddTrack(audio_track_, {stream_id});
         if (!audio_res.ok()) {
-            std::cout << "=> AddTracks: audio_track_ failed"
-                      << audio_res.error().message() << std::endl;
+            ERROR_PRINT("Failed to add audio track, %s", audio_res.error().message());
         }
     }
 
     if (video_track_) {
         auto video_res = peer_connection->AddTrack(video_track_, {stream_id});
         if (!video_res.ok()) {
-            std::cout << "=> AddTracks: video_track_ failed"
-                      << video_res.error().message() << std::endl;
+            ERROR_PRINT("Failed to add video track, %s", video_res.error().message());
         }
 
         auto video_sender_ = video_res.value();
@@ -118,56 +117,61 @@ bool Conductor::CreatePeerConnection() {
     auto result = peer_connection_factory_->CreatePeerConnectionOrError(
         config, webrtc::PeerConnectionDependencies(peer_.get()));
 
-    if (result.ok()) {
-        peer_->SetPeer(result.MoveValue());
-        peer_->CreateDataChannel();
-        peer_->OnSnapshot([this](std::shared_ptr<DataChannelSubject> datachannel) {
-            try {
-                auto i420buff = video_track_source_->GetI420Frame();
-                auto jpg_buffer = Utils::ConvertYuvToJpeg(i420buff->DataY(), args.width, args.height);
-
-                const int chunk_size = 16384; // 1024*16
-                const int file_size = jpg_buffer.length;
-                int offset = 0;
-
-                while (offset < file_size) {
-                    int current_chunk_size = std::min(chunk_size, file_size - offset);
-                    datachannel->Send(((uint8_t*)jpg_buffer.start + offset), current_chunk_size);
-                    offset += current_chunk_size;
-                }
-
-                std::string end_signal = "";
-                datachannel->Send((uint8_t*)end_signal.c_str(), end_signal.length());
-
-            } catch (const std::exception &e) {
-                std::cerr << "Error: " << e.what() << std::endl;
-            }
-        });
-        peer_->OnThumbnail([this](std::shared_ptr<DataChannelSubject> datachannel) {
-            if (args.record_path.empty()) {
-                return;
-            }
-            try {
-                auto latest_jpg_path = Utils::FindLatestJpg(args.record_path);
-                auto binary_data = Utils::ReadFileInBinary(latest_jpg_path);
-                auto base64_data = Utils::ToBase64(binary_data);
-                std::cout << "Send Image: " << latest_jpg_path << std::endl;
-                std::string data_uri = "data:image/jpeg;base64," + base64_data;
-                datachannel->Send(CommandType::THUMBNAIL, data_uri);
-            } catch (const std::exception &e) {
-                std::cerr << "Error: " << e.what() << std::endl;
-            }
-        });
-        peer_->OnReadyToConnect([this](PeerState state) {
-            SetPeerReadyState(state.isReadyToConnect);
-        });
-        AddTracks(peer_->GetPeer());
-        peers_map[peers_idx] = peer_;
-        std::cout << "[Conductor] Peer connection("<< peers_idx <<") is created!" << std::endl;
-        return true;
+    if (!result.ok()) {
+        DEBUG_PRINT("Peer connection is failed to create!");
+        return false;
     }
-    std::cout << "[Conductor] Peer connection is failed to create!" << std::endl;
-    return false;
+
+    peer_->SetPeer(result.MoveValue());
+    peer_->CreateDataChannel();
+    peer_->OnSnapshot([this](std::shared_ptr<DataChannelSubject> datachannel) {
+        try {
+            auto i420buff = video_track_source_->GetI420Frame();
+            auto jpg_buffer = Utils::ConvertYuvToJpeg(i420buff->DataY(), args.width, args.height);
+
+            const int chunk_size = 16384; // 1024*16
+            const int file_size = jpg_buffer.length;
+            int offset = 0;
+
+            while (offset < file_size) {
+                int current_chunk_size = std::min(chunk_size, file_size - offset);
+                datachannel->Send(((uint8_t*)jpg_buffer.start + offset), current_chunk_size);
+                offset += current_chunk_size;
+            }
+
+            std::string end_signal = "";
+            datachannel->Send((uint8_t*)end_signal.c_str(), end_signal.length());
+        } catch (const std::exception &e) {
+            ERROR_PRINT("%s", e.what());
+        }
+    });
+
+    peer_->OnThumbnail([this](std::shared_ptr<DataChannelSubject> datachannel) {
+        if (args.record_path.empty()) {
+            return;
+        }
+        try {
+            auto latest_jpg_path = Utils::FindLatestJpg(args.record_path);
+            auto binary_data = Utils::ReadFileInBinary(latest_jpg_path);
+            auto base64_data = Utils::ToBase64(binary_data);
+
+            DEBUG_PRINT("Send Image: %s", latest_jpg_path.c_str());
+            std::string data_uri = "data:image/jpeg;base64," + base64_data;
+            datachannel->Send(CommandType::THUMBNAIL, data_uri);
+        } catch (const std::exception &e) {
+            ERROR_PRINT("%s", e.what());
+        }
+    });
+
+    peer_->OnReadyToConnect([this](PeerState state) {
+        SetPeerReadyState(state.isReadyToConnect);
+    });
+
+    AddTracks(peer_->GetPeer());
+    peers_map[peers_idx] = peer_;
+
+    DEBUG_PRINT("Peer connection(%d) is created!", peers_idx);
+    return true;
 }
 
 rtc::scoped_refptr<webrtc::PeerConnectionInterface> Conductor::GetPeer() const {
@@ -186,13 +190,13 @@ void Conductor::InitializePeerConnectionFactory() {
     signaling_thread_ = rtc::Thread::Create();
 
     if (network_thread_->Start()) {
-        std::cout << "=> network thread start: success!" << std::endl;
+        DEBUG_PRINT("network thread start: success!");
     }
     if (worker_thread_->Start()) {
-        std::cout << "=> worker thread start: success!" << std::endl;
+        DEBUG_PRINT("worker thread start: success!");
     }
     if (signaling_thread_->Start()) {
-        std::cout << "=> signaling thread start: success!" << std::endl;
+        DEBUG_PRINT("signaling thread start: success!");
     }
 
     webrtc::PeerConnectionFactoryDependencies dependencies;
@@ -225,12 +229,6 @@ void Conductor::InitializePeerConnectionFactory() {
     dependencies.media_engine = cricket::CreateMediaEngine(std::move(media_dependencies));
 
     peer_connection_factory_ = CreateModularPeerConnectionFactory(std::move(dependencies));
-
-    if (!peer_connection_factory_) {
-        std::cout << "=> peer_connection_factory: failed" << std::endl;
-    } else {
-        std::cout << "=> peer_connection_factory: success!" << std::endl;
-    }
 }
 
 void Conductor::SetPeerReadyState(bool state) {
@@ -264,15 +262,14 @@ void Conductor::AwaitCompletion() {
 void Conductor::RefreshPeerList() {
     auto pm_it = peers_map.begin();
     while(pm_it != peers_map.end()) {
-        printf("[Conductor][Map] key:%d, value: %d =====\n", pm_it->second->GetId(), pm_it->second->IsConnected());
+        DEBUG_PRINT("Found peers_map key: %d, value: %d", pm_it->second->GetId(), pm_it->second->IsConnected());
 
         if (pm_it->second && !pm_it->second->IsConnected()) {
             int id = pm_it->second->GetId();
-            std::cout << "[Conductor] peer(" << id << ") was ready to erase." << std::endl;
             pm_it->second.release();
             pm_it->second = nullptr;
             pm_it = peers_map.erase(pm_it);
-            std::cout << "[Conductor] peer(" << id << ") was erased!"<< std::endl;
+            DEBUG_PRINT("peers_map(%d) was erased.", id);
         } else {
             ++pm_it;
         }
@@ -285,5 +282,4 @@ Conductor::~Conductor() {
     video_capture_source_ = nullptr;
     peer_connection_factory_ = nullptr;
     rtc::CleanupSSL();
-    std::cout << "[Conductor]: destroyed!" << std::endl;
 }
