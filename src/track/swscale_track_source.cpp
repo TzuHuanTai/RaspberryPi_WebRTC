@@ -33,13 +33,11 @@ SwScaleTrackSource::~SwScaleTrackSource() {
 void SwScaleTrackSource::StartTrack() {
     auto observer = capture_->AsObservable();
     observer->Subscribe([this](rtc::scoped_refptr<V4l2FrameBuffer> &frame_buffer) {
-        V4l2Buffer buffer((void*)frame_buffer->Data(), frame_buffer->size(),
-                          frame_buffer->flags(), frame_buffer->timestamp());
-        OnFrameCaptured(buffer);
+        OnFrameCaptured(frame_buffer);
     });
 }
 
-void SwScaleTrackSource::OnFrameCaptured(V4l2Buffer &buffer) {
+void SwScaleTrackSource::OnFrameCaptured(rtc::scoped_refptr<V4l2FrameBuffer> &frame_buffer) {
     rtc::scoped_refptr<webrtc::VideoFrameBuffer> dst_buffer = nullptr;
     rtc::TimestampAligner timestamp_aligner_;
     const int64_t timestamp_us = rtc::TimeMicros();
@@ -55,7 +53,7 @@ void SwScaleTrackSource::OnFrameCaptured(V4l2Buffer &buffer) {
     rtc::scoped_refptr<webrtc::I420Buffer> i420_buffer(webrtc::I420Buffer::Create(width_, height_));
     i420_buffer->InitializeData();
 
-    if (libyuv::ConvertToI420((uint8_t *)buffer.start, buffer.length,
+    if (libyuv::ConvertToI420((uint8_t *)frame_buffer->Data(), frame_buffer->size(),
                               i420_buffer.get()->MutableDataY(), i420_buffer.get()->StrideY(),
                               i420_buffer.get()->MutableDataU(), i420_buffer.get()->StrideU(),
                               i420_buffer.get()->MutableDataV(), i420_buffer.get()->StrideV(),
