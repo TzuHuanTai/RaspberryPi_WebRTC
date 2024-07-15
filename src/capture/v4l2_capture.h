@@ -3,12 +3,13 @@
 
 #include "args.h"
 #include "common/v4l2_utils.h"
+#include "common/v4l2_frame_buffer.h"
 #include "common/interface/subject.h"
 #include "common/worker.h"
 
 #include <modules/video_capture/video_capture.h>
 
-class V4L2Capture : public Subject<V4l2Buffer>
+class V4L2Capture : public Subject<rtc::scoped_refptr<V4l2FrameBuffer>>
 {
 public:
     V4L2Capture(Args args);
@@ -26,8 +27,7 @@ public:
     V4L2Capture &SetFps(int fps = 30);
     V4L2Capture &SetRotation(int angle);
     void StartCapture();
-    const V4l2Buffer& GetImage() const;
-    void Next(V4l2Buffer& message) override;
+    void Next(rtc::scoped_refptr<V4l2FrameBuffer> &message) override;
 
 private:
     int fd_;
@@ -40,7 +40,6 @@ private:
     uint32_t format_;
     Args config_;
     V4l2BufferGroup capture_;
-    V4l2Buffer shared_buffer_;
     webrtc::VideoType video_type_;
     std::unique_ptr<Worker> worker_;
 

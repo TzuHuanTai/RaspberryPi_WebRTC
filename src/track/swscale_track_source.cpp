@@ -32,7 +32,9 @@ SwScaleTrackSource::~SwScaleTrackSource() {
 
 void SwScaleTrackSource::StartTrack() {
     auto observer = capture_->AsObservable();
-    observer->Subscribe([this](V4l2Buffer &buffer) {
+    observer->Subscribe([this](rtc::scoped_refptr<V4l2FrameBuffer> &frame_buffer) {
+        V4l2Buffer buffer((void*)frame_buffer->Data(), frame_buffer->size(),
+                          frame_buffer->flags(), frame_buffer->timestamp());
         OnFrameCaptured(buffer);
     });
 }

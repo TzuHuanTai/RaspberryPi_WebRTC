@@ -5,6 +5,7 @@
 #include "recorder/utils.h"
 #include "common/utils.h"
 #include "common/logging.h"
+#include "common/v4l2_frame_buffer.h"
 
 #include <csignal>
 #include <filesystem>
@@ -59,24 +60,24 @@ RecorderManager::RecorderManager(std::string record_path)
 
 void RecorderManager::SubscribeVideoSource(std::shared_ptr<V4L2Capture> video_src) {
     video_observer = video_src->AsObservable();
-    video_observer->Subscribe([this](V4l2Buffer buffer) {
+    video_observer->Subscribe([this](rtc::scoped_refptr<V4l2FrameBuffer> &buffer) {
         // waiting first keyframe to start recorders.
-        if (!has_first_keyframe && (buffer.flags & V4L2_BUF_FLAG_KEYFRAME)) {
+        if (!has_first_keyframe && (buffer->flags() & V4L2_BUF_FLAG_KEYFRAME)) {
             Start();
-            last_created_time_ = buffer.timestamp;
+            last_created_time_ = buffer->timestamp();
         }
 
         // restart to write in the new file.
-        if (elapsed_time_ >= SECOND_PER_FILE && buffer.flags & V4L2_BUF_FLAG_KEYFRAME) {
-            last_created_time_ = buffer.timestamp;
+        if (elapsed_time_ >= SECOND_PER_FILE && buffer->flags() & V4L2_BUF_FLAG_KEYFRAME) {
+            last_created_time_ = buffer->timestamp();
             Stop();
             Start();
         }
 
         if (has_first_keyframe && video_recorder) {
             video_recorder->OnBuffer(buffer);
-            elapsed_time_ = (buffer.timestamp.tv_sec - last_created_time_.tv_sec) +
-                            (buffer.timestamp.tv_usec - last_created_time_.tv_usec) / 1000000.0;
+            elapsed_time_ = (buffer->timestamp().tv_sec - last_created_time_.tv_sec) +
+                            (buffer->timestamp().tv_usec - last_created_time_.tv_usec) / 1000000.0;
         }
     });
 
