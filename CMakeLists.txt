@@ -8,6 +8,8 @@ string(TOLOWER "${CMAKE_BUILD_TYPE}" BUILD_TYPE_LOWER)
 if(NOT BUILD_TYPE_LOWER OR BUILD_TYPE_LOWER STREQUAL "debug")
     set(CMAKE_BUILD_TYPE Debug CACHE STRING "Choose the type of build (Debug or Release)" FORCE)
     add_definitions(-DDEBUG_MODE)
+else()
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2")
 endif()
 
 if(USE_BUILT_IN_H264)
