@@ -58,7 +58,7 @@ bool V4l2Codec::IsCapturing() {
 }
 
 void V4l2Codec::EmplaceBuffer(V4l2Buffer &buffer, 
-                              std::function<void(V4l2Buffer)>on_capture) {
+                              std::function<void(V4l2Buffer&)>on_capture) {
     if (OutputBuffer(buffer)) {
         capturing_tasks_.push(on_capture);
     }

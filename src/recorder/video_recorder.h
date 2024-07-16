@@ -3,6 +3,7 @@
 
 #include "args.h"
 #include "common/v4l2_utils.h"
+#include "common/v4l2_frame_buffer.h"
 #include "recorder/recorder.h"
 #include "v4l2_codecs/v4l2_decoder.h"
 
@@ -15,11 +16,11 @@ extern "C"
 #include <libavformat/avformat.h>
 }
 
-class VideoRecorder : public Recorder<V4l2Buffer> {
+class VideoRecorder : public Recorder<rtc::scoped_refptr<V4l2FrameBuffer>> {
 public:
     VideoRecorder(Args config, std::string encoder_name);
     virtual ~VideoRecorder() {};
-    void OnBuffer(V4l2Buffer &buffer) override;
+    void OnBuffer(rtc::scoped_refptr<V4l2FrameBuffer> &buffer) override;
     void PostStop() override;
     void SetFilename(std::string &name);
 
@@ -29,7 +30,7 @@ protected:
     bool has_first_keyframe;
     std::string filename;
     std::string encoder_name;
-    std::queue<V4l2Buffer> raw_buffer_queue;
+    std::queue<rtc::scoped_refptr<V4l2FrameBuffer>> frame_buffer_queue;
 
     AVRational frame_rate;
 

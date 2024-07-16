@@ -19,7 +19,7 @@ public:
     void Start();
     void Stop();
     bool IsCapturing();
-    void EmplaceBuffer(V4l2Buffer &buffer, std::function<void(V4l2Buffer)>on_capture);
+    void EmplaceBuffer(V4l2Buffer &buffer, std::function<void(V4l2Buffer&)>on_capture);
     void ReleaseCodec();
 
 protected:
@@ -29,7 +29,7 @@ protected:
     V4l2BufferGroup capture_;
     std::queue<int> output_buffer_index_;
     std::unique_ptr<Worker> worker_;
-    std::queue<std::function<void(V4l2Buffer)>> capturing_tasks_;
+    std::queue<std::function<void(V4l2Buffer&)>> capturing_tasks_;
     virtual void HandleEvent() {};
 
 private:

@@ -19,6 +19,8 @@ rtc::scoped_refptr<V4l2DmaTrackSource> V4l2DmaTrackSource::Create(
 
 V4l2DmaTrackSource::V4l2DmaTrackSource(std::shared_ptr<V4L2Capture> capture)
     : SwScaleTrackSource(capture),
+      is_dma_(capture_->is_dma()),
+      format_(capture_->format()),
       has_first_keyframe_(false) {}
 
 V4l2DmaTrackSource::~V4l2DmaTrackSource() {
@@ -28,60 +30,56 @@ V4l2DmaTrackSource::~V4l2DmaTrackSource() {
 
 void V4l2DmaTrackSource::Init() {
     scaler_ = std::make_unique<V4l2Scaler>();
-    scaler_->Configure(width_, height_, width_, height_, true, capture_->is_dma());
+    scaler_->Configure(width_, height_, width_, height_, true, is_dma_);
+    scaler_->Start();
 
     decoder_ = std::make_unique<V4l2Decoder>();
-    decoder_->Configure(width_, height_, capture_->format(), true);
+    decoder_->Configure(width_, height_, format_, true);
+    decoder_->Start();
 }
 
-void V4l2DmaTrackSource::OnFrameCaptured(V4l2Buffer &buffer) {
-    rtc::TimestampAligner timestamp_aligner_;
-    const int64_t timestamp_us = rtc::TimeMicros();
-    const int64_t translated_timestamp_us =
-        timestamp_aligner_.TranslateTimestamp(timestamp_us, rtc::TimeMicros());
+void V4l2DmaTrackSource::OnFrameCaptured(rtc::scoped_refptr<V4l2FrameBuffer> &frame_buffer) {
 
-    int adapted_width, adapted_height, crop_width, crop_height, crop_x, crop_y;
-    if (!AdaptFrame(width_, height_, timestamp_us, &adapted_width, &adapted_height,
-                    &crop_width, &crop_height, &crop_x, &crop_y)) {
-        return;
-    }
-
-    if (adapted_width != config_width_ || adapted_height != config_height_) {
-        config_width_ = adapted_width;
-        config_height_ = adapted_height;
-        scaler_->ReleaseCodec();
-        scaler_->Configure(width_, height_, config_width_,
-                            config_height_, true, capture_->is_dma());
-        scaler_->Start();
-        if (capture_->format() == V4L2_PIX_FMT_MJPEG) {
-            decoder_->ReleaseCodec();
-            decoder_->Configure(width_, height_, capture_->format(), true);
-            decoder_->Start();
-        }
-    }
-
-    if (!decoder_->IsCapturing()) {
-        printf("!decoder_->IsCapturing(), width: %d, height: %d\n", width_, height_);
-        decoder_->Start();
-    }
-
-    if (!scaler_->IsCapturing()) {
-        printf("!scaler_->IsCapturing(), width: %d, height: %d\n", adapted_width, adapted_height);
-        scaler_->Start();
-    }
-
-    if (capture_->format() == V4L2_PIX_FMT_H264 && !has_first_keyframe_) {
-        if (buffer.flags & V4L2_BUF_FLAG_KEYFRAME) {
+    if (!has_first_keyframe_) {
+        if (frame_buffer->flags() & V4L2_BUF_FLAG_KEYFRAME) {
             has_first_keyframe_ = true;
         } else {
             return;
         }
     }
 
-    decoder_->EmplaceBuffer(buffer, [this, translated_timestamp_us](V4l2Buffer decoded_buffer) {
+    V4l2Buffer buffer((void*)frame_buffer->Data(), frame_buffer->size(),
+                          frame_buffer->flags(), frame_buffer->timestamp());
+
+    decoder_->EmplaceBuffer(buffer, [this](V4l2Buffer decoded_buffer) {
 
         if (!i420_raw_buffer_) {
             i420_raw_buffer_ = RawBuffer::Create(width_, height_, decoded_buffer.length, decoded_buffer);
+        }
+
+        static rtc::TimestampAligner timestamp_aligner_;
+        const int64_t timestamp_us = rtc::TimeMicros();
+        const int64_t translated_timestamp_us =
+            timestamp_aligner_.TranslateTimestamp(timestamp_us, rtc::TimeMicros());
+
+        int adapted_width, adapted_height, crop_width, crop_height, crop_x, crop_y;
+        if (!AdaptFrame(width_, height_, timestamp_us, &adapted_width, &adapted_height,
+                        &crop_width, &crop_height, &crop_x, &crop_y)) {
+            return;
+        }
+
+        if (adapted_width != config_width_ || adapted_height != config_height_) {
+            config_width_ = adapted_width;
+            config_height_ = adapted_height;
+            scaler_->ReleaseCodec();
+            scaler_->Configure(width_, height_, config_width_,
+                                config_height_, true, is_dma_);
+            scaler_->Start();
+            if (format_ == V4L2_PIX_FMT_MJPEG) {
+                decoder_->ReleaseCodec();
+                decoder_->Configure(width_, height_, format_, true);
+                decoder_->Start();
+            }
         }
 
         scaler_->EmplaceBuffer(decoded_buffer, [this, translated_timestamp_us](V4l2Buffer scaled_buffer) {

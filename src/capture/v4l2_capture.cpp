@@ -165,28 +165,24 @@ void V4L2Capture::CaptureImage() {
         return;
     }
 
-    shared_buffer_.start = capture_.buffers[buf.index].start;
-    shared_buffer_.length = buf.bytesused;
-    shared_buffer_.flags = buf.flags;
-    shared_buffer_.timestamp = buf.timestamp;
+    rtc::scoped_refptr<V4l2FrameBuffer> frame_buffer(
+        V4l2FrameBuffer::Create(width_, height_, buf.bytesused, format_));
+    frame_buffer->CopyBuffer((uint8_t*)capture_.buffers[buf.index].start,
+                                buf.bytesused, buf.flags, buf.timestamp);
 
     if (!V4l2Util::QueueBuffer(fd_, &buf)) {
         return;
     }
 
-    Next(shared_buffer_);
+    Next(frame_buffer);
 }
 
-void V4L2Capture::Next(V4l2Buffer &buffer) {
+void V4L2Capture::Next(rtc::scoped_refptr<V4l2FrameBuffer> &buffer) {
      for (auto &observer : observers_) {
         if (observer && observer->subscribed_func_ != nullptr) {
             observer->subscribed_func_(buffer);
         }
     }
-}        
-
-const V4l2Buffer& V4L2Capture::GetImage() const {
-    return shared_buffer_;
 }
 
 void V4L2Capture::StartCapture() {

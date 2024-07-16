@@ -25,12 +25,9 @@ void VideoRecorder::InitializeEncoderCtx(AVCodecContext* &encoder) {
     encoder->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
 }
 
-void VideoRecorder::OnBuffer(V4l2Buffer &raw_buffer) {
-    if (raw_buffer_queue.size() < config.fps * 10) {
-        V4l2Buffer buf(malloc(raw_buffer.length), raw_buffer.length,
-                       raw_buffer.flags, raw_buffer.timestamp);
-        memcpy(buf.start, raw_buffer.start, raw_buffer.length); 
-        raw_buffer_queue.push(std::move(buf));
+void VideoRecorder::OnBuffer(rtc::scoped_refptr<V4l2FrameBuffer> &buffer) {
+    if (frame_buffer_queue.size() < config.fps * 10) {
+        frame_buffer_queue.push(buffer);
     }
 }
 
@@ -40,8 +37,8 @@ void VideoRecorder::SetFilename(std::string &name) {
 
 void VideoRecorder::PostStop() {
     // Wait P-frames are all consumed until I-frame appear.
-    while (!raw_buffer_queue.empty() && 
-           (raw_buffer_queue.front().flags & V4L2_BUF_FLAG_KEYFRAME) != 0) {
+    while (!frame_buffer_queue.empty() && 
+           (frame_buffer_queue.front()->flags() & V4L2_BUF_FLAG_KEYFRAME) != 0) {
         ConsumeBuffer();
     }
     feeded_frames = 0;
@@ -77,10 +74,13 @@ void VideoRecorder::OnEncoded(V4l2Buffer &buffer) {
 }
 
 bool VideoRecorder::ConsumeBuffer() {
-    if (raw_buffer_queue.empty()) {
+    if (frame_buffer_queue.empty()) {
         return false;
     }
-    auto buffer = std::move(raw_buffer_queue.front());
+    auto frame_buffer = frame_buffer_queue.front();
+
+    V4l2Buffer buffer((void*)frame_buffer->Data(), frame_buffer->size(),
+                      frame_buffer->flags(), frame_buffer->timestamp());
 
     Encode(buffer);
 
@@ -90,11 +90,8 @@ bool VideoRecorder::ConsumeBuffer() {
         image_decoder_->ReleaseCodec();
     }
 
-    if (buffer.start != nullptr) {
-        free(buffer.start);
-        buffer.start = nullptr;
-    }
-    raw_buffer_queue.pop();
+    frame_buffer_queue.pop();
+
     return true;
 }
 
