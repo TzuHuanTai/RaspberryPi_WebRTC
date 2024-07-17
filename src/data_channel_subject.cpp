@@ -23,7 +23,7 @@ void DataChannelSubject::OnMessage(const webrtc::DataBuffer &buffer) {
     Next(message);
 }
 
-void DataChannelSubject::Next(std::string &message) {
+void DataChannelSubject::Next(std::string message) {
     try {
         json jsonObj = json::parse(message.c_str());
 
