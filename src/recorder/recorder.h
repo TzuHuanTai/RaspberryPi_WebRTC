@@ -3,6 +3,8 @@
 #include "common/interface/subject.h"
 #include "common/worker.h"
 
+#include <mutex>
+
 extern "C"
 {
 #include <libavcodec/avcodec.h>
@@ -22,24 +24,18 @@ public:
     virtual void OnBuffer(T &buffer) = 0;
 
     void Initialize() {
+        avcodec_free_context(&encoder);
         InitializeEncoderCtx(encoder);
         worker.reset(new Worker("Recorder", [this]() { 
             while (is_started && ConsumeBuffer()) {}
             usleep(100000);
         }));
-        worker->Run();
-    }
-
-    void ResetCodecCtx() {
-        avcodec_free_context(&encoder);
-        InitializeEncoderCtx(encoder);
     }
 
     virtual void PostStop() {};
     virtual void PreStart() {};
 
     bool AddStream(AVFormatContext *output_fmt_ctx) {
-        ResetCodecCtx();
         file_url = output_fmt_ctx->url;
         st = avformat_new_stream(output_fmt_ctx, encoder->codec);
         avcodec_parameters_from_context(st->codecpar, encoder);
@@ -53,16 +49,19 @@ public:
 
     void Stop() {
         is_started = false;
+        worker.reset();
         PostStop();
     }
 
     void Start() {
+        Initialize();
         PreStart();
         is_started = true;
+        worker->Run();
     }
 
 protected:
-    bool is_started;
+    std::atomic<bool> is_started;
     std::string file_url;
     OnPacketedFunc on_packeted;
     std::unique_ptr<Worker> worker;

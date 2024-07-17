@@ -20,13 +20,13 @@ public:
     void PreStart() override;
 
 private:
-    int sample_rate;;
+    int sample_rate;
     int channels = 2;
     int frame_size;
     unsigned int frame_count;
     std::string encoder_name;
     AVAudioFifo* fifo_buffer;
-    AVSampleFormat sample_fmt = AV_SAMPLE_FMT_FLTP;
+    AVSampleFormat sample_fmt;
     AVFrame *frame;
 
     void Encode();

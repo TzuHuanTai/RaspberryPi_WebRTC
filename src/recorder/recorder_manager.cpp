@@ -130,7 +130,7 @@ void RecorderManager::StartRotationThread() {
 
 void RecorderManager::SubscribeVideoSource(std::shared_ptr<V4L2Capture> video_src) {
     video_observer = video_src->AsObservable();
-    video_observer->Subscribe([this](rtc::scoped_refptr<V4l2FrameBuffer> &buffer) {
+    video_observer->Subscribe([this](rtc::scoped_refptr<V4l2FrameBuffer> buffer) {
         // waiting first keyframe to start recorders.
         if (!has_first_keyframe && (buffer->flags() & V4L2_BUF_FLAG_KEYFRAME)) {
             Start();
@@ -206,7 +206,6 @@ void RecorderManager::Start() {
 }
 
 void RecorderManager::Stop() {
-    std::lock_guard<std::mutex> lock(ctx_mux);
     if (video_recorder) {
         video_recorder->Stop();
     }
@@ -215,6 +214,7 @@ void RecorderManager::Stop() {
     }
 
     if (fmt_ctx) {
+        std::lock_guard<std::mutex> lock(ctx_mux);
         RecUtil::CloseContext(fmt_ctx);
         fmt_ctx = nullptr;
     }
