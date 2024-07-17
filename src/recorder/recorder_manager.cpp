@@ -86,6 +86,9 @@ std::unique_ptr<RecorderManager> RecorderManager::Create(
         instance->CreateAudioRecorder(audio_src);
         instance->SubscribeAudioSource(audio_src);
     }
+
+    instance->StartRotationThread();
+
     return instance;
 }
 
@@ -114,6 +117,16 @@ RecorderManager::RecorderManager(std::string record_path)
       has_first_keyframe(false),
       record_path(record_path),
       elapsed_time_(0.0) {}
+
+void RecorderManager::StartRotationThread() {
+    rotation_worker_.reset(new Worker("Record Rotation", [this]() {
+        if (!Utils::CheckDriveSpace(record_path, 400)) {
+            Utils::RotateFiles(record_path);
+        }
+        sleep(60);
+    }));
+    rotation_worker_->Run();
+}
 
 void RecorderManager::SubscribeVideoSource(std::shared_ptr<V4L2Capture> video_src) {
     video_observer = video_src->AsObservable();
@@ -174,11 +187,12 @@ void RecorderManager::Start() {
     }
 
     std::lock_guard<std::mutex> lock(ctx_mux);
-    filename = Utils::GenerateFilename();
-    fmt_ctx = RecUtil::CreateContainer(record_path, filename);
+    auto file_info = Utils::GenerateFilename();
+    auto folder = record_path + file_info.date + "/" + file_info.hour;
+    Utils::CreateFolder(folder);
+    fmt_ctx = RecUtil::CreateContainer(folder, file_info.filename);
 
     if (video_recorder) {
-        video_recorder->SetFilename(filename);
         video_recorder->AddStream(fmt_ctx);
         video_recorder->Start();
     }
@@ -207,9 +221,10 @@ void RecorderManager::Stop() {
 }
 
 RecorderManager::~RecorderManager() {
+    Stop();
     video_recorder.reset();
     audio_recorder.reset();
     video_observer->UnSubscribe();
     audio_observer->UnSubscribe();
-    Stop();    
+    rotation_worker_.reset();
 }

@@ -43,7 +43,6 @@ protected:
     int width;
     int height;
     std::string record_path;
-    std::string filename;
     AVFormatContext *fmt_ctx;
     bool has_first_keyframe;
     std::shared_ptr<Observable<rtc::scoped_refptr<V4l2FrameBuffer>>> video_observer;
@@ -59,6 +58,9 @@ protected:
 private:
     double elapsed_time_;
     struct timeval last_created_time_;
+    std::unique_ptr<Worker> rotation_worker_;
+
+    void StartRotationThread();
 };
 
 #endif

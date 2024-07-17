@@ -31,10 +31,6 @@ void VideoRecorder::OnBuffer(rtc::scoped_refptr<V4l2FrameBuffer> &buffer) {
     }
 }
 
-void VideoRecorder::SetFilename(std::string &name) {
-    filename = name;
-}
-
 void VideoRecorder::PostStop() {
     // Wait P-frames are all consumed until I-frame appear.
     while (!frame_buffer_queue.empty() && 
@@ -111,8 +107,19 @@ void VideoRecorder::MakePreviewImage(V4l2Buffer &buffer) {
             auto raw_buffer = RawBuffer::Create(config.width, config.height, decoded_buffer.length, decoded_buffer);
             auto i420buff = raw_buffer->ToI420();
             Utils::CreateJpegImage(i420buff->DataY(), i420buff->width(), i420buff->height(),
-                                    config.record_path, filename);
+                                   ReplaceExtension(file_url, ".jpg"));
             feeded_frames = -1;
         });
+    }
+}
+
+std::string VideoRecorder::ReplaceExtension(const std::string &url, const std::string &new_extension) {
+    size_t last_dot_pos = url.find_last_of('.');
+    if (last_dot_pos == std::string::npos) {
+        // No extension found, append the new extension
+        return url + new_extension;
+    } else {
+        // Replace the existing extension
+        return url.substr(0, last_dot_pos) + new_extension;
     }
 }
