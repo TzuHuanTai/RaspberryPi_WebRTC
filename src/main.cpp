@@ -5,21 +5,20 @@
 #include "conductor.h"
 #include "common/utils.h"
 #include "common/logging.h"
-#include "recorder/background_recorder.h"
+#include "recorder/recorder_manager.h"
 
 int main(int argc, char *argv[]) {
     Args args;
     Parser::ParseArgs(argc, argv, args);
 
     std::shared_ptr<Conductor> conductor = Conductor::Create(args);
-    std::unique_ptr<BackgroundRecorder> bg_recorder;
+    std::unique_ptr<RecorderManager> recorder_mgr;
 
     if (Utils::CreateFolder(args.record_path)) {
-        bg_recorder = BackgroundRecorder::Create(conductor);
-        bg_recorder->Start();
-        DEBUG_PRINT("Background recorder is running!");
+        recorder_mgr = RecorderManager::Create(conductor, args.record_path);
+        DEBUG_PRINT("Recorder is running!");
     } else {
-        DEBUG_PRINT("Background recorder is not started!");
+        DEBUG_PRINT("Recorder is not started!");
     }
 
     try {

@@ -13,6 +13,7 @@ AudioRecorder::AudioRecorder(Args config)
     : Recorder(),
       sample_rate(config.sample_rate),
       channels(2),
+      sample_fmt(AV_SAMPLE_FMT_FLTP),
       encoder_name("aac") { }
 
 AudioRecorder::~AudioRecorder() {}
@@ -47,7 +48,7 @@ void AudioRecorder::InitializeFrame() {
 }
 
 void AudioRecorder::InitializeFifoBuffer() {
-    fifo_buffer = av_audio_fifo_alloc(encoder->sample_fmt, encoder->channels, 1);
+    fifo_buffer = av_audio_fifo_alloc(sample_fmt, channels, 1);
     if (fifo_buffer == nullptr) {
         DEBUG_PRINT("Failed to initialize audio fifo buffer.");
     }
@@ -134,6 +135,9 @@ bool AudioRecorder::ConsumeBuffer() {
 void AudioRecorder::PreStart() {
     frame_count = 0;
 
-    // Skip redundant frame to ensure sync
-    av_audio_fifo_drain(fifo_buffer, av_audio_fifo_size(fifo_buffer));
+    // Skip redundant frame to ensure sync and keep 1 frame only
+    int fifo_size = av_audio_fifo_size(fifo_buffer);
+    if (fifo_size > frame_size) {
+        av_audio_fifo_drain(fifo_buffer, fifo_size - frame_size);
+    }
 }

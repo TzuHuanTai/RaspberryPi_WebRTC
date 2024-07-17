@@ -16,7 +16,7 @@ public:
 
 protected:
     void Init();
-    void OnFrameCaptured(rtc::scoped_refptr<V4l2FrameBuffer> &buffer) override;
+    void OnFrameCaptured(rtc::scoped_refptr<V4l2FrameBuffer> buffer) override;
 
 private:
     const bool is_dma_;

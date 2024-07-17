@@ -177,7 +177,7 @@ void V4L2Capture::CaptureImage() {
     Next(frame_buffer);
 }
 
-void V4L2Capture::Next(rtc::scoped_refptr<V4l2FrameBuffer> &buffer) {
+void V4L2Capture::Next(rtc::scoped_refptr<V4l2FrameBuffer> buffer) {
      for (auto &observer : observers_) {
         if (observer && observer->subscribed_func_ != nullptr) {
             observer->subscribed_func_(buffer);

@@ -27,7 +27,7 @@ public:
     V4L2Capture &SetFps(int fps = 30);
     V4L2Capture &SetRotation(int angle);
     void StartCapture();
-    void Next(rtc::scoped_refptr<V4l2FrameBuffer> &message) override;
+    void Next(rtc::scoped_refptr<V4l2FrameBuffer> message) override;
 
 private:
     int fd_;

@@ -38,7 +38,7 @@ void V4l2DmaTrackSource::Init() {
     decoder_->Start();
 }
 
-void V4l2DmaTrackSource::OnFrameCaptured(rtc::scoped_refptr<V4l2FrameBuffer> &frame_buffer) {
+void V4l2DmaTrackSource::OnFrameCaptured(rtc::scoped_refptr<V4l2FrameBuffer> frame_buffer) {
 
     if (!has_first_keyframe_) {
         if (frame_buffer->flags() & V4L2_BUF_FLAG_KEYFRAME) {

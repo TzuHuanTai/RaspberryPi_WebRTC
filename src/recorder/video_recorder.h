@@ -22,13 +22,11 @@ public:
     virtual ~VideoRecorder() {};
     void OnBuffer(rtc::scoped_refptr<V4l2FrameBuffer> &buffer) override;
     void PostStop() override;
-    void SetFilename(std::string &name);
 
 protected:
     Args config;
     std::atomic<int> feeded_frames;
     bool has_first_keyframe;
-    std::string filename;
     std::string encoder_name;
     std::queue<rtc::scoped_refptr<V4l2FrameBuffer>> frame_buffer_queue;
 
@@ -47,7 +45,7 @@ private:
     bool ConsumeBuffer() override;
     void MakePreviewImage(V4l2Buffer &raw_buffer);
     void InitializeImageDecoder();
-    void SavePreviewImage(V4l2Buffer &decoded_buffer);
+    std::string ReplaceExtension(const std::string &url, const std::string &new_extension);
 };
 
 #endif  // VIDEO_RECODER_H_

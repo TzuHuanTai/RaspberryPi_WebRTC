@@ -41,7 +41,7 @@ public:
     void OnMessage(const webrtc::DataBuffer &buffer) override;
 
     // Subject
-    void Next(std::string &message) override;
+    void Next(std::string message) override;
     std::shared_ptr<Observable<std::string>> AsObservable() override;
     std::shared_ptr<Observable<std::string>> AsObservable(CommandType type);
     void UnSubscribe() override;

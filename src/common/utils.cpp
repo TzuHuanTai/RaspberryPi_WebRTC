@@ -1,23 +1,93 @@
-#include "utils.h"
+#include "common/utils.h"
 #include "common/logging.h"
 
 #include <third_party/libyuv/include/libyuv.h>
 #include <jpeglib.h>
 
+#include <iostream>
+#include <vector>
+#include <algorithm>
+
+namespace fs = std::filesystem;
+
 bool Utils::CreateFolder(const std::string& folder_path) {
     if (folder_path.empty()) {
         return false;
     }
-    if (!std::filesystem::exists(folder_path)) {
-        if (!std::filesystem::create_directory(folder_path)) {
-            std::cerr << "Failed to create directory: " << folder_path << std::endl;
-            return false;
-        }
+
+    try {
+        fs::create_directories(fs::path(folder_path).parent_path());
+
+        fs::create_directory(folder_path);
         DEBUG_PRINT("Directory created: %s", folder_path.c_str());
-    } else {
-        DEBUG_PRINT("Directory already exists: %s", folder_path.c_str());
+        return true;
+    } catch (const fs::filesystem_error& e) {
+        std::cerr << "Failed to create directory: " << folder_path << std::endl;
+        std::cerr << e.what() << std::endl;
+        return false;
     }
-    return true;
+}
+
+void Utils::RotateFiles(std::string folder_path) {
+    std::vector<fs::path> date_folders;
+
+    for (const auto& entry : fs::directory_iterator(folder_path)) {
+        if (entry.is_directory()) {
+            date_folders.push_back(entry.path());
+        }
+    }
+    std::sort(date_folders.begin(), date_folders.end());
+
+    if (!date_folders.empty()) {
+        fs::path oldest_date_folder = date_folders.front();
+        std::vector<fs::path> hour_folders;
+
+        for (const auto& hour_entry : fs::directory_iterator(oldest_date_folder)) {
+            if (hour_entry.is_directory()) {
+                hour_folders.push_back(hour_entry.path());
+            }
+        }
+
+        std::sort(hour_folders.begin(), hour_folders.end());
+
+        if (!hour_folders.empty()) {
+            fs::path oldest_hour_folder = hour_folders.front();
+
+            std::vector<fs::path> mp4_files;
+
+            for (const auto& file_entry : fs::directory_iterator(oldest_hour_folder)) {
+                if (file_entry.is_regular_file() && file_entry.path().extension() == ".mp4") {
+                    mp4_files.push_back(file_entry.path());
+                }
+            }
+
+            std::sort(mp4_files.begin(), mp4_files.end(), [](const fs::path& a, const fs::path& b) {
+                return fs::last_write_time(a) < fs::last_write_time(b);
+            });
+
+            if (!mp4_files.empty()) {
+                fs::remove(mp4_files.front());
+                std::cout << "Deleted oldest .mp4 file: " << mp4_files.front() << std::endl;
+
+                // Also delete corresponding .jpg file
+                fs::path corresponding_image = mp4_files.front().replace_extension(".jpg");
+                if (fs::exists(corresponding_image)) {
+                    fs::remove(corresponding_image);
+                    std::cout << "Deleted corresponding .jpg file: " << corresponding_image << std::endl;
+                }
+
+                if (fs::is_empty(oldest_hour_folder)) {
+                    fs::remove(oldest_hour_folder);
+                    std::cout << "Deleted empty hour folder: " << oldest_hour_folder << std::endl;
+
+                    if (fs::is_empty(oldest_date_folder)) {
+                        fs::remove(oldest_date_folder);
+                        std::cout << "Deleted empty date folder: " << oldest_date_folder << std::endl;
+                    }
+                }
+            }
+        }
+    }
 }
 
 std::string Utils::ToBase64(const std::string &binary_file) {
@@ -87,7 +157,7 @@ std::string Utils::PrefixZero(int src, int digits) {
     return n_zero + str;
 }
 
-std::string Utils::GenerateFilename() {
+FileInfo Utils::GenerateFilename() {
     time_t now = time(0);
     tm *ltm = localtime(&now);
 
@@ -103,7 +173,13 @@ std::string Utils::GenerateFilename() {
     s1 << year << month << day << "_" << hour << min << sec;
     s1 >> filename;
 
-    return filename;
+    FileInfo info = {
+        .date = year + month + day,
+        .hour = hour,
+        .filename = filename
+    };
+
+    return info;
 }
 
 Buffer Utils::ConvertYuvToJpeg(const uint8_t* yuv_data, int width, int height, int quality) {
@@ -152,23 +228,22 @@ Buffer Utils::ConvertYuvToJpeg(const uint8_t* yuv_data, int width, int height, i
     return jpegBuffer;
 }
 
-void Utils::WriteJpegImage(Buffer buffer, std::string record_path, std::string filename) {
-    std::string full_path = record_path + '/' + filename + ".jpg";
-    FILE* file = fopen(full_path.c_str(), "wb");
+void Utils::WriteJpegImage(Buffer buffer, std::string url) {
+    FILE* file = fopen(url.c_str(), "wb");
     if (file) {
         fwrite((uint8_t*)buffer.start, 1, buffer.length, file);
         fclose(file);
-        DEBUG_PRINT("JPEG data successfully written to %s", full_path.c_str());
+        DEBUG_PRINT("JPEG data successfully written to %s", url.c_str());
     } else {
-        ERROR_PRINT("Failed to open file for writing: %s", full_path.c_str());
+        ERROR_PRINT("Failed to open file for writing: %s", url.c_str());
     }
 }
 
 void Utils::CreateJpegImage(const uint8_t* yuv_data, int width, int height,
-                            std::string record_path, std::string filename) {
+                            std::string url) {
     try {
         auto jpg_buffer = Utils::ConvertYuvToJpeg(yuv_data, width, height, 30);
-        WriteJpegImage(jpg_buffer, record_path, filename);
+        WriteJpegImage(jpg_buffer, url);
     } catch (const std::exception &e) {
         std::cerr << "Error: " << e.what() << std::endl;
     }

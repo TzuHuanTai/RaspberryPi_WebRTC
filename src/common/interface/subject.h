@@ -12,7 +12,7 @@ class Observable {
 public:
     Observable() {};
     ~Observable() {};
-    using OnMessageFunc = std::function<void(T&)>;
+    using OnMessageFunc = std::function<void(T)>;
 
     void Subscribe(OnMessageFunc func) {
         subscribed_func_ = func;
@@ -29,10 +29,10 @@ template<typename T>
 class Subject {
 public:
     virtual ~Subject(){};
-    virtual void Next(T &message) {
+    virtual void Next(T message) {
         for (auto &observer : observers_) {
             if (observer && observer->subscribed_func_ != nullptr) {
-                auto task = std::async(std::launch::async, observer->subscribed_func_, std::ref(message));
+                auto task = std::async(std::launch::async, observer->subscribed_func_, message);
             }
         }
     }
@@ -56,7 +56,7 @@ protected:
 
     void RemoveNullObservers() {
         auto new_end = std::remove_if(observers_.begin(), observers_.end(),
-            [](const std::shared_ptr<Observable<T>>& observer) {
+            [](const std::shared_ptr<Observable<T>> observer) {
                 return !observer;
             });
         observers_.erase(new_end, observers_.end());
