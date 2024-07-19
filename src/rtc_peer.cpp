@@ -90,10 +90,10 @@ void RtcPeer::OnThumbnail(OnCommand func) {
 }
 
 void RtcPeer::SubscribeCommandChannel(CommandType type, OnCommand func) {
-    auto thumb_observer = data_channel_subject_->AsObservable(type);
-    thumb_observer->Subscribe([this, func](std::string message) {
-        if (message == "get") { // todo: use enum or so.
-            func(data_channel_subject_);
+    auto observer = data_channel_subject_->AsObservable(type);
+    observer->Subscribe([this, func](std::string message) {
+        if (!message.empty()) {
+            func(data_channel_subject_, message);
         }
     });
 }

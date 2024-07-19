@@ -56,7 +56,7 @@ class RtcPeer : public webrtc::PeerConnectionObserver,
                 public SignalingMessageObserver,
                 public Subject<PeerState> {
 public:
-    using OnCommand = std::function<void(std::shared_ptr<DataChannelSubject>)>;
+    using OnCommand = std::function<void(std::shared_ptr<DataChannelSubject>, std::string)>;
 
     static rtc::scoped_refptr<RtcPeer> Create(Args args, int id);
 
