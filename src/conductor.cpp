@@ -124,10 +124,16 @@ bool Conductor::CreatePeerConnection() {
 
     peer_->SetPeer(result.MoveValue());
     peer_->CreateDataChannel();
-    peer_->OnSnapshot([this](std::shared_ptr<DataChannelSubject> datachannel) {
+    peer_->OnSnapshot([this](std::shared_ptr<DataChannelSubject> datachannel, std::string msg) {
         try {
+            std::stringstream ss(msg);
+            int num;
+            ss >> num;
+            int quality = ss.fail() ? 100 : num;
+
             auto i420buff = video_track_source_->GetI420Frame();
-            auto jpg_buffer = Utils::ConvertYuvToJpeg(i420buff->DataY(), args.width, args.height);
+            auto jpg_buffer = Utils::ConvertYuvToJpeg(i420buff->DataY(), args.width, 
+                                                      args.height, quality);
 
             const int chunk_size = 16384; // 1024*16
             const int file_size = jpg_buffer.length;
@@ -146,7 +152,7 @@ bool Conductor::CreatePeerConnection() {
         }
     });
 
-    peer_->OnThumbnail([this](std::shared_ptr<DataChannelSubject> datachannel) {
+    peer_->OnThumbnail([this](std::shared_ptr<DataChannelSubject> datachannel, std::string msg) {
         if (args.record_path.empty()) {
             return;
         }
