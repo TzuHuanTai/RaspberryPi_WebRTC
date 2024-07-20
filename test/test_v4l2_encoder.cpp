@@ -18,11 +18,11 @@ int main(int argc, char *argv[]) {
     bool has_first_keyframe_ = false;
     int images_nb = 0;
     int record_sec = 300;
-    int dst_width = 1280;
-    int dst_heigh = 960;
+    int dst_width = 960;
+    int dst_heigh = 720;
     Args args{.fps = 30,
-              .width = 1600,
-              .height = 1200,
+              .width = 1280,
+              .height = 960,
               .v4l2_format = "h264",
               .device = "/dev/video0"};
 
