@@ -5,7 +5,7 @@
 #include "rtc_peer.h"
 #include "capture/pa_capture.h"
 #include "capture/v4l2_capture.h"
-#include "track/swscale_track_source.h"
+#include "track/scale_track_source.h"
 
 #include <iostream>
 #include <memory>
@@ -57,7 +57,7 @@ private:
     rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> peer_connection_factory_;
     rtc::scoped_refptr<webrtc::AudioTrackInterface> audio_track_;
     rtc::scoped_refptr<webrtc::VideoTrackInterface> video_track_;
-    rtc::scoped_refptr<SwScaleTrackSource> video_track_source_;
+    rtc::scoped_refptr<ScaleTrackSource> video_track_source_;
 };
 
 #endif // CONDUCTOR_H_

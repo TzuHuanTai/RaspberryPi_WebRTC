@@ -1,4 +1,4 @@
-#include "track/swscale_track_source.h"
+#include "track/scale_track_source.h"
 #include "common/logging.h"
 
 #include <cmath>
@@ -6,66 +6,63 @@
 // WebRTC
 #include <api/video/i420_buffer.h>
 #include <api/video/video_frame_buffer.h>
-#include <rtc_base/timestamp_aligner.h>
 #include <third_party/libyuv/include/libyuv.h>
 
 static const int kBufferAlignment = 64;
 
-rtc::scoped_refptr<SwScaleTrackSource> SwScaleTrackSource::Create(
+rtc::scoped_refptr<ScaleTrackSource> ScaleTrackSource::Create(
     std::shared_ptr<V4L2Capture> capture) {
-    auto obj = rtc::make_ref_counted<SwScaleTrackSource>(std::move(capture));
+    auto obj = rtc::make_ref_counted<ScaleTrackSource>(std::move(capture));
     obj->StartTrack();
     return obj;
 }
 
-SwScaleTrackSource::SwScaleTrackSource(std::shared_ptr<V4L2Capture> capture)
-    : capture_(capture),
-      width_(capture->width()),
-      height_(capture->height()),
-      config_width_(capture->width()),
-      config_height_(capture->height()),
-      src_video_type_(capture->type()) {}
+ScaleTrackSource::ScaleTrackSource(std::shared_ptr<V4L2Capture> capture)
+    : capture(capture),
+      width(capture->width()),
+      height(capture->height()),
+      src_video_type(capture->type()) {}
 
-SwScaleTrackSource::~SwScaleTrackSource() {
+ScaleTrackSource::~ScaleTrackSource() {
     // todo: tell capture unsubscribe observer.
 }
 
-void SwScaleTrackSource::StartTrack() {
-    auto observer = capture_->AsObservable();
+void ScaleTrackSource::StartTrack() {
+    auto observer = capture->AsObservable();
     observer->Subscribe([this](rtc::scoped_refptr<V4l2FrameBuffer> frame_buffer) {
         OnFrameCaptured(frame_buffer);
     });
 }
 
-void SwScaleTrackSource::OnFrameCaptured(rtc::scoped_refptr<V4l2FrameBuffer> frame_buffer) {
+void ScaleTrackSource::OnFrameCaptured(rtc::scoped_refptr<V4l2FrameBuffer> frame_buffer) {
     rtc::scoped_refptr<webrtc::VideoFrameBuffer> dst_buffer = nullptr;
-    rtc::TimestampAligner timestamp_aligner_;
+
     const int64_t timestamp_us = rtc::TimeMicros();
     const int64_t translated_timestamp_us =
-        timestamp_aligner_.TranslateTimestamp(timestamp_us, rtc::TimeMicros());
+        timestamp_aligner.TranslateTimestamp(timestamp_us, rtc::TimeMicros());
 
     int adapted_width, adapted_height, crop_width, crop_height, crop_x, crop_y;
-    if (!AdaptFrame(width_, height_, timestamp_us, &adapted_width, &adapted_height,
+    if (!AdaptFrame(width, height, timestamp_us, &adapted_width, &adapted_height,
                     &crop_width, &crop_height, &crop_x, &crop_y)) {
         return;
     }
 
-    rtc::scoped_refptr<webrtc::I420Buffer> i420_buffer(webrtc::I420Buffer::Create(width_, height_));
+    rtc::scoped_refptr<webrtc::I420Buffer> i420_buffer(webrtc::I420Buffer::Create(width, height));
     i420_buffer->InitializeData();
 
     if (libyuv::ConvertToI420((uint8_t *)frame_buffer->Data(), frame_buffer->size(),
                               i420_buffer.get()->MutableDataY(), i420_buffer.get()->StrideY(),
                               i420_buffer.get()->MutableDataU(), i420_buffer.get()->StrideU(),
                               i420_buffer.get()->MutableDataV(), i420_buffer.get()->StrideV(),
-                              0, 0, width_, height_, width_, height_, libyuv::kRotate0,
-                              ConvertVideoType(src_video_type_)) < 0) {
+                              0, 0, width, height, width, height, libyuv::kRotate0,
+                              ConvertVideoType(src_video_type)) < 0) {
         ERROR_PRINT("ConvertToI420 Failed");
     }
 
-    i420_raw_buffer_ = i420_buffer;
+    i420_raw_buffer = i420_buffer;
     dst_buffer = i420_buffer;
 
-    if (adapted_width != width_ || adapted_height != height_) {
+    if (adapted_width != width || adapted_height != height) {
         int dst_stride = std::ceil((double)adapted_width / kBufferAlignment) * kBufferAlignment;
         i420_buffer = webrtc::I420Buffer::Create(adapted_width, adapted_height,
                                                  dst_stride, dst_stride/2, dst_stride/2);
@@ -80,22 +77,22 @@ void SwScaleTrackSource::OnFrameCaptured(rtc::scoped_refptr<V4l2FrameBuffer> fra
             .build());
 }
 
-rtc::scoped_refptr<webrtc::I420BufferInterface> SwScaleTrackSource::GetI420Frame() {
-    return i420_raw_buffer_->ToI420();
+rtc::scoped_refptr<webrtc::I420BufferInterface> ScaleTrackSource::GetI420Frame() {
+    return i420_raw_buffer->ToI420();
 }
 
-webrtc::MediaSourceInterface::SourceState SwScaleTrackSource::state() const {
+webrtc::MediaSourceInterface::SourceState ScaleTrackSource::state() const {
     return SourceState::kLive;
 }
 
-bool SwScaleTrackSource::remote() const {
+bool ScaleTrackSource::remote() const {
     return false;
 }
 
-bool SwScaleTrackSource::is_screencast() const {
+bool ScaleTrackSource::is_screencast() const {
     return false;
 }
 
-absl::optional<bool> SwScaleTrackSource::needs_denoising() const {
+absl::optional<bool> ScaleTrackSource::needs_denoising() const {
     return false;
 }
