@@ -34,9 +34,7 @@ protected:
 
 private:
     const char *file_name_;
-    bool OutputBuffer(V4l2Buffer &buffer);
-    bool CaptureBuffer(V4l2Buffer &buffer);
-    void CapturingFunction();
+    bool CaptureBuffer();
 };
 
 #endif // V4L2_CODEC_

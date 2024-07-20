@@ -43,7 +43,7 @@ bool V4l2Codec::PrepareBuffer(V4l2BufferGroup *gbuffer, int width, int height,
 }
 
 void V4l2Codec::Start() {
-    worker_.reset(new Worker(file_name_, [this]() { CapturingFunction(); }));
+    worker_.reset(new Worker(file_name_, [this]() { CaptureBuffer(); }));
     worker_->Run();
     is_capturing = true;
 }
@@ -59,14 +59,8 @@ bool V4l2Codec::IsCapturing() {
 
 void V4l2Codec::EmplaceBuffer(V4l2Buffer &buffer, 
                               std::function<void(V4l2Buffer&)>on_capture) {
-    if (OutputBuffer(buffer)) {
-        capturing_tasks_.push(on_capture);
-    }
-}
-
-bool V4l2Codec::OutputBuffer(V4l2Buffer &buffer) {
     if (output_buffer_index_.empty()) {
-        return false;
+        return;
     }
 
     int index = output_buffer_index_.front();
@@ -85,12 +79,15 @@ bool V4l2Codec::OutputBuffer(V4l2Buffer &buffer) {
         ERROR_PRINT("QueueBuffer V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE. fd(%d) at index %d",
                     fd_, index);
         output_buffer_index_.push(index);
-        return false;
+        return;
     }
-    return true;
+
+    capturing_tasks_.push(on_capture);
 }
 
-bool V4l2Codec::CaptureBuffer(V4l2Buffer &buffer) {
+bool V4l2Codec::CaptureBuffer() {
+    V4l2Buffer buffer = {};
+
     fd_set fds[2];
     fd_set *rd_fds = &fds[0]; /* for capture */
     fd_set *ex_fds = &fds[1]; /* for handle event */
@@ -104,9 +101,7 @@ bool V4l2Codec::CaptureBuffer(V4l2Buffer &buffer) {
 
     int r = select(fd_ + 1, rd_fds, NULL, ex_fds, &tv);
 
-    if (r == -1) { // failed
-        return false;
-    } else if (r == 0) { // timeout
+    if (r <= 0) { // failed or timeout
         return false;
     }
 
@@ -137,6 +132,12 @@ bool V4l2Codec::CaptureBuffer(V4l2Buffer &buffer) {
         buffer.dmafd = capture_.buffers[buf.index].dmafd;
         buffer.flags = buf.flags;
 
+        if(!capturing_tasks_.empty()) {
+            auto task = capturing_tasks_.front();
+            capturing_tasks_.pop();
+            task(buffer);
+        }
+
         if (!V4l2Util::QueueBuffer(fd_, &capture_.buffers[buf.index].inner)) {
             return false;
         }
@@ -147,15 +148,6 @@ bool V4l2Codec::CaptureBuffer(V4l2Buffer &buffer) {
         HandleEvent();
     }
     return true;
-}
-
-void V4l2Codec::CapturingFunction() {
-    V4l2Buffer encoded_buffer = {};
-    if(CaptureBuffer(encoded_buffer) && !capturing_tasks_.empty()) {
-        auto task = capturing_tasks_.front();
-        capturing_tasks_.pop();
-        task(encoded_buffer);
-    }
 }
 
 void V4l2Codec::ReleaseCodec() {
