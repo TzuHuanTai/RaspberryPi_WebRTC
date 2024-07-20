@@ -2,6 +2,7 @@
 #include "common/utils.h"
 #include "common/logging.h"
 #include "track/v4l2dma_track_source.h"
+#include "track/h264_dma_track_source.h"
 #include "customized_video_encoder_factory.h"
 
 #include <api/audio_codecs/builtin_audio_decoder_factory.h>
@@ -58,11 +59,16 @@ void Conductor::InitializeTracks() {
     if (video_track_ == nullptr && !args.device.empty()) {
         video_capture_source_ = V4L2Capture::Create(args);
 
-        if (args.enable_v4l2_dma || args.v4l2_format == "h264") {
-            video_track_source_ = V4l2DmaTrackSource::Create(video_capture_source_);
-        } else {
-            video_track_source_ = SwScaleTrackSource::Create(video_capture_source_);
-        }
+        video_track_source_ =([this]() -> rtc::scoped_refptr<ScaleTrackSource> {
+            if (video_capture_source_->format() == V4L2_PIX_FMT_H264) {
+                return H264DmaTrackSource::Create(video_capture_source_);
+            } else if (args.enable_v4l2_dma) {
+                return V4l2DmaTrackSource::Create(video_capture_source_);
+            } else {
+                return ScaleTrackSource::Create(video_capture_source_);
+            }
+        })();
+
         auto video_source = webrtc::VideoTrackSourceProxy::Create(signaling_thread_.get(),
                                                                   worker_thread_.get(),
                                                                   video_track_source_);
