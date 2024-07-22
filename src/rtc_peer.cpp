@@ -135,20 +135,12 @@ void RtcPeer::OnIceGatheringChange(webrtc::PeerConnectionInterface::IceGathering
 
 void RtcPeer::OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionState new_state) {
     auto state = webrtc::PeerConnectionInterface::AsString(new_state);
-    DEBUG_PRINT("peer[%d] OnConnectionChange => %s", id_, std::string(state).c_str());
+    DEBUG_PRINT("OnConnectionChange => %s", std::string(state).c_str());
     if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kConnected) {
         signaling_client_.reset();
         is_connected_ = true;
         EmitReadyToConnect(false);
         UnSubscribe();
-    } else if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kConnecting) {
-        auto connection_timeout_ = std::async(std::launch::async, [this]() {
-        std::this_thread::sleep_for(std::chrono::seconds(10));
-            if (!is_connected_) {
-                DEBUG_PRINT("peer[%d] Connection timeout. Closing peer connection.", id_);
-                peer_connection_->Close();
-            }
-        });
     } else if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kFailed) {
         is_connected_ = false;
         peer_connection_->Close();
@@ -243,7 +235,6 @@ void RtcPeer::OnRemoteIce(std::string sdp_mid, int sdp_mline_index, std::string 
 
     if (!peer_connection_->AddIceCandidate(candidate.get())) {
         ERROR_PRINT("Failed to apply the received candidate!");
-        EmitReadyToConnect(false);
         return;
     }
 }
