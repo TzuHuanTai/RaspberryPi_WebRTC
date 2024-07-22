@@ -261,14 +261,14 @@ void Conductor::AwaitCompletion() {
         });
     }
 
-    RefreshPeerList();
-
     {
         std::unique_lock<std::mutex> lock(state_mtx);
         ready_state.wait(lock, [this] {
             return !IsReady();
         });
     }
+
+    RefreshPeerList();
 }
 
 void Conductor::RefreshPeerList() {
