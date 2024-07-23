@@ -11,11 +11,7 @@ Worker::~Worker() {
 }
 
 void Worker::Release() {
-    {
-        std::lock_guard<std::mutex> lock(mtx_);
-        abort_ = true;
-    }
-    cond_var_.notify_all();
+    abort_ = true;
     thread_.Finalize();
     DEBUG_PRINT("'%s' was released!", name_.c_str());
 }
@@ -29,11 +25,7 @@ void Worker::Run() {
 }
 
 void Worker::Thread() {
-    std::unique_lock<std::mutex> lock(mtx_);
     while (!abort_) {
-        cond_var_.wait_for(lock, std::chrono::milliseconds(10), [this] { return abort_.load(); });
-        if (!abort_) {
-            executing_function_();
-        }
+        executing_function_();
     }
 }

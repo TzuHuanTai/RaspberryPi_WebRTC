@@ -9,6 +9,9 @@ extern "C"
 #include <libavformat/avformat.h>
 }
 
+#include <condition_variable>
+#include <mutex>
+
 template<typename T>
 class Recorder {
 public:
@@ -25,6 +28,8 @@ public:
         avcodec_free_context(&encoder);
         InitializeEncoderCtx(encoder);
         worker.reset(new Worker("Recorder", [this]() { 
+            std::unique_lock<std::mutex> lock(mtx_);
+            cond_var_.wait_for(lock, std::chrono::milliseconds(10), [this] { return abort_.load(); });
             ConsumeBuffer();
         }));
     }
@@ -45,6 +50,11 @@ public:
     }
 
     void Stop() {
+        {
+            std::lock_guard<std::mutex> lock(mtx_);
+            abort_ = true;
+        }
+        cond_var_.notify_all();
         worker.reset();
         PostStop();
     }
@@ -52,6 +62,7 @@ public:
     void Start() {
         Initialize();
         PreStart();
+        abort_ = false;
         worker->Run();
     }
 
@@ -69,6 +80,11 @@ protected:
             on_packeted(pkt);
         }
     }
+
+private:
+    std::atomic<bool> abort_;
+    std::mutex mtx_;
+    std::condition_variable cond_var_;
 };
 
 #endif  // RECORDER_H_

@@ -19,8 +19,6 @@ private:
     std::string name_;
     std::function<void()> executing_function_;
     rtc::PlatformThread thread_;
-    std::mutex mtx_;
-    std::condition_variable cond_var_;
 
     void Thread();
 };
