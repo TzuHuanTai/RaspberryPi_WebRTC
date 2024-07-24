@@ -186,11 +186,11 @@ Buffer Utils::ConvertYuvToJpeg(const uint8_t* yuv_data, int width, int height, i
     struct jpeg_compress_struct cinfo;
     struct jpeg_error_mgr jerr;
 
-    Buffer jpegBuffer = { NULL, 0 };
+    Buffer jpegBuffer;
 
     cinfo.err = jpeg_std_error(&jerr);
     jpeg_create_compress(&cinfo);
-    uint8_t* data = NULL;
+    uint8_t* data = nullptr;
     unsigned long size = 0;
     jpeg_mem_dest(&cinfo, &data, &size);
 
@@ -222,7 +222,7 @@ Buffer Utils::ConvertYuvToJpeg(const uint8_t* yuv_data, int width, int height, i
     jpeg_destroy_compress(&cinfo);
     free(rgb_data);
 
-    jpegBuffer.start = data;
+    jpegBuffer.start = std::shared_ptr<uint8_t>(data, FreeDeleter());
     jpegBuffer.length = size;
 
     return jpegBuffer;
@@ -231,7 +231,7 @@ Buffer Utils::ConvertYuvToJpeg(const uint8_t* yuv_data, int width, int height, i
 void Utils::WriteJpegImage(Buffer buffer, std::string url) {
     FILE* file = fopen(url.c_str(), "wb");
     if (file) {
-        fwrite((uint8_t*)buffer.start, 1, buffer.length, file);
+        fwrite((uint8_t*)buffer.start.get(), 1, buffer.length, file);
         fclose(file);
         DEBUG_PRINT("JPEG data successfully written to %s", url.c_str());
     } else {
