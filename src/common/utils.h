@@ -20,7 +20,7 @@ struct FreeDeleter {
 };
 
 struct Buffer {
-    std::shared_ptr<uint8_t> start;
+    std::unique_ptr<uint8_t, FreeDeleter> start;
     unsigned long length;
 };
 

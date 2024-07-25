@@ -222,7 +222,7 @@ Buffer Utils::ConvertYuvToJpeg(const uint8_t* yuv_data, int width, int height, i
     jpeg_destroy_compress(&cinfo);
     free(rgb_data);
 
-    jpegBuffer.start = std::shared_ptr<uint8_t>(data, FreeDeleter());
+    jpegBuffer.start = std::unique_ptr<uint8_t, FreeDeleter>(data);
     jpegBuffer.length = size;
 
     return jpegBuffer;
@@ -243,7 +243,7 @@ void Utils::CreateJpegImage(const uint8_t* yuv_data, int width, int height,
                             std::string url) {
     try {
         auto jpg_buffer = Utils::ConvertYuvToJpeg(yuv_data, width, height, 30);
-        WriteJpegImage(jpg_buffer, url);
+        WriteJpegImage(std::move(jpg_buffer), url);
     } catch (const std::exception &e) {
         std::cerr << "Error: " << e.what() << std::endl;
     }
