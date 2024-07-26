@@ -32,7 +32,7 @@ endif()
 
 set(WEBRTC_INCLUDE_DIR /usr/local/include/webrtc)
 set(WEBRTC_LIBRARY /usr/local/lib/libwebrtc.a)
-set(WEBRTC_LINK_LIBS X11 dl)
+set(WEBRTC_LINK_LIBS dl)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
