@@ -1,14 +1,14 @@
 #ifndef SCALE_TRACK_SOURCE_H_
 #define SCALE_TRACK_SOURCE_H_
 
-#include "common/v4l2_utils.h"
-#include "capture/v4l2_capture.h"
-
 #include <media/base/adapted_video_track_source.h>
 #include <rtc_base/timestamp_aligner.h>
 
+#include "capture/v4l2_capture.h"
+#include "common/v4l2_utils.h"
+
 class ScaleTrackSource : public rtc::AdaptedVideoTrackSource {
-public:
+  public:
     static rtc::scoped_refptr<ScaleTrackSource> Create(std::shared_ptr<V4L2Capture> capture);
     ScaleTrackSource(std::shared_ptr<V4L2Capture> capture);
     ~ScaleTrackSource();
@@ -20,7 +20,7 @@ public:
     void StartTrack();
     rtc::scoped_refptr<webrtc::I420BufferInterface> GetI420Frame();
 
-protected:
+  protected:
     int width;
     int height;
     webrtc::VideoType src_video_type;

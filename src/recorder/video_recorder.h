@@ -1,29 +1,28 @@
 #ifndef VIDEO_RECODER_H_
 #define VIDEO_RECODER_H_
 
-#include "args.h"
-#include "common/v4l2_utils.h"
-#include "common/v4l2_frame_buffer.h"
-#include "recorder/recorder.h"
-#include "v4l2_codecs/v4l2_decoder.h"
-
 #include <atomic>
 #include <queue>
 
-extern "C"
-{
+extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 }
 
+#include "args.h"
+#include "common/v4l2_frame_buffer.h"
+#include "common/v4l2_utils.h"
+#include "recorder/recorder.h"
+#include "v4l2_codecs/v4l2_decoder.h"
+
 class VideoRecorder : public Recorder<rtc::scoped_refptr<V4l2FrameBuffer>> {
-public:
+  public:
     VideoRecorder(Args config, std::string encoder_name);
-    virtual ~VideoRecorder() {};
+    virtual ~VideoRecorder(){};
     void OnBuffer(rtc::scoped_refptr<V4l2FrameBuffer> &buffer) override;
     void PostStop() override;
 
-protected:
+  protected:
     Args config;
     std::atomic<int> feeded_frames;
     bool has_first_keyframe;
@@ -37,15 +36,15 @@ protected:
     void OnEncoded(V4l2Buffer &buffer);
     void SetBaseTimestamp(struct timeval time);
 
-private:
+  private:
     struct timeval base_time_;
     std::unique_ptr<V4l2Decoder> image_decoder_;
 
-    void InitializeEncoderCtx(AVCodecContext* &encoder) override;
+    void InitializeEncoderCtx(AVCodecContext *&encoder) override;
     bool ConsumeBuffer() override;
     void MakePreviewImage(V4l2Buffer &raw_buffer);
     void InitializeImageDecoder();
     std::string ReplaceExtension(const std::string &url, const std::string &new_extension);
 };
 
-#endif  // VIDEO_RECODER_H_
+#endif // VIDEO_RECODER_H_

@@ -1,17 +1,18 @@
 #ifndef PA2_CAPTURE_H_
 #define PA2_CAPTURE_H_
 
+#include <cstring>
+#include <iostream>
+
+#include <pulse/pulseaudio.h>
+
 #include "args.h"
 #include "capture/pa_capture.h"
 #include "common/interface/subject.h"
 #include "common/worker.h"
 
-#include <pulse/pulseaudio.h>
-#include <iostream>
-#include <cstring>
-
 class Pa2Capture : public PaCapture {
-public:
+  public:
     static std::shared_ptr<Pa2Capture> Create(Args args);
     static void ReadCallback(pa_stream *s, size_t length, void *userdata);
     static void StateCallback(pa_stream *s, void *user_data);
@@ -20,14 +21,14 @@ public:
     Args config() const;
     void StartCapture();
 
-private:
+  private:
     Args config_;
 
-    pa_mainloop* m;
-    pa_mainloop_api* mainloop_api;
-    pa_context* ctx;
+    pa_mainloop *m;
+    pa_mainloop_api *mainloop_api;
+    pa_context *ctx;
     pa_context_state_t ctx_state;
-    pa_stream* stream;
+    pa_stream *stream;
 
     PaBuffer shared_buffer_;
     std::unique_ptr<Worker> worker_;

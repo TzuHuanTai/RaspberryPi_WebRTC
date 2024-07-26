@@ -1,5 +1,4 @@
 #include "track/h264_dma_track_source.h"
-#include "v4l2_codecs/raw_buffer.h"
 
 #include <future>
 
@@ -9,8 +8,10 @@
 #include <rtc_base/timestamp_aligner.h>
 #include <third_party/libyuv/include/libyuv.h>
 
-rtc::scoped_refptr<H264DmaTrackSource> H264DmaTrackSource::Create(
-    std::shared_ptr<V4L2Capture> capture) {
+#include "v4l2_codecs/raw_buffer.h"
+
+rtc::scoped_refptr<H264DmaTrackSource>
+H264DmaTrackSource::Create(std::shared_ptr<V4L2Capture> capture) {
     auto obj = rtc::make_ref_counted<H264DmaTrackSource>(std::move(capture));
     obj->Init();
     obj->StartTrack();

@@ -1,12 +1,12 @@
 #ifndef PA_CAPTURE_H_
 #define PA_CAPTURE_H_
 
+#include <pulse/error.h>
+#include <pulse/simple.h>
+
 #include "args.h"
 #include "common/interface/subject.h"
 #include "common/worker.h"
-
-#include <pulse/error.h>
-#include <pulse/simple.h>
 
 struct PaBuffer {
     uint8_t *start;
@@ -15,14 +15,14 @@ struct PaBuffer {
 };
 
 class PaCapture : public Subject<PaBuffer> {
-public:
+  public:
     static std::shared_ptr<PaCapture> Create(Args args);
     PaCapture(Args args);
     ~PaCapture();
     Args config() const;
     void StartCapture();
 
-private:
+  private:
     Args config_;
     pa_simple *src;
     PaBuffer shared_buffer_;

@@ -1,10 +1,11 @@
 #include "recorder/video_recorder.h"
+
+#include <memory>
+
+#include "common/utils.h"
 #include "recorder/h264_recorder.h"
 #include "recorder/raw_h264_recorder.h"
 #include "v4l2_codecs/raw_buffer.h"
-#include "common/utils.h"
-
-#include <memory>
 
 VideoRecorder::VideoRecorder(Args config, std::string encoder_name)
     : Recorder(),
@@ -13,7 +14,7 @@ VideoRecorder::VideoRecorder(Args config, std::string encoder_name)
       feeded_frames(0),
       has_first_keyframe(false) {}
 
-void VideoRecorder::InitializeEncoderCtx(AVCodecContext* &encoder) {
+void VideoRecorder::InitializeEncoderCtx(AVCodecContext *&encoder) {
     frame_rate = {.num = (int)config.fps, .den = 1};
 
     const AVCodec *codec = avcodec_find_encoder_by_name(encoder_name.c_str());
@@ -34,7 +35,7 @@ void VideoRecorder::OnBuffer(rtc::scoped_refptr<V4l2FrameBuffer> &buffer) {
 
 void VideoRecorder::PostStop() {
     // Wait P-frames are all consumed until I-frame appear.
-    while (!frame_buffer_queue.empty() && 
+    while (!frame_buffer_queue.empty() &&
            (frame_buffer_queue.front()->flags() & V4L2_BUF_FLAG_KEYFRAME) != 0) {
         ConsumeBuffer();
     }
@@ -42,9 +43,7 @@ void VideoRecorder::PostStop() {
     has_first_keyframe = false;
 }
 
-void VideoRecorder::SetBaseTimestamp(struct timeval time) {
-    base_time_ = time;
-}
+void VideoRecorder::SetBaseTimestamp(struct timeval time) { base_time_ = time; }
 
 void VideoRecorder::OnEncoded(V4l2Buffer &buffer) {
     if (!has_first_keyframe && (buffer.flags & V4L2_BUF_FLAG_KEYFRAME)) {
@@ -76,8 +75,8 @@ bool VideoRecorder::ConsumeBuffer() {
     }
     auto frame_buffer = frame_buffer_queue.front();
 
-    V4l2Buffer buffer((void*)frame_buffer->Data(), frame_buffer->size(),
-                      frame_buffer->flags(), frame_buffer->timestamp());
+    V4l2Buffer buffer((void *)frame_buffer->Data(), frame_buffer->size(), frame_buffer->flags(),
+                      frame_buffer->timestamp());
 
     Encode(buffer);
 
@@ -102,10 +101,11 @@ void VideoRecorder::MakePreviewImage(V4l2Buffer &buffer) {
     if (feeded_frames >= 0) {
         feeded_frames++;
         image_decoder_->EmplaceBuffer(buffer, [this](V4l2Buffer decoded_buffer) {
-            if(feeded_frames < 0) {
+            if (feeded_frames < 0) {
                 return;
             }
-            auto raw_buffer = RawBuffer::Create(config.width, config.height, decoded_buffer.length, decoded_buffer);
+            auto raw_buffer = RawBuffer::Create(config.width, config.height, decoded_buffer.length,
+                                                decoded_buffer);
             auto i420buff = raw_buffer->ToI420();
             Utils::CreateJpegImage(i420buff->DataY(), i420buff->width(), i420buff->height(),
                                    ReplaceExtension(file_url, ".jpg"));
@@ -114,7 +114,8 @@ void VideoRecorder::MakePreviewImage(V4l2Buffer &buffer) {
     }
 }
 
-std::string VideoRecorder::ReplaceExtension(const std::string &url, const std::string &new_extension) {
+std::string VideoRecorder::ReplaceExtension(const std::string &url,
+                                            const std::string &new_extension) {
     size_t last_dot_pos = url.find_last_of('.');
     if (last_dot_pos == std::string::npos) {
         // No extension found, append the new extension

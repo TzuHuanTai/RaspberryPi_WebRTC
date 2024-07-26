@@ -1,6 +1,6 @@
 #include "v4l2_codecs/v4l2_h264_encoder.h"
-#include "v4l2_codecs/raw_buffer.h"
 #include "common/logging.h"
+#include "v4l2_codecs/raw_buffer.h"
 
 std::unique_ptr<webrtc::VideoEncoder> V4l2H264Encoder::Create(bool is_dma) {
     return std::make_unique<V4l2H264Encoder>(is_dma);
@@ -14,9 +14,8 @@ V4l2H264Encoder::V4l2H264Encoder(bool is_dma)
 
 V4l2H264Encoder::~V4l2H264Encoder() {}
 
-int32_t V4l2H264Encoder::InitEncode(
-    const webrtc::VideoCodec *codec_settings,
-    const VideoEncoder::Settings &settings) {
+int32_t V4l2H264Encoder::InitEncode(const webrtc::VideoCodec *codec_settings,
+                                    const VideoEncoder::Settings &settings) {
     codec_ = *codec_settings;
     width_ = codec_settings->width;
     height_ = codec_settings->height;
@@ -36,8 +35,7 @@ int32_t V4l2H264Encoder::InitEncode(
     return WEBRTC_VIDEO_CODEC_OK;
 }
 
-int32_t V4l2H264Encoder::RegisterEncodeCompleteCallback(
-    webrtc::EncodedImageCallback *callback) {
+int32_t V4l2H264Encoder::RegisterEncodeCompleteCallback(webrtc::EncodedImageCallback *callback) {
     callback_ = callback;
     return WEBRTC_VIDEO_CODEC_OK;
 }
@@ -47,9 +45,8 @@ int32_t V4l2H264Encoder::Release() {
     return WEBRTC_VIDEO_CODEC_OK;
 }
 
-int32_t V4l2H264Encoder::Encode(
-    const webrtc::VideoFrame &frame,
-    const std::vector<webrtc::VideoFrameType> *frame_types) {
+int32_t V4l2H264Encoder::Encode(const webrtc::VideoFrame &frame,
+                                const std::vector<webrtc::VideoFrameType> *frame_types) {
     if (frame_types) {
         if ((*frame_types)[0] == webrtc::VideoFrameType::kVideoFrameKey) {
             V4l2Util::SetExtCtrl(encoder_->GetFd(), V4L2_CID_MPEG_VIDEO_FORCE_KEY_FRAME, 1);
@@ -58,8 +55,7 @@ int32_t V4l2H264Encoder::Encode(
         }
     }
 
-    rtc::scoped_refptr<webrtc::VideoFrameBuffer> frame_buffer =
-        frame.video_frame_buffer();
+    rtc::scoped_refptr<webrtc::VideoFrameBuffer> frame_buffer = frame.video_frame_buffer();
 
     V4l2Buffer src_buffer;
     if (frame_buffer->type() == webrtc::VideoFrameBuffer::Type::kNative) {
@@ -67,10 +63,11 @@ int32_t V4l2H264Encoder::Encode(
         src_buffer = raw_buffer->GetBuffer();
     } else {
         auto i420_buffer = frame_buffer->GetI420();
-        unsigned int i420_buffer_size = (i420_buffer->StrideY() * height_) +
-                        ((i420_buffer->StrideY() + 1) / 2) * ((height_ + 1) / 2) * 2;
+        unsigned int i420_buffer_size =
+            (i420_buffer->StrideY() * height_) +
+            ((i420_buffer->StrideY() + 1) / 2) * ((height_ + 1) / 2) * 2;
 
-        src_buffer.start = const_cast<uint8_t*>(i420_buffer->DataY());
+        src_buffer.start = const_cast<uint8_t *>(i420_buffer->DataY());
         src_buffer.length = i420_buffer_size;
     }
 
@@ -96,8 +93,8 @@ webrtc::VideoEncoder::EncoderInfo V4l2H264Encoder::GetEncoderInfo() const {
     EncoderInfo info;
     info.supports_native_handle = true;
     info.is_hardware_accelerated = true;
-    info.implementation_name = std::string("V4L2 H264 Hardware Encoder") + 
-                                (is_dma_ ? "(DMA)" : "(M2M)");
+    info.implementation_name =
+        std::string("V4L2 H264 Hardware Encoder") + (is_dma_ ? "(DMA)" : "(M2M)");
     return info;
 }
 
@@ -119,8 +116,8 @@ void V4l2H264Encoder::SendFrame(const webrtc::VideoFrame &frame, V4l2Buffer &enc
     encoded_image_.ntp_time_ms_ = frame.ntp_time_ms();
     encoded_image_.rotation_ = frame.rotation();
     encoded_image_._frameType = encoded_buffer.flags & V4L2_BUF_FLAG_KEYFRAME
-                                ? webrtc::VideoFrameType::kVideoFrameKey
-                                : webrtc::VideoFrameType::kVideoFrameDelta;
+                                    ? webrtc::VideoFrameType::kVideoFrameKey
+                                    : webrtc::VideoFrameType::kVideoFrameDelta;
 
     auto result = callback_->OnEncodedImage(encoded_image_, &codec_specific);
     if (result.error != webrtc::EncodedImageCallback::Result::OK) {

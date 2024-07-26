@@ -1,4 +1,5 @@
 #include "capture/pa2_capture.h"
+
 #include "common/logging.h"
 
 #define CHANNELS 2
@@ -10,7 +11,7 @@ std::shared_ptr<Pa2Capture> Pa2Capture::Create(Args args) {
     return ptr;
 }
 
-Pa2Capture::Pa2Capture(Args args) 
+Pa2Capture::Pa2Capture(Args args)
     : PaCapture(args),
       config_(args) {}
 
@@ -23,9 +24,7 @@ Pa2Capture::~Pa2Capture() {
     pa_mainloop_free(m);
 }
 
-Args Pa2Capture::config() const {
-    return config_;
-}
+Args Pa2Capture::config() const { return config_; }
 
 void Pa2Capture::CreateFloat32Source(int sample_rate) {
     m = pa_mainloop_new();
@@ -58,7 +57,7 @@ void Pa2Capture::CreateFloat32Source(int sample_rate) {
 }
 
 void Pa2Capture::ReadCallback(pa_stream *s, size_t length, void *user_data) {
-    Pa2Capture* capture = reinterpret_cast<Pa2Capture*>(user_data);
+    Pa2Capture *capture = reinterpret_cast<Pa2Capture *>(user_data);
     capture->CaptureSamples();
 }
 
@@ -79,7 +78,7 @@ void Pa2Capture::StateCallback(pa_stream *s, void *user_data) {
 }
 
 void Pa2Capture::CaptureSamples() {
-    const void* data = nullptr;
+    const void *data = nullptr;
     size_t length = 0;
 
     if (pa_stream_peek(stream, &data, &length) < 0) {
@@ -88,11 +87,11 @@ void Pa2Capture::CaptureSamples() {
     }
 
     uint8_t copy_buf[length];
-    memcpy(copy_buf, (const uint8_t*)data, length);
+    memcpy(copy_buf, (const uint8_t *)data, length);
 
     shared_buffer_ = {.start = copy_buf,
                       .length = static_cast<unsigned int>(length / sizeof(float)),
-                      .channels = CHANNELS };
+                      .channels = CHANNELS};
     Next(shared_buffer_);
 
     pa_stream_drop(stream);

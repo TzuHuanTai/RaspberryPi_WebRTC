@@ -1,0 +1,11 @@
+# options: https://clang.llvm.org/docs/ClangFormatStyleOptions.html
+Language: Cpp
+BasedOnStyle: LLVM
+IndentWidth: 4
+IndentCaseLabels: true
+ColumnLimit: 100
+AllowShortLambdasOnASingleLine: Empty
+AllowShortEnumsOnASingleLine: false
+AllowShortCaseLabelsOnASingleLine: false
+PackConstructorInitializers: Never
+BreakInheritanceList: AfterComma

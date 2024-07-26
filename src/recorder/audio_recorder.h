@@ -1,38 +1,37 @@
 #ifndef AUDIO_RECODER_H_
 #define AUDIO_RECODER_H_
 
-#include "capture/pa_capture.h"
-#include "recorder/recorder.h"
-
-extern "C"
-{
+extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libavutil/audio_fifo.h>
 }
 
+#include "capture/pa_capture.h"
+#include "recorder/recorder.h"
+
 class AudioRecorder : public Recorder<PaBuffer> {
-public:
+  public:
     static std::unique_ptr<AudioRecorder> Create(Args config);
     AudioRecorder(Args config);
     ~AudioRecorder();
     void OnBuffer(PaBuffer &buffer) override;
     void PreStart() override;
 
-private:
+  private:
     int sample_rate;
     int channels = 2;
     int frame_size;
     unsigned int frame_count;
     std::string encoder_name;
-    AVAudioFifo* fifo_buffer;
+    AVAudioFifo *fifo_buffer;
     AVSampleFormat sample_fmt;
     AVFrame *frame;
 
     void Encode();
     void InitializeFrame();
     void InitializeFifoBuffer();
-    void InitializeEncoderCtx(AVCodecContext* &encoder) override;
+    void InitializeEncoderCtx(AVCodecContext *&encoder) override;
     bool ConsumeBuffer() override;
 };
 

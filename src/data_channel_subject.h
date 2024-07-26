@@ -20,8 +20,9 @@ struct RtcMessage {
     CommandType type;
     std::string message;
     RtcMessage(CommandType type, std::string message)
-        : type(type), message(message) {}
-    
+        : type(type),
+          message(message) {}
+
     std::string ToString() const {
         json j;
         j["type"] = static_cast<int>(type);
@@ -32,8 +33,8 @@ struct RtcMessage {
 
 class DataChannelSubject : public webrtc::DataChannelObserver,
                            public Subject<std::string> {
-public:
-    DataChannelSubject(){};
+  public:
+    DataChannelSubject() = default;
     ~DataChannelSubject();
 
     // webrtc::DataChannelObserver
@@ -47,10 +48,10 @@ public:
     void UnSubscribe() override;
 
     void Send(CommandType type, const std::string data);
-    void Send(const uint8_t* data, size_t size);
+    void Send(const uint8_t *data, size_t size);
     void SetDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> data_channel);
 
-private:
+  private:
     rtc::scoped_refptr<webrtc::DataChannelInterface> data_channel_;
     std::map<CommandType, std::vector<std::shared_ptr<Observable<std::string>>>> observers_map_;
 };

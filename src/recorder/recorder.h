@@ -1,41 +1,39 @@
 #ifndef RECORDER_H_
 #define RECORDER_H_
-#include "common/interface/subject.h"
-#include "common/worker.h"
+#include <condition_variable>
+#include <mutex>
 
-extern "C"
-{
+extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 }
 
-#include <condition_variable>
-#include <mutex>
+#include "common/interface/subject.h"
+#include "common/worker.h"
 
-template<typename T>
-class Recorder {
-public:
+template <typename T> class Recorder {
+  public:
     using OnPacketedFunc = std::function<void(AVPacket *pkt)>;
 
-    Recorder() {};
-    ~Recorder() {
-        avcodec_free_context(&encoder);
-    };
+    Recorder() = default;
+    ~Recorder() { avcodec_free_context(&encoder); };
 
     virtual void OnBuffer(T &buffer) = 0;
 
     void Initialize() {
         avcodec_free_context(&encoder);
         InitializeEncoderCtx(encoder);
-        worker.reset(new Worker("Recorder", [this]() { 
+        worker.reset(new Worker("Recorder", [this]() {
             std::unique_lock<std::mutex> lock(mtx_);
-            cond_var_.wait_for(lock, std::chrono::milliseconds(10), [this] { return abort_.load(); });
+            cond_var_.wait_for(lock, std::chrono::milliseconds(10), [this] {
+                return abort_.load();
+            });
             ConsumeBuffer();
         }));
     }
 
-    virtual void PostStop() {};
-    virtual void PreStart() {};
+    virtual void PostStop(){};
+    virtual void PreStart(){};
 
     bool AddStream(AVFormatContext *output_fmt_ctx) {
         file_url = output_fmt_ctx->url;
@@ -45,9 +43,7 @@ public:
         return st != nullptr;
     }
 
-    void OnPacketed(OnPacketedFunc fn) {
-        on_packeted = fn;
-    }
+    void OnPacketed(OnPacketedFunc fn) { on_packeted = fn; }
 
     void Stop() {
         {
@@ -66,25 +62,25 @@ public:
         worker->Run();
     }
 
-protected:
+  protected:
     std::string file_url;
     OnPacketedFunc on_packeted;
     std::unique_ptr<Worker> worker;
     AVCodecContext *encoder;
     AVStream *st;
 
-    virtual void InitializeEncoderCtx(AVCodecContext* &encoder) = 0;
+    virtual void InitializeEncoderCtx(AVCodecContext *&encoder) = 0;
     virtual bool ConsumeBuffer() = 0;
     void OnPacketed(AVPacket *pkt) {
-        if (on_packeted){
+        if (on_packeted) {
             on_packeted(pkt);
         }
     }
 
-private:
+  private:
     std::atomic<bool> abort_;
     std::mutex mtx_;
     std::condition_variable cond_var_;
 };
 
-#endif  // RECORDER_H_
+#endif // RECORDER_H_

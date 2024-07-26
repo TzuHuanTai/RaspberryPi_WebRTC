@@ -1,12 +1,13 @@
 #include "v4l2_utils.h"
-#include "common/logging.h"
 
 #include <errno.h>
 #include <fcntl.h>
-#include <sys/mman.h>
-#include <sys/ioctl.h>
-#include <unistd.h>
 #include <string.h>
+#include <sys/ioctl.h>
+#include <sys/mman.h>
+#include <unistd.h>
+
+#include "common/logging.h"
 
 bool V4l2Util::IsSinglePlaneVideo(v4l2_capability *cap) {
     return (cap->capabilities & (V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_VIDEO_OUTPUT) &&
@@ -63,15 +64,15 @@ bool V4l2Util::InitBuffer(int fd, V4l2BufferGroup *gbuffer, v4l2_buf_type type, 
         return false;
     }
 
-    DEBUG_PRINT("fd(%d) driver '%s' on card '%s' in %s mode", 
-           fd, cap.driver, cap.card,
-           V4l2Util::IsSinglePlaneVideo(&cap) ? "splane" 
-           : V4l2Util::IsMultiPlaneVideo(&cap) ? "mplane" : "unknown");
+    DEBUG_PRINT("fd(%d) driver '%s' on card '%s' in %s mode", fd, cap.driver, cap.card,
+                V4l2Util::IsSinglePlaneVideo(&cap)  ? "splane"
+                : V4l2Util::IsMultiPlaneVideo(&cap) ? "mplane"
+                                                    : "unknown");
     gbuffer->fd = fd;
     gbuffer->type = type;
     gbuffer->memory = memory;
     gbuffer->has_dmafd = has_dmafd;
-    
+
     return true;
 }
 
@@ -146,10 +147,10 @@ bool V4l2Util::SetFormat(int fd, V4l2BufferGroup *gbuffer, int width, int height
     ioctl(fd, VIDIOC_G_FMT, &fmt);
 
     DEBUG_PRINT("fd(%d) original formats: %s(%dx%d)", gbuffer->fd,
-           V4l2Util::FourccToString(fmt.fmt.pix_mp.pixelformat).c_str(),
-           fmt.fmt.pix_mp.width, fmt.fmt.pix_mp.height);
+                V4l2Util::FourccToString(fmt.fmt.pix_mp.pixelformat).c_str(), fmt.fmt.pix_mp.width,
+                fmt.fmt.pix_mp.height);
 
-    if(width > 0 && height > 0) {
+    if (width > 0 && height > 0) {
         fmt.fmt.pix_mp.width = width;
         fmt.fmt.pix_mp.height = height;
         fmt.fmt.pix_mp.pixelformat = pixel_format;
@@ -157,14 +158,13 @@ bool V4l2Util::SetFormat(int fd, V4l2BufferGroup *gbuffer, int width, int height
 
     if (ioctl(fd, VIDIOC_S_FMT, &fmt) < 0) {
         ERROR_PRINT("fd(%d) set format(%s) : %s", fd,
-                    V4l2Util::FourccToString(fmt.fmt.pix_mp.pixelformat).c_str(),
-                    strerror(errno));
+                    V4l2Util::FourccToString(fmt.fmt.pix_mp.pixelformat).c_str(), strerror(errno));
         return false;
     }
 
     DEBUG_PRINT("fd(%d) latest format: %s(%dx%d)", gbuffer->fd,
-           V4l2Util::FourccToString(fmt.fmt.pix_mp.pixelformat).c_str(),
-           fmt.fmt.pix_mp.width, fmt.fmt.pix_mp.height);
+                V4l2Util::FourccToString(fmt.fmt.pix_mp.pixelformat).c_str(), fmt.fmt.pix_mp.width,
+                fmt.fmt.pix_mp.height);
 
     return true;
 }
@@ -218,7 +218,7 @@ bool V4l2Util::StreamOff(int fd, v4l2_buf_type type) {
 
 void V4l2Util::UnMap(V4l2BufferGroup *gbuffer) {
     for (int i = 0; i < gbuffer->num_buffers; i++) {
-        if(gbuffer->buffers[i].dmafd != 0) {
+        if (gbuffer->buffers[i].dmafd != 0) {
             DEBUG_PRINT("close (%d) dmafd", gbuffer->buffers[i].dmafd);
             close(gbuffer->buffers[i].dmafd);
         }
@@ -231,7 +231,7 @@ void V4l2Util::UnMap(V4l2BufferGroup *gbuffer) {
 }
 
 bool V4l2Util::MMap(int fd, V4l2BufferGroup *gbuffer) {
-    for(int i = 0; i < gbuffer->num_buffers; i++) {
+    for (int i = 0; i < gbuffer->num_buffers; i++) {
         V4l2Buffer *buffer = &gbuffer->buffers[i];
         v4l2_buffer *inner = &buffer->inner;
         inner->type = gbuffer->type;
@@ -244,7 +244,7 @@ bool V4l2Util::MMap(int fd, V4l2BufferGroup *gbuffer) {
             ERROR_PRINT("fd(%d) query buffer: %s", fd, strerror(errno));
             return false;
         }
-    
+
         if (gbuffer->has_dmafd) {
             v4l2_exportbuffer expbuf = {};
             expbuf.type = gbuffer->type;
@@ -258,16 +258,16 @@ bool V4l2Util::MMap(int fd, V4l2BufferGroup *gbuffer) {
             DEBUG_PRINT("fd(%d) export dma at fd(%d)", gbuffer->fd, buffer->dmafd);
         }
 
-        if(gbuffer->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE
-            || gbuffer->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
+        if (gbuffer->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE ||
+            gbuffer->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
             buffer->length = inner->m.planes[0].length;
-            buffer->start = mmap(NULL, buffer->length,
-                                PROT_READ | PROT_WRITE, MAP_SHARED, fd, inner->m.planes[0].m.mem_offset);
-        }
-        else if (gbuffer->type == V4L2_BUF_TYPE_VIDEO_CAPTURE
-            || gbuffer->type == V4L2_BUF_TYPE_VIDEO_OUTPUT) {
+            buffer->start = mmap(NULL, buffer->length, PROT_READ | PROT_WRITE, MAP_SHARED, fd,
+                                 inner->m.planes[0].m.mem_offset);
+        } else if (gbuffer->type == V4L2_BUF_TYPE_VIDEO_CAPTURE ||
+                   gbuffer->type == V4L2_BUF_TYPE_VIDEO_OUTPUT) {
             buffer->length = inner->length;
-            buffer->start = mmap(NULL, buffer->length, PROT_READ | PROT_WRITE, MAP_SHARED, fd, inner->m.offset);
+            buffer->start =
+                mmap(NULL, buffer->length, PROT_READ | PROT_WRITE, MAP_SHARED, fd, inner->m.offset);
         }
 
         if (MAP_FAILED == buffer->start) {
@@ -277,8 +277,8 @@ bool V4l2Util::MMap(int fd, V4l2BufferGroup *gbuffer) {
             return false;
         }
 
-        DEBUG_PRINT("fd(%d) query buffer at %p (length: %d)", 
-                    gbuffer->fd, buffer->start, buffer->length);
+        DEBUG_PRINT("fd(%d) query buffer at %p (length: %d)", gbuffer->fd, buffer->start,
+                    buffer->length);
     }
 
     return true;
@@ -301,7 +301,7 @@ bool V4l2Util::AllocateBuffer(int fd, V4l2BufferGroup *gbuffer, int num_buffers)
     if (gbuffer->memory == V4L2_MEMORY_MMAP) {
         return MMap(fd, gbuffer);
     } else if (gbuffer->memory == V4L2_MEMORY_DMABUF) {
-        for(int i = 0; i < num_buffers; i++) {
+        for (int i = 0; i < num_buffers; i++) {
             V4l2Buffer *buffer = &gbuffer->buffers[i];
             v4l2_buffer *inner = &buffer->inner;
             inner->type = gbuffer->type;
@@ -311,7 +311,7 @@ bool V4l2Util::AllocateBuffer(int fd, V4l2BufferGroup *gbuffer, int num_buffers)
             inner->m.planes = &buffer->plane;
         }
     }
-    
+
     return true;
 }
 
