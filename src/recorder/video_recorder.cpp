@@ -2,6 +2,7 @@
 #include "recorder/h264_recorder.h"
 #include "recorder/raw_h264_recorder.h"
 #include "v4l2_codecs/raw_buffer.h"
+#include "common/utils.h"
 
 #include <memory>
 

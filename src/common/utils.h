@@ -10,12 +10,18 @@
 #include <filesystem>
 #include <sys/statvfs.h>
 
+struct FreeDeleter {
+    void operator()(uint8_t* ptr) const {
+        if (ptr) {
+            free(ptr);
+        }
+        ptr = nullptr;
+    }
+};
+
 struct Buffer {
-    void *start = nullptr;
-    unsigned int length;
-    Buffer() = default;
-    Buffer(void *start, unsigned int length) : start(start), length(length) {}
-    ~Buffer() = default;
+    std::unique_ptr<uint8_t, FreeDeleter> start;
+    unsigned long length;
 };
 
 struct FileInfo {

@@ -2,7 +2,6 @@
 #define V4L2_UTILS_
 
 #include "v4l2_utils.h"
-#include "utils.h"
 #include <linux/videodev2.h>
 
 #include <stdint.h>
@@ -10,7 +9,9 @@
 #include <unordered_set>
 #include <vector>
 
-struct V4l2Buffer : public Buffer {
+struct V4l2Buffer {
+    void *start = nullptr;
+    unsigned int length;
     unsigned int flags = 0;
     int dmafd = 0;
     struct timeval timestamp = {0, 0};
@@ -18,9 +19,9 @@ struct V4l2Buffer : public Buffer {
     struct v4l2_plane plane;
 
     V4l2Buffer() = default;
-    V4l2Buffer(void *start, unsigned int length) : Buffer(start, length) {}
+    V4l2Buffer(void *start, unsigned int length) : start(start), length(length) {}
     V4l2Buffer(void *start, unsigned int length, unsigned int flags, struct timeval timestamp)
-        : Buffer(start, length), flags(flags), timestamp(timestamp) {}
+        : start(start), length(length), flags(flags), timestamp(timestamp) {}
     ~V4l2Buffer() = default;
 };
 

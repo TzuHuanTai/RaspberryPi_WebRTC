@@ -34,7 +34,6 @@ private:
     int fps_;
     int width_;
     int height_;
-    int camera_index_;
     int buffer_count_;
     bool is_dma_;
     uint32_t format_;

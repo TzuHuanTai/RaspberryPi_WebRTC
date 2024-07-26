@@ -25,9 +25,7 @@ V4L2Capture::V4L2Capture(Args args)
       config_(args) {}
 
 void V4L2Capture::Init(std::string device) {
-    webrtc::VideoCaptureModule::DeviceInfo *device_info = webrtc::VideoCaptureFactory::CreateDeviceInfo();
     fd_ = V4l2Util::OpenDevice(device.c_str());
-    camera_index_ = GetCameraIndex(device_info);
 
     if (!V4l2Util::InitBuffer(fd_, &capture_, V4L2_BUF_TYPE_VIDEO_CAPTURE, V4L2_MEMORY_MMAP)) {
         exit(0);

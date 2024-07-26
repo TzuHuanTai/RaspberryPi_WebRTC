@@ -147,7 +147,7 @@ bool Conductor::CreatePeerConnection() {
 
             while (offset < file_size) {
                 int current_chunk_size = std::min(chunk_size, file_size - offset);
-                datachannel->Send(((uint8_t*)jpg_buffer.start + offset), current_chunk_size);
+                datachannel->Send(((uint8_t*)jpg_buffer.start.get() + offset), current_chunk_size);
                 offset += current_chunk_size;
             }
 
