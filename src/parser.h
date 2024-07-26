@@ -3,9 +3,8 @@
 
 #include "args.h"
 
-class Parser
-{
-public:
+class Parser {
+  public:
     static void ParseArgs(int argc, char *argv[], Args &args);
 };
 

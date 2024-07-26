@@ -2,13 +2,15 @@
 #define SIGNALR_SERVICE_H_
 
 #include "signaling/signaling_service.h"
-#include "args.h"
+
+#include <condition_variable>
 #include <memory>
 #include <mutex>
-#include <condition_variable>
 #include <signalrclient/hub_connection.h>
 #include <signalrclient/hub_connection_builder.h>
 #include <signalrclient/signalr_value.h>
+
+#include "args.h"
 
 struct SignalrTopic {
     std::string offer_sdp = "OfferSDP";
@@ -21,7 +23,7 @@ struct SignalrTopic {
 };
 
 class SignalrService : public SignalingService {
-public:
+  public:
     static std::shared_ptr<SignalrService> Create(Args args);
 
     SignalrTopic topics;
@@ -30,25 +32,22 @@ public:
     bool ready = false;
 
     SignalrService(Args args);
-    ~SignalrService() override {
-        std::cout << "=> ~SignalrService: destroied" << std::endl;
-    };
+    ~SignalrService() override { std::cout << "=> ~SignalrService: destroied" << std::endl; };
 
     void Connect() override;
     void Disconnect() override;
     SignalrService &AutoReconnect();
-    void Subscribe(std::string event_name, const signalr::hub_connection::method_invoked_handler &handler);
+    void Subscribe(std::string event_name,
+                   const signalr::hub_connection::method_invoked_handler &handler);
     void JoinAsClient();
     void JoinAsServer();
     void Start();
 
-protected:
+  protected:
     void AnswerLocalSdp(std::string sdp, std::string type) override;
-    void AnswerLocalIce(std::string sdp_mid,
-                                int sdp_mline_index,
-                                std::string candidate) override;
+    void AnswerLocalIce(std::string sdp_mid, int sdp_mline_index, std::string candidate) override;
 
-private:
+  private:
     std::string url;
     std::string client_id_;
     signalr::hub_connection connection_;

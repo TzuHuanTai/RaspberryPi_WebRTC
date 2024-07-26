@@ -7,9 +7,9 @@
 #include <common_video/include/bitrate_adjuster.h>
 
 class V4l2Encoder : public V4l2Codec {
-public:
+  public:
     V4l2Encoder();
-    ~V4l2Encoder() {};
+    ~V4l2Encoder() = default;
 
     bool Configure(int width, int height, bool is_drm_src);
     void SetProfile(uint32_t h264_profile);
@@ -17,7 +17,7 @@ public:
     void SetFps(int adjusted_fps);
     const int GetFd() const;
 
-private:
+  private:
     int framerate_;
     int bitrate_bps_;
     uint32_t h264_profile_;

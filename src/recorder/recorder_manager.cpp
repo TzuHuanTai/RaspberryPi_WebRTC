@@ -1,26 +1,25 @@
 #include "recorder/recorder_manager.h"
 
-#include "recorder/h264_recorder.h"
-#include "recorder/raw_h264_recorder.h"
-#include "common/utils.h"
-#include "common/logging.h"
-#include "common/v4l2_frame_buffer.h"
-
+#include <condition_variable>
 #include <csignal>
 #include <filesystem>
 #include <mutex>
-#include <condition_variable>
+
+#include "common/logging.h"
+#include "common/utils.h"
+#include "common/v4l2_frame_buffer.h"
+#include "recorder/h264_recorder.h"
+#include "recorder/raw_h264_recorder.h"
 
 const double SECOND_PER_FILE = 60.0;
 
-AVFormatContext* RecUtil::CreateContainer(std::string record_path, std::string filename) {
-    AVFormatContext* fmt_ctx = nullptr;
+AVFormatContext *RecUtil::CreateContainer(std::string record_path, std::string filename) {
+    AVFormatContext *fmt_ctx = nullptr;
     std::string container = "mp4";
     auto full_path = record_path + '/' + filename + "." + container;
 
-    if (avformat_alloc_output_context2(&fmt_ctx, nullptr,
-                                       container.c_str(),
-                                       full_path.c_str()) < 0) {
+    if (avformat_alloc_output_context2(&fmt_ctx, nullptr, container.c_str(), full_path.c_str()) <
+        0) {
         ERROR_PRINT("Could not alloc output context");
         return nullptr;
     }
@@ -37,10 +36,9 @@ AVFormatContext* RecUtil::CreateContainer(std::string record_path, std::string f
 }
 
 void RecUtil::CreateThumbnail(std::string record_path, std::string filename) {
-    const std::string ffmpegCommand = 
-        std::string("ffmpeg -xerror -loglevel quiet -hide_banner -y") +
-        " -i " + record_path + "/" + filename + ".mp4" +
-        " -vf \"select=eq(pict_type\\,I)\" -vsync vfr -frames:v 1 " +
+    const std::string ffmpegCommand =
+        std::string("ffmpeg -xerror -loglevel quiet -hide_banner -y") + " -i " + record_path + "/" +
+        filename + ".mp4" + " -vf \"select=eq(pict_type\\,I)\" -vsync vfr -frames:v 1 " +
         record_path + "/" + filename + ".jpg";
     DEBUG_PRINT("%s", ffmpegCommand.c_str());
 
@@ -55,7 +53,7 @@ void RecUtil::CreateThumbnail(std::string record_path, std::string filename) {
     }
 }
 
-bool RecUtil::WriteFormatHeader(AVFormatContext* fmt_ctx) {
+bool RecUtil::WriteFormatHeader(AVFormatContext *fmt_ctx) {
     if (avformat_write_header(fmt_ctx, nullptr) < 0) {
         ERROR_PRINT("Error occurred when opening output file");
         return false;
@@ -63,7 +61,7 @@ bool RecUtil::WriteFormatHeader(AVFormatContext* fmt_ctx) {
     return true;
 }
 
-void RecUtil::CloseContext(AVFormatContext* fmt_ctx) {
+void RecUtil::CloseContext(AVFormatContext *fmt_ctx) {
     if (fmt_ctx) {
         av_write_trailer(fmt_ctx);
         avio_closep(&fmt_ctx->pb);
@@ -71,9 +69,8 @@ void RecUtil::CloseContext(AVFormatContext* fmt_ctx) {
     }
 }
 
-std::unique_ptr<RecorderManager> RecorderManager::Create(
-        std::shared_ptr<Conductor> conductor,
-        std::string record_path) {
+std::unique_ptr<RecorderManager> RecorderManager::Create(std::shared_ptr<Conductor> conductor,
+                                                         std::string record_path) {
     auto instance = std::make_unique<RecorderManager>(record_path);
 
     auto video_src = conductor->VideoSource();
@@ -92,8 +89,7 @@ std::unique_ptr<RecorderManager> RecorderManager::Create(
     return instance;
 }
 
-void RecorderManager::CreateVideoRecorder(
-    std::shared_ptr<V4L2Capture> capture) {
+void RecorderManager::CreateVideoRecorder(std::shared_ptr<V4L2Capture> capture) {
     fps = capture->fps();
     width = capture->width();
     height = capture->height();

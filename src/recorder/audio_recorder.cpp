@@ -14,11 +14,11 @@ AudioRecorder::AudioRecorder(Args config)
       sample_rate(config.sample_rate),
       channels(2),
       sample_fmt(AV_SAMPLE_FMT_FLTP),
-      encoder_name("aac") { }
+      encoder_name("aac") {}
 
 AudioRecorder::~AudioRecorder() {}
 
-void AudioRecorder::InitializeEncoderCtx(AVCodecContext* &encoder) {
+void AudioRecorder::InitializeEncoderCtx(AVCodecContext *&encoder) {
     const AVCodec *codec = avcodec_find_encoder_by_name(encoder_name.c_str());
     encoder = avcodec_alloc_context3(codec);
     encoder->codec_type = AVMEDIA_TYPE_AUDIO;
@@ -60,7 +60,7 @@ void AudioRecorder::Encode() {
     pkt.data = nullptr;
     pkt.size = 0;
 
-    if (av_audio_fifo_read(fifo_buffer, (void**)&frame->data, frame_size) < 0) {
+    if (av_audio_fifo_read(fifo_buffer, (void **)&frame->data, frame_size) < 0) {
         DEBUG_PRINT("Failed to read audio fifo buffer.");
     }
 
@@ -97,23 +97,23 @@ void AudioRecorder::OnBuffer(PaBuffer &buffer) {
     uint8_t **converted_input_samples = nullptr;
     int samples_per_channel = buffer.length / buffer.channels;
 
-    if (av_samples_alloc_array_and_samples(&converted_input_samples, nullptr, 
-                                           channels, samples_per_channel, sample_fmt, 0) < 0) {
+    if (av_samples_alloc_array_and_samples(&converted_input_samples, nullptr, channels,
+                                           samples_per_channel, sample_fmt, 0) < 0) {
         // Handle allocation error
         return;
     }
 
-    auto data = reinterpret_cast<float*>(buffer.start);
+    auto data = reinterpret_cast<float *>(buffer.start);
     for (int i = 0; i < buffer.length; ++i) {
         int channel_index = i % buffer.channels;
         if (channel_index < channels) {
-            reinterpret_cast<float*>(converted_input_samples[channel_index])
-                [i / buffer.channels] = data[i];
+            reinterpret_cast<float *>(converted_input_samples[channel_index])[i / buffer.channels] =
+                data[i];
         }
     }
 
-    if (av_audio_fifo_write(fifo_buffer, reinterpret_cast<void**>(converted_input_samples),
-        samples_per_channel) < samples_per_channel) {
+    if (av_audio_fifo_write(fifo_buffer, reinterpret_cast<void **>(converted_input_samples),
+                            samples_per_channel) < samples_per_channel) {
         // Handle write error
     }
 

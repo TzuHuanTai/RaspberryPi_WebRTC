@@ -6,9 +6,7 @@ Worker::Worker(std::string name, std::function<void()> executing_function)
       name_(name),
       executing_function_(executing_function) {}
 
-Worker::~Worker() {
-    Release();
-}
+Worker::~Worker() { Release(); }
 
 void Worker::Release() {
     abort_ = true;
@@ -18,10 +16,10 @@ void Worker::Release() {
 
 void Worker::Run() {
     thread_ = rtc::PlatformThread::SpawnJoinable(
-            [this]()
-            { this->Thread(); },
-            "CaptureThread",
-            rtc::ThreadAttributes().SetPriority(rtc::ThreadPriority::kHigh));
+        [this]() {
+            this->Thread();
+        },
+        "CaptureThread", rtc::ThreadAttributes().SetPriority(rtc::ThreadPriority::kHigh));
 }
 
 void Worker::Thread() {

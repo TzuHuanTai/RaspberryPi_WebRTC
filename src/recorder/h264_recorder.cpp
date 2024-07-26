@@ -8,7 +8,7 @@ std::unique_ptr<H264Recorder> H264Recorder::Create(Args config) {
 
 H264Recorder::H264Recorder(Args config, std::string encoder_name)
     : VideoRecorder(config, encoder_name),
-      is_ready_(false) {};
+      is_ready_(false){};
 
 H264Recorder::~H264Recorder() {
     decoder_.reset();
@@ -26,9 +26,7 @@ void H264Recorder::Encode(V4l2Buffer &buffer) {
     });
 }
 
-void H264Recorder::PreStart() {
-    ResetCodecs();
-}
+void H264Recorder::PreStart() { ResetCodecs(); }
 
 void H264Recorder::ResetCodecs() {
     is_ready_ = false;

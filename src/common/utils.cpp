@@ -1,16 +1,17 @@
 #include "common/utils.h"
-#include "common/logging.h"
 
-#include <third_party/libyuv/include/libyuv.h>
-#include <jpeglib.h>
-
+#include <algorithm>
 #include <iostream>
 #include <vector>
-#include <algorithm>
+
+#include <jpeglib.h>
+#include <third_party/libyuv/include/libyuv.h>
+
+#include "common/logging.h"
 
 namespace fs = std::filesystem;
 
-bool Utils::CreateFolder(const std::string& folder_path) {
+bool Utils::CreateFolder(const std::string &folder_path) {
     if (folder_path.empty()) {
         return false;
     }
@@ -21,7 +22,7 @@ bool Utils::CreateFolder(const std::string& folder_path) {
         fs::create_directory(folder_path);
         DEBUG_PRINT("Directory created: %s", folder_path.c_str());
         return true;
-    } catch (const fs::filesystem_error& e) {
+    } catch (const fs::filesystem_error &e) {
         std::cerr << "Failed to create directory: " << folder_path << std::endl;
         std::cerr << e.what() << std::endl;
         return false;
@@ -31,7 +32,7 @@ bool Utils::CreateFolder(const std::string& folder_path) {
 void Utils::RotateFiles(std::string folder_path) {
     std::vector<fs::path> date_folders;
 
-    for (const auto& entry : fs::directory_iterator(folder_path)) {
+    for (const auto &entry : fs::directory_iterator(folder_path)) {
         if (entry.is_directory()) {
             date_folders.push_back(entry.path());
         }
@@ -42,7 +43,7 @@ void Utils::RotateFiles(std::string folder_path) {
         fs::path oldest_date_folder = date_folders.front();
         std::vector<fs::path> hour_folders;
 
-        for (const auto& hour_entry : fs::directory_iterator(oldest_date_folder)) {
+        for (const auto &hour_entry : fs::directory_iterator(oldest_date_folder)) {
             if (hour_entry.is_directory()) {
                 hour_folders.push_back(hour_entry.path());
             }
@@ -55,13 +56,13 @@ void Utils::RotateFiles(std::string folder_path) {
 
             std::vector<fs::path> mp4_files;
 
-            for (const auto& file_entry : fs::directory_iterator(oldest_hour_folder)) {
+            for (const auto &file_entry : fs::directory_iterator(oldest_hour_folder)) {
                 if (file_entry.is_regular_file() && file_entry.path().extension() == ".mp4") {
                     mp4_files.push_back(file_entry.path());
                 }
             }
 
-            std::sort(mp4_files.begin(), mp4_files.end(), [](const fs::path& a, const fs::path& b) {
+            std::sort(mp4_files.begin(), mp4_files.end(), [](const fs::path &a, const fs::path &b) {
                 return fs::last_write_time(a) < fs::last_write_time(b);
             });
 
@@ -73,7 +74,8 @@ void Utils::RotateFiles(std::string folder_path) {
                 fs::path corresponding_image = mp4_files.front().replace_extension(".jpg");
                 if (fs::exists(corresponding_image)) {
                     fs::remove(corresponding_image);
-                    std::cout << "Deleted corresponding .jpg file: " << corresponding_image << std::endl;
+                    std::cout << "Deleted corresponding .jpg file: " << corresponding_image
+                              << std::endl;
                 }
 
                 if (fs::is_empty(oldest_hour_folder)) {
@@ -82,7 +84,8 @@ void Utils::RotateFiles(std::string folder_path) {
 
                     if (fs::is_empty(oldest_date_folder)) {
                         fs::remove(oldest_date_folder);
-                        std::cout << "Deleted empty date folder: " << oldest_date_folder << std::endl;
+                        std::cout << "Deleted empty date folder: " << oldest_date_folder
+                                  << std::endl;
                     }
                 }
             }
@@ -93,8 +96,9 @@ void Utils::RotateFiles(std::string folder_path) {
 std::string Utils::ToBase64(const std::string &binary_file) {
     std::string out;
     int val = 0, valb = -6;
-    static const std::string base64_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    
+    static const std::string base64_chars =
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
     for (unsigned char c : binary_file) {
         val = (val << 8) + c;
         valb += 8;
@@ -103,8 +107,10 @@ std::string Utils::ToBase64(const std::string &binary_file) {
             valb -= 6;
         }
     }
-    if (valb > -6) out.push_back(base64_chars[((val << 8) >> (valb + 8)) & 0x3F]);
-    while (out.size() % 4) out.push_back('=');
+    if (valb > -6)
+        out.push_back(base64_chars[((val << 8) >> (valb + 8)) & 0x3F]);
+    while (out.size() % 4)
+        out.push_back('=');
     return out;
 }
 
@@ -173,16 +179,12 @@ FileInfo Utils::GenerateFilename() {
     s1 << year << month << day << "_" << hour << min << sec;
     s1 >> filename;
 
-    FileInfo info = {
-        .date = year + month + day,
-        .hour = hour,
-        .filename = filename
-    };
+    FileInfo info = {.date = year + month + day, .hour = hour, .filename = filename};
 
     return info;
 }
 
-Buffer Utils::ConvertYuvToJpeg(const uint8_t* yuv_data, int width, int height, int quality) {
+Buffer Utils::ConvertYuvToJpeg(const uint8_t *yuv_data, int width, int height, int quality) {
     struct jpeg_compress_struct cinfo;
     struct jpeg_error_mgr jerr;
 
@@ -190,7 +192,7 @@ Buffer Utils::ConvertYuvToJpeg(const uint8_t* yuv_data, int width, int height, i
 
     cinfo.err = jpeg_std_error(&jerr);
     jpeg_create_compress(&cinfo);
-    uint8_t* data = nullptr;
+    uint8_t *data = nullptr;
     unsigned long size = 0;
     jpeg_mem_dest(&cinfo, &data, &size);
 
@@ -204,12 +206,10 @@ Buffer Utils::ConvertYuvToJpeg(const uint8_t* yuv_data, int width, int height, i
 
     JSAMPROW row_pointer[1];
     int row_stride = width * 3;
-    uint8_t* rgb_data = (uint8_t*)malloc(width * height * 3);
-    libyuv::I420ToRGB24(yuv_data, width,
-                        yuv_data + width * height, width / 2,
-                        yuv_data + width * height + (width * height / 4), width / 2,
-                        rgb_data, width * 3,
-                        width, height);
+    uint8_t *rgb_data = (uint8_t *)malloc(width * height * 3);
+    libyuv::I420ToRGB24(yuv_data, width, yuv_data + width * height, width / 2,
+                        yuv_data + width * height + (width * height / 4), width / 2, rgb_data,
+                        width * 3, width, height);
 
     jpeg_start_compress(&cinfo, TRUE);
 
@@ -229,9 +229,9 @@ Buffer Utils::ConvertYuvToJpeg(const uint8_t* yuv_data, int width, int height, i
 }
 
 void Utils::WriteJpegImage(Buffer buffer, std::string url) {
-    FILE* file = fopen(url.c_str(), "wb");
+    FILE *file = fopen(url.c_str(), "wb");
     if (file) {
-        fwrite((uint8_t*)buffer.start.get(), 1, buffer.length, file);
+        fwrite((uint8_t *)buffer.start.get(), 1, buffer.length, file);
         fclose(file);
         DEBUG_PRINT("JPEG data successfully written to %s", url.c_str());
     } else {
@@ -239,8 +239,7 @@ void Utils::WriteJpegImage(Buffer buffer, std::string url) {
     }
 }
 
-void Utils::CreateJpegImage(const uint8_t* yuv_data, int width, int height,
-                            std::string url) {
+void Utils::CreateJpegImage(const uint8_t *yuv_data, int width, int height, std::string url) {
     try {
         auto jpg_buffer = Utils::ConvertYuvToJpeg(yuv_data, width, height, 30);
         WriteJpegImage(std::move(jpg_buffer), url);

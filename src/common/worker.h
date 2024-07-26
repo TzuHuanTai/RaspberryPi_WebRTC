@@ -8,13 +8,13 @@
 #include <rtc_base/platform_thread.h>
 
 class Worker {
-public:
+  public:
     Worker(std::string name, std::function<void()> excuting_function);
     ~Worker();
     void Release();
     void Run();
 
-private:
+  private:
     std::atomic<bool> abort_;
     std::string name_;
     std::function<void()> executing_function_;

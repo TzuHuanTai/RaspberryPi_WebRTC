@@ -17,7 +17,7 @@ RawH264Recorder::RawH264Recorder(Args config, std::string encoder_name)
     : VideoRecorder(config, encoder_name),
       has_sps_(false),
       has_pps_(false),
-      has_first_keyframe_(false) {};
+      has_first_keyframe_(false){};
 
 RawH264Recorder::~RawH264Recorder() {}
 
@@ -28,7 +28,7 @@ void RawH264Recorder::PreStart() {
 }
 
 void RawH264Recorder::Encode(V4l2Buffer &buffer) {
-    if (buffer.flags & V4L2_BUF_FLAG_KEYFRAME && !has_first_keyframe_ ) {
+    if (buffer.flags & V4L2_BUF_FLAG_KEYFRAME && !has_first_keyframe_) {
         CheckNALUnits(buffer);
         if (has_sps_ && has_pps_) {
             has_first_keyframe_ = true;
@@ -40,12 +40,12 @@ void RawH264Recorder::Encode(V4l2Buffer &buffer) {
     }
 }
 
-bool RawH264Recorder::CheckNALUnits(const V4l2Buffer& buffer) {
+bool RawH264Recorder::CheckNALUnits(const V4l2Buffer &buffer) {
     if (buffer.start == nullptr || buffer.length < 4) {
         return false;
     }
 
-    uint8_t* data = static_cast<uint8_t*>(buffer.start);
+    uint8_t *data = static_cast<uint8_t *>(buffer.start);
     for (unsigned int i = 0; i < buffer.length - 4; ++i) {
         if (data[i] == 0x00 && data[i + 1] == 0x00 &&
             ((data[i + 2] == 0x01) || (data[i + 2] == 0x00 && data[i + 3] == 0x01))) {

@@ -1,29 +1,30 @@
 #include "conductor.h"
-#include "common/utils.h"
-#include "common/logging.h"
-#include "track/v4l2dma_track_source.h"
-#include "track/h264_dma_track_source.h"
-#include "customized_video_encoder_factory.h"
 
 #include <api/audio_codecs/builtin_audio_decoder_factory.h>
 #include <api/audio_codecs/builtin_audio_encoder_factory.h>
 #include <api/create_peerconnection_factory.h>
 #include <api/rtc_event_log/rtc_event_log_factory.h>
 #include <api/task_queue/default_task_queue_factory.h>
-#include "api/video_codecs/video_decoder_factory.h"
-#include "api/video_codecs/video_decoder_factory_template.h"
-#include "api/video_codecs/video_decoder_factory_template_dav1d_adapter.h"
-#include "api/video_codecs/video_decoder_factory_template_libvpx_vp8_adapter.h"
-#include "api/video_codecs/video_decoder_factory_template_libvpx_vp9_adapter.h"
-#include "api/video_codecs/video_decoder_factory_template_open_h264_adapter.h"
-#include <pc/video_track_source_proxy.h>
+#include <api/video_codecs/video_decoder_factory.h>
+#include <api/video_codecs/video_decoder_factory_template.h>
+#include <api/video_codecs/video_decoder_factory_template_dav1d_adapter.h>
+#include <api/video_codecs/video_decoder_factory_template_libvpx_vp8_adapter.h>
+#include <api/video_codecs/video_decoder_factory_template_libvpx_vp9_adapter.h>
+#include <api/video_codecs/video_decoder_factory_template_open_h264_adapter.h>
 #include <media/engine/webrtc_media_engine.h>
 #include <modules/audio_device/include/audio_device.h>
 #include <modules/audio_device/include/audio_device_factory.h>
 #include <modules/audio_device/linux/audio_device_alsa_linux.h>
 #include <modules/audio_device/linux/audio_device_pulse_linux.h>
 #include <modules/audio_processing/include/audio_processing.h>
+#include <pc/video_track_source_proxy.h>
 #include <rtc_base/ssl_adapter.h>
+
+#include "common/logging.h"
+#include "common/utils.h"
+#include "customized_video_encoder_factory.h"
+#include "track/h264_dma_track_source.h"
+#include "track/v4l2dma_track_source.h"
 
 std::shared_ptr<Conductor> Conductor::Create(Args args) {
     auto ptr = std::make_shared<Conductor>(args);
@@ -37,17 +38,11 @@ Conductor::Conductor(Args args)
       peers_idx(0),
       is_ready(false) {}
 
-Args Conductor::config() const {
-    return args;
-}
+Args Conductor::config() const { return args; }
 
-std::shared_ptr<PaCapture> Conductor::AudioSource() const {
-    return audio_capture_source_;
-}
+std::shared_ptr<PaCapture> Conductor::AudioSource() const { return audio_capture_source_; }
 
-std::shared_ptr<V4L2Capture> Conductor::VideoSource() const {
-    return video_capture_source_;
-}
+std::shared_ptr<V4L2Capture> Conductor::VideoSource() const { return video_capture_source_; }
 
 void Conductor::InitializeTracks() {
     if (audio_track_ == nullptr) {
@@ -59,7 +54,7 @@ void Conductor::InitializeTracks() {
     if (video_track_ == nullptr && !args.device.empty()) {
         video_capture_source_ = V4L2Capture::Create(args);
 
-        video_track_source_ =([this]() -> rtc::scoped_refptr<ScaleTrackSource> {
+        video_track_source_ = ([this]() -> rtc::scoped_refptr<ScaleTrackSource> {
             if (video_capture_source_->format() == V4L2_PIX_FMT_H264) {
                 return H264DmaTrackSource::Create(video_capture_source_);
             } else if (args.enable_v4l2_dma) {
@@ -69,9 +64,8 @@ void Conductor::InitializeTracks() {
             }
         })();
 
-        auto video_source = webrtc::VideoTrackSourceProxy::Create(signaling_thread_.get(),
-                                                                  worker_thread_.get(),
-                                                                  video_track_source_);
+        auto video_source = webrtc::VideoTrackSourceProxy::Create(
+            signaling_thread_.get(), worker_thread_.get(), video_track_source_);
         video_track_ = peer_connection_factory_->CreateVideoTrack(video_source, "video_track");
     }
 }
@@ -138,8 +132,8 @@ bool Conductor::CreatePeerConnection() {
             int quality = ss.fail() ? 100 : num;
 
             auto i420buff = video_track_source_->GetI420Frame();
-            auto jpg_buffer = Utils::ConvertYuvToJpeg(i420buff->DataY(), args.width, 
-                                                      args.height, quality);
+            auto jpg_buffer =
+                Utils::ConvertYuvToJpeg(i420buff->DataY(), args.width, args.height, quality);
 
             const int chunk_size = 16384; // 1024*16
             const int file_size = jpg_buffer.length;
@@ -147,12 +141,12 @@ bool Conductor::CreatePeerConnection() {
 
             while (offset < file_size) {
                 int current_chunk_size = std::min(chunk_size, file_size - offset);
-                datachannel->Send(((uint8_t*)jpg_buffer.start.get() + offset), current_chunk_size);
+                datachannel->Send(((uint8_t *)jpg_buffer.start.get() + offset), current_chunk_size);
                 offset += current_chunk_size;
             }
 
             std::string end_signal = "";
-            datachannel->Send((uint8_t*)end_signal.c_str(), end_signal.length());
+            datachannel->Send((uint8_t *)end_signal.c_str(), end_signal.length());
         } catch (const std::exception &e) {
             ERROR_PRINT("%s", e.what());
         }
@@ -212,31 +206,29 @@ void Conductor::InitializePeerConnectionFactory() {
     }
 
     webrtc::PeerConnectionFactoryDependencies dependencies;
-    dependencies.network_thread = network_thread_.get();;
+    dependencies.network_thread = network_thread_.get();
+    ;
     dependencies.worker_thread = worker_thread_.get();
     dependencies.signaling_thread = signaling_thread_.get();
     dependencies.task_queue_factory = webrtc::CreateDefaultTaskQueueFactory();
     dependencies.call_factory = webrtc::CreateCallFactory();
-    dependencies.event_log_factory = std::make_unique<webrtc::RtcEventLogFactory>(
-        dependencies.task_queue_factory.get());
+    dependencies.event_log_factory =
+        std::make_unique<webrtc::RtcEventLogFactory>(dependencies.task_queue_factory.get());
     dependencies.trials = std::make_unique<webrtc::FieldTrialBasedConfig>();
 
     cricket::MediaEngineDependencies media_dependencies;
     media_dependencies.task_queue_factory = dependencies.task_queue_factory.get();
 
     media_dependencies.adm = webrtc::AudioDeviceModule::Create(
-                    webrtc::AudioDeviceModule::kLinuxPulseAudio, 
-                    dependencies.task_queue_factory.get());
+        webrtc::AudioDeviceModule::kLinuxPulseAudio, dependencies.task_queue_factory.get());
     media_dependencies.audio_encoder_factory = webrtc::CreateBuiltinAudioEncoderFactory();
     media_dependencies.audio_decoder_factory = webrtc::CreateBuiltinAudioDecoderFactory();
     media_dependencies.audio_processing = webrtc::AudioProcessingBuilder().Create();
     media_dependencies.audio_mixer = nullptr;
     media_dependencies.video_encoder_factory = CreateCustomizedVideoEncoderFactory(args);
     media_dependencies.video_decoder_factory = std::make_unique<webrtc::VideoDecoderFactoryTemplate<
-          webrtc::OpenH264DecoderTemplateAdapter,
-          webrtc::LibvpxVp8DecoderTemplateAdapter,
-          webrtc::LibvpxVp9DecoderTemplateAdapter,
-          webrtc::Dav1dDecoderTemplateAdapter>>();
+        webrtc::OpenH264DecoderTemplateAdapter, webrtc::LibvpxVp8DecoderTemplateAdapter,
+        webrtc::LibvpxVp9DecoderTemplateAdapter, webrtc::Dav1dDecoderTemplateAdapter>>();
     media_dependencies.trials = dependencies.trials.get();
     dependencies.media_engine = cricket::CreateMediaEngine(std::move(media_dependencies));
 
@@ -249,9 +241,7 @@ void Conductor::SetPeerReadyState(bool state) {
     ready_state.notify_all();
 }
 
-bool Conductor::IsReady() const {
-    return is_ready;
-}
+bool Conductor::IsReady() const { return is_ready; }
 
 void Conductor::AwaitCompletion() {
     {
@@ -273,8 +263,9 @@ void Conductor::AwaitCompletion() {
 
 void Conductor::RefreshPeerList() {
     auto pm_it = peers_map.begin();
-    while(pm_it != peers_map.end()) {
-        DEBUG_PRINT("Found peers_map key: %d, value: %d", pm_it->second->GetId(), pm_it->second->IsConnected());
+    while (pm_it != peers_map.end()) {
+        DEBUG_PRINT("Found peers_map key: %d, value: %d", pm_it->second->GetId(),
+                    pm_it->second->IsConnected());
 
         if (pm_it->second && !pm_it->second->IsConnected()) {
             int id = pm_it->second->GetId();

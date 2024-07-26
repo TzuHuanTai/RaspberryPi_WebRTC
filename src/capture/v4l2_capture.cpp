@@ -1,5 +1,4 @@
 #include "v4l2_capture.h"
-#include "common/logging.h"
 
 // Linux
 #include <linux/videodev2.h>
@@ -8,6 +7,8 @@
 
 // WebRTC
 #include <modules/video_capture/video_capture_factory.h>
+
+#include "common/logging.h"
 
 std::shared_ptr<V4L2Capture> V4L2Capture::Create(Args args) {
     auto ptr = std::make_shared<V4L2Capture>(args);
@@ -39,38 +40,24 @@ V4L2Capture::~V4L2Capture() {
     V4l2Util::CloseDevice(fd_);
 }
 
-int V4L2Capture::fps() const {
-    return fps_;
-}
+int V4L2Capture::fps() const { return fps_; }
 
-int V4L2Capture::width() const {
-    return width_;
-}
+int V4L2Capture::width() const { return width_; }
 
-int V4L2Capture::height() const {
-    return height_;
-}
+int V4L2Capture::height() const { return height_; }
 
-bool V4L2Capture::is_dma() const {
-    return is_dma_;
-}
+bool V4L2Capture::is_dma() const { return is_dma_; }
 
-uint32_t V4L2Capture::format() const {
-    return format_;
-}
+uint32_t V4L2Capture::format() const { return format_; }
 
-Args V4L2Capture::config() const {
-    return config_;
-}
+Args V4L2Capture::config() const { return config_; }
 
-webrtc::VideoType V4L2Capture::type() const {
-    return video_type_;
-}
+webrtc::VideoType V4L2Capture::type() const { return video_type_; }
 
 bool V4L2Capture::CheckMatchingDevice(std::string unique_name) {
     struct v4l2_capability cap;
-    if (V4l2Util::QueryCapabilities(fd_, &cap) && cap.bus_info[0] != 0
-        && strcmp((const char *)cap.bus_info, unique_name.c_str()) == 0) {
+    if (V4l2Util::QueryCapabilities(fd_, &cap) && cap.bus_info[0] != 0 &&
+        strcmp((const char *)cap.bus_info, unique_name.c_str()) == 0) {
         return true;
     }
     return false;
@@ -80,12 +67,11 @@ int V4L2Capture::GetCameraIndex(webrtc::VideoCaptureModule::DeviceInfo *device_i
     for (int i = 0; i < device_info->NumberOfDevices(); i++) {
         char device_name[256];
         char unique_name[256];
-        if (device_info->GetDeviceName(static_cast<uint32_t>(i), device_name,
-                                       sizeof(device_name), unique_name,
-                                       sizeof(unique_name)) == 0
-            && CheckMatchingDevice(unique_name)) {
-            DEBUG_PRINT("GetDeviceName(%d): device_name=%s, unique_name=%s",
-                        i, device_name, unique_name);
+        if (device_info->GetDeviceName(static_cast<uint32_t>(i), device_name, sizeof(device_name),
+                                       unique_name, sizeof(unique_name)) == 0 &&
+            CheckMatchingDevice(unique_name)) {
+            DEBUG_PRINT("GetDeviceName(%d): device_name=%s, unique_name=%s", i, device_name,
+                        unique_name);
             return i;
         }
     }
@@ -105,8 +91,10 @@ V4L2Capture &V4L2Capture::SetFormat(int width, int height, std::string video_typ
     } else if (video_type == "h264") {
         DEBUG_PRINT("Use h264 format source in v4l2");
         V4l2Util::SetFormat(fd_, &capture_, width, height, V4L2_PIX_FMT_H264);
-        V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_BITRATE_MODE, V4L2_MPEG_VIDEO_BITRATE_MODE_VBR);
-        V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_H264_PROFILE, V4L2_MPEG_VIDEO_H264_PROFILE_HIGH);
+        V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_BITRATE_MODE,
+                             V4L2_MPEG_VIDEO_BITRATE_MODE_VBR);
+        V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_H264_PROFILE,
+                             V4L2_MPEG_VIDEO_H264_PROFILE_HIGH);
         V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_REPEAT_SEQ_HEADER, true);
         V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_H264_LEVEL, V4L2_MPEG_VIDEO_H264_LEVEL_4_0);
         V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_H264_I_PERIOD, 60); /* trick */
@@ -165,8 +153,8 @@ void V4L2Capture::CaptureImage() {
 
     rtc::scoped_refptr<V4l2FrameBuffer> frame_buffer(
         V4l2FrameBuffer::Create(width_, height_, buf.bytesused, format_));
-    frame_buffer->CopyBuffer((uint8_t*)capture_.buffers[buf.index].start,
-                                buf.bytesused, buf.flags, buf.timestamp);
+    frame_buffer->CopyBuffer((uint8_t *)capture_.buffers[buf.index].start, buf.bytesused, buf.flags,
+                             buf.timestamp);
 
     if (!V4l2Util::QueueBuffer(fd_, &buf)) {
         return;
@@ -176,7 +164,7 @@ void V4L2Capture::CaptureImage() {
 }
 
 void V4L2Capture::Next(rtc::scoped_refptr<V4l2FrameBuffer> buffer) {
-     for (auto &observer : observers_) {
+    for (auto &observer : observers_) {
         if (observer && observer->subscribed_func_ != nullptr) {
             observer->subscribed_func_(buffer);
         }
@@ -184,13 +172,15 @@ void V4L2Capture::Next(rtc::scoped_refptr<V4l2FrameBuffer> buffer) {
 }
 
 void V4L2Capture::StartCapture() {
-    if (!V4l2Util::AllocateBuffer(fd_, &capture_, buffer_count_)
-        || !V4l2Util::QueueBuffers(fd_, &capture_)) {
+    if (!V4l2Util::AllocateBuffer(fd_, &capture_, buffer_count_) ||
+        !V4l2Util::QueueBuffers(fd_, &capture_)) {
         exit(0);
     }
 
     V4l2Util::StreamOn(fd_, capture_.type);
 
-    worker_.reset(new Worker("V4l2Capture", [this]() { CaptureImage(); }));
+    worker_.reset(new Worker("V4l2Capture", [this]() {
+        CaptureImage();
+    }));
     worker_->Run();
 }

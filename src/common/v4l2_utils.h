@@ -2,8 +2,8 @@
 #define V4L2_UTILS_
 
 #include "v4l2_utils.h"
-#include <linux/videodev2.h>
 
+#include <linux/videodev2.h>
 #include <stdint.h>
 #include <string>
 #include <unordered_set>
@@ -19,9 +19,14 @@ struct V4l2Buffer {
     struct v4l2_plane plane;
 
     V4l2Buffer() = default;
-    V4l2Buffer(void *start, unsigned int length) : start(start), length(length) {}
+    V4l2Buffer(void *start, unsigned int length)
+        : start(start),
+          length(length) {}
     V4l2Buffer(void *start, unsigned int length, unsigned int flags, struct timeval timestamp)
-        : start(start), length(length), flags(flags), timestamp(timestamp) {}
+        : start(start),
+          length(length),
+          flags(flags),
+          timestamp(timestamp) {}
     ~V4l2Buffer() = default;
 };
 
@@ -35,11 +40,11 @@ struct V4l2BufferGroup {
 };
 
 class V4l2Util {
-public:
+  public:
     static bool IsSinglePlaneVideo(v4l2_capability *cap);
     static bool IsMultiPlaneVideo(v4l2_capability *cap);
     static std::string FourccToString(uint32_t fourcc);
-    
+
     static int OpenDevice(const char *file);
     static void CloseDevice(int fd);
     static bool QueryCapabilities(int fd, v4l2_capability *cap);
@@ -51,7 +56,8 @@ public:
     static std::unordered_set<std::string> GetDeviceSupportedFormats(const char *file);
     static bool SubscribeEvent(int fd, uint32_t type);
     static bool SetFps(int fd, v4l2_buf_type type, int fps);
-    static bool SetFormat(int fd, V4l2BufferGroup *gbuffer, int width, int height, uint32_t pixel_format);
+    static bool SetFormat(int fd, V4l2BufferGroup *gbuffer, int width, int height,
+                          uint32_t pixel_format);
     static bool SetCtrl(int fd, uint32_t id, int32_t value);
     static bool SetExtCtrl(int fd, uint32_t id, int32_t value);
     static bool StreamOn(int fd, v4l2_buf_type type);

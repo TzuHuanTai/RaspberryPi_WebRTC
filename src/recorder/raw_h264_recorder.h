@@ -4,17 +4,17 @@
 #include "recorder/video_recorder.h"
 
 class RawH264Recorder : public VideoRecorder {
-public:
+  public:
     static std::unique_ptr<RawH264Recorder> Create(Args config);
     RawH264Recorder(Args config, std::string encoder_name);
     ~RawH264Recorder();
     void PreStart() override;
-    bool CheckNALUnits(const V4l2Buffer& buffer);
+    bool CheckNALUnits(const V4l2Buffer &buffer);
 
-protected:
+  protected:
     void Encode(V4l2Buffer &buffer) override;
 
-private:
+  private:
     bool has_sps_;
     bool has_pps_;
     bool has_first_keyframe_;

@@ -1,30 +1,29 @@
 #ifndef V4L2_H264_ENCODER_H_
 #define V4L2_H264_ENCODER_H_
 
-#include "v4l2_codecs/v4l2_encoder.h"
-
 // WebRTC
 #include <api/video_codecs/video_encoder.h>
 #include <common_video/include/bitrate_adjuster.h>
 #include <modules/video_coding/codecs/h264/include/h264.h>
 
+#include "v4l2_codecs/v4l2_encoder.h"
+
 class V4l2H264Encoder : public webrtc::VideoEncoder {
-public:
+  public:
     static std::unique_ptr<webrtc::VideoEncoder> Create(bool is_dma);
     V4l2H264Encoder(bool is_dma);
     ~V4l2H264Encoder();
 
     int32_t InitEncode(const webrtc::VideoCodec *codec_settings,
                        const VideoEncoder::Settings &settings) override;
-    int32_t RegisterEncodeCompleteCallback(
-                webrtc::EncodedImageCallback *callback) override;
+    int32_t RegisterEncodeCompleteCallback(webrtc::EncodedImageCallback *callback) override;
     int32_t Release() override;
     int32_t Encode(const webrtc::VideoFrame &frame,
                    const std::vector<webrtc::VideoFrameType> *frame_types) override;
     void SetRates(const RateControlParameters &parameters) override;
     webrtc::VideoEncoder::EncoderInfo GetEncoderInfo() const override;
 
-protected:
+  protected:
     int width_;
     int height_;
     int fps_adjuster_;

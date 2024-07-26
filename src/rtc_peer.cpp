@@ -24,13 +24,9 @@ RtcPeer::~RtcPeer() {
     DEBUG_PRINT("peer connection (%d) was destroyed!", id_);
 }
 
-int RtcPeer::GetId() const {
-    return id_;
-}
+int RtcPeer::GetId() const { return id_; }
 
-bool RtcPeer::IsConnected() const {
-    return is_connected_;
-}
+bool RtcPeer::IsConnected() const { return is_connected_; }
 
 void RtcPeer::SetSink(rtc::VideoSinkInterface<webrtc::VideoFrame> *video_sink_obj) {
     custom_video_sink_ = std::move(video_sink_obj);
@@ -40,9 +36,7 @@ void RtcPeer::SetPeer(rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer) 
     peer_connection_ = peer;
 }
 
-rtc::scoped_refptr<webrtc::PeerConnectionInterface> RtcPeer::GetPeer() {
-    return peer_connection_;
-}
+rtc::scoped_refptr<webrtc::PeerConnectionInterface> RtcPeer::GetPeer() { return peer_connection_; }
 
 void RtcPeer::InitSignalingClient(Args args) {
     signaling_client_ = ([args]() -> std::shared_ptr<SignalingService> {
@@ -81,13 +75,9 @@ void RtcPeer::CreateDataChannel() {
     });
 }
 
-void RtcPeer::OnSnapshot(OnCommand func) {
-    SubscribeCommandChannel(CommandType::SNAPSHOT, func);
-}
+void RtcPeer::OnSnapshot(OnCommand func) { SubscribeCommandChannel(CommandType::SNAPSHOT, func); }
 
-void RtcPeer::OnThumbnail(OnCommand func) {
-    SubscribeCommandChannel(CommandType::THUMBNAIL, func);
-}
+void RtcPeer::OnThumbnail(OnCommand func) { SubscribeCommandChannel(CommandType::THUMBNAIL, func); }
 
 void RtcPeer::SubscribeCommandChannel(CommandType type, OnCommand func) {
     auto observer = data_channel_subject_->AsObservable(type);
@@ -106,10 +96,7 @@ void RtcPeer::OnReadyToConnect(std::function<void(PeerState)> func) {
 void RtcPeer::EmitReadyToConnect(bool is_ready) {
     is_ready_to_connect_ = is_ready;
     PeerState state = {
-        .id = id_,
-        .isConnected = is_connected_,
-        .isReadyToConnect = is_ready_to_connect_
-    };
+        .id = id_, .isConnected = is_connected_, .isReadyToConnect = is_ready_to_connect_};
     Next(state);
 }
 
@@ -122,7 +109,7 @@ void RtcPeer::OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState 
 }
 
 void RtcPeer::OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> channel) {
-    DEBUG_PRINT("Connected to data channel => %s",  channel->label().c_str());
+    DEBUG_PRINT("Connected to data channel => %s", channel->label().c_str());
 }
 
 void RtcPeer::OnIceGatheringChange(webrtc::PeerConnectionInterface::IceGatheringState new_state) {
@@ -161,18 +148,18 @@ void RtcPeer::OnIceCandidate(const webrtc::IceCandidateInterface *candidate) {
 }
 
 void RtcPeer::OnTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver) {
-    if (transceiver->receiver()->media_type() == cricket::MediaType::MEDIA_TYPE_VIDEO
-        && custom_video_sink_) {
+    if (transceiver->receiver()->media_type() == cricket::MediaType::MEDIA_TYPE_VIDEO &&
+        custom_video_sink_) {
         auto track = transceiver->receiver()->track();
-        auto remote_video_track = static_cast<webrtc::VideoTrackInterface*>(track.get());
+        auto remote_video_track = static_cast<webrtc::VideoTrackInterface *>(track.get());
         DEBUG_PRINT("OnTrack => custom sink(%s) is added!", track->id().c_str());
         remote_video_track->AddOrUpdateSink(custom_video_sink_, rtc::VideoSinkWants());
     }
 }
 
-void RtcPeer::OnSuccess(webrtc::SessionDescriptionInterface* desc) {
-    peer_connection_->SetLocalDescription(
-        SetSessionDescription::Create(nullptr, nullptr).get(), desc);
+void RtcPeer::OnSuccess(webrtc::SessionDescriptionInterface *desc) {
+    peer_connection_->SetLocalDescription(SetSessionDescription::Create(nullptr, nullptr).get(),
+                                          desc);
 
     std::string sdp;
     desc->ToString(&sdp);
@@ -192,11 +179,10 @@ void RtcPeer::OnRemoteSdp(std::string sdp, std::string sdp_type) {
         return;
     }
 
-    absl::optional<webrtc::SdpType> type_maybe =
-        webrtc::SdpTypeFromString(sdp_type);
+    absl::optional<webrtc::SdpType> type_maybe = webrtc::SdpTypeFromString(sdp_type);
     if (!type_maybe) {
-      ERROR_PRINT("Unknown SDP type: %s", sdp_type.c_str());
-      return;
+        ERROR_PRINT("Unknown SDP type: %s", sdp_type.c_str());
+        return;
     }
     webrtc::SdpType type = *type_maybe;
 
@@ -209,13 +195,12 @@ void RtcPeer::OnRemoteSdp(std::string sdp, std::string sdp_type) {
         return;
     }
 
-    peer_connection_->SetRemoteDescription(
-        SetSessionDescription::Create(nullptr, nullptr).get(),
-        session_description.release());
+    peer_connection_->SetRemoteDescription(SetSessionDescription::Create(nullptr, nullptr).get(),
+                                           session_description.release());
 
     if (type == webrtc::SdpType::kOffer) {
-        peer_connection_->CreateAnswer(
-            this, webrtc::PeerConnectionInterface::RTCOfferAnswerOptions());
+        peer_connection_->CreateAnswer(this,
+                                       webrtc::PeerConnectionInterface::RTCOfferAnswerOptions());
     }
 }
 
@@ -228,8 +213,7 @@ void RtcPeer::OnRemoteIce(std::string sdp_mid, int sdp_mline_index, std::string 
     std::unique_ptr<webrtc::IceCandidateInterface> candidate(
         webrtc::CreateIceCandidate(sdp_mid, sdp_mline_index, sdp, &error));
     if (!candidate.get()) {
-        ERROR_PRINT("Can't parse received candidate message. %s",
-                    error.description.c_str());
+        ERROR_PRINT("Can't parse received candidate message. %s", error.description.c_str());
         return;
     }
 

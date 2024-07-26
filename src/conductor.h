@@ -1,24 +1,24 @@
 #ifndef CONDUCTOR_H_
 #define CONDUCTOR_H_
 
-#include "args.h"
-#include "rtc_peer.h"
-#include "capture/pa_capture.h"
-#include "capture/v4l2_capture.h"
-#include "track/scale_track_source.h"
-
+#include <condition_variable>
+#include <functional>
 #include <iostream>
 #include <memory>
-#include <string>
-#include <functional>
 #include <mutex>
-#include <condition_variable>
+#include <string>
 
-#include <rtc_base/thread.h>
 #include <api/peer_connection_interface.h>
+#include <rtc_base/thread.h>
+
+#include "args.h"
+#include "capture/pa_capture.h"
+#include "capture/v4l2_capture.h"
+#include "rtc_peer.h"
+#include "track/scale_track_source.h"
 
 class Conductor {
-public:
+  public:
     static std::shared_ptr<Conductor> Create(Args args);
 
     Conductor(Args args);
@@ -33,7 +33,7 @@ public:
     bool IsReady() const;
     void AwaitCompletion();
 
-private:
+  private:
     Args args;
     int peers_idx;
     bool is_ready;

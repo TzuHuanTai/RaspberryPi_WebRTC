@@ -1,17 +1,16 @@
 #ifndef V4L2_CAPTURER_H_
 #define V4L2_CAPTURER_H_
 
-#include "args.h"
-#include "common/v4l2_utils.h"
-#include "common/v4l2_frame_buffer.h"
-#include "common/interface/subject.h"
-#include "common/worker.h"
-
 #include <modules/video_capture/video_capture.h>
 
-class V4L2Capture : public Subject<rtc::scoped_refptr<V4l2FrameBuffer>>
-{
-public:
+#include "args.h"
+#include "common/interface/subject.h"
+#include "common/v4l2_frame_buffer.h"
+#include "common/v4l2_utils.h"
+#include "common/worker.h"
+
+class V4L2Capture : public Subject<rtc::scoped_refptr<V4l2FrameBuffer>> {
+  public:
     V4L2Capture(Args args);
     ~V4L2Capture();
     int fps() const;
@@ -29,7 +28,7 @@ public:
     void StartCapture();
     void Next(rtc::scoped_refptr<V4l2FrameBuffer> message) override;
 
-private:
+  private:
     int fd_;
     int fps_;
     int width_;

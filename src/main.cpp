@@ -1,10 +1,10 @@
 #include <iostream>
 
 #include "args.h"
-#include "parser.h"
-#include "conductor.h"
-#include "common/utils.h"
 #include "common/logging.h"
+#include "common/utils.h"
+#include "conductor.h"
+#include "parser.h"
 #include "recorder/recorder_manager.h"
 
 int main(int argc, char *argv[]) {
@@ -31,6 +31,6 @@ int main(int argc, char *argv[]) {
     } catch (const std::exception &e) {
         ERROR_PRINT("%s", e.what());
     }
-    
+
     return 0;
 }

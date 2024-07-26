@@ -1,8 +1,9 @@
 #include "data_channel_subject.h"
-#include "common/logging.h"
 
 #include <iostream>
 #include <memory>
+
+#include "common/logging.h"
 
 DataChannelSubject::~DataChannelSubject() {
     UnSubscribe();
@@ -18,7 +19,7 @@ void DataChannelSubject::OnStateChange() {
 void DataChannelSubject::OnMessage(const webrtc::DataBuffer &buffer) {
     const uint8_t *data = buffer.data.data<uint8_t>();
     size_t length = buffer.data.size();
-    std::string message(reinterpret_cast<const char*>(data), length);
+    std::string message(reinterpret_cast<const char *>(data), length);
 
     Next(message);
 }
@@ -36,17 +37,15 @@ void DataChannelSubject::Next(std::string message) {
             return;
         }
         observers_ = observers_map_[type];
-        observers_.insert(
-            observers_.end(),
-            observers_map_[CommandType::UNKNOWN].begin(),
-            observers_map_[CommandType::UNKNOWN].end());
+        observers_.insert(observers_.end(), observers_map_[CommandType::UNKNOWN].begin(),
+                          observers_map_[CommandType::UNKNOWN].end());
 
         for (auto observer : observers_) {
             if (observer->subscribed_func_ != nullptr) {
                 observer->subscribed_func_(content);
             }
         }
-    } catch(const json::parse_error& e) {
+    } catch (const json::parse_error &e) {
         ERROR_PRINT("JSON parse error, %s, occur at position: %lu", e.what(), e.byte);
     }
 }
@@ -64,8 +63,7 @@ std::shared_ptr<Observable<std::string>> DataChannelSubject::AsObservable(Comman
 }
 
 void DataChannelSubject::UnSubscribe() {
-    for (auto & [type, observers] : observers_map_)
-    {
+    for (auto &[type, observers] : observers_map_) {
         observers.clear();
     }
 }
@@ -79,7 +77,7 @@ void DataChannelSubject::Send(CommandType type, const std::string data) {
     data_channel_->Send(data_buffer);
 }
 
-void DataChannelSubject::Send(const uint8_t* data, size_t size) {
+void DataChannelSubject::Send(const uint8_t *data, size_t size) {
     if (data_channel_->state() != webrtc::DataChannelInterface::kOpen) {
         return;
     }
