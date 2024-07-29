@@ -79,6 +79,8 @@ void RtcPeer::OnSnapshot(OnCommand func) { SubscribeCommandChannel(CommandType::
 
 void RtcPeer::OnThumbnail(OnCommand func) { SubscribeCommandChannel(CommandType::THUMBNAIL, func); }
 
+void RtcPeer::OnRecord(OnCommand func) { SubscribeCommandChannel(CommandType::RECORD, func); }
+
 void RtcPeer::SubscribeCommandChannel(CommandType type, OnCommand func) {
     auto observer = data_channel_subject_->AsObservable(type);
     observer->Subscribe([this, func](std::string message) {

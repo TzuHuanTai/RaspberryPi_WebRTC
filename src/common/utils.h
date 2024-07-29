@@ -10,6 +10,8 @@
 #include <sys/statvfs.h>
 #include <vector>
 
+namespace fs = std::filesystem;
+
 struct FreeDeleter {
     void operator()(uint8_t *ptr) const {
         if (ptr) {
@@ -36,6 +38,11 @@ class Utils {
     static std::string PrefixZero(int src, int digits);
     static std::string ToBase64(const std::string &binary_file);
     static std::string ReadFileInBinary(const std::string &file_path);
+    static std::vector<std::pair<fs::file_time_type, fs::path>> GetFiles(const std::string &path,
+                                                                     const std::string &extension);
+    static std::string FindLatestSubDir(const std::string &path);
+    static std::string GetPreviousDate(const std::string &dateStr);
+    static std::string FindSecondNewestFile(const std::string &path, const std::string &extension);
     static std::string FindLatestJpg(const std::string &directory);
     static bool CreateFolder(const std::string &folder_path);
     static void RotateFiles(std::string folder_path);

@@ -5,6 +5,8 @@
 
 #include "common/logging.h"
 
+const int CHUNK_SIZE = 65536;
+
 DataChannelSubject::~DataChannelSubject() {
     UnSubscribe();
     data_channel_->UnregisterObserver();
@@ -84,6 +86,27 @@ void DataChannelSubject::Send(const uint8_t *data, size_t size) {
     rtc::CopyOnWriteBuffer buffer(data, size);
     webrtc::DataBuffer data_buffer(buffer, true);
     data_channel_->Send(data_buffer);
+}
+
+void DataChannelSubject::Send(std::ifstream &file, int size) {
+    file.seekg(0, std::ios::beg);
+
+    std::vector<char> buffer(size);
+    int bytes_read = 0;
+    int count = 0;
+
+    while (bytes_read < size) {
+        if (data_channel_->buffered_amount() + CHUNK_SIZE > data_channel_->MaxSendQueueSize()) {
+            sleep(1);
+            DEBUG_PRINT("Sleeping for 1 second due to MaxSendQueueSize reached.");
+            continue;
+        }
+        int read_size = std::min(CHUNK_SIZE, size - bytes_read);
+        file.read(buffer.data() + bytes_read, read_size);
+        Send((uint8_t *)(buffer.data() + bytes_read), read_size);
+
+        bytes_read += read_size;
+    }
 }
 
 void DataChannelSubject::SetDataChannel(
