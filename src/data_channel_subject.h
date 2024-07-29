@@ -3,8 +3,11 @@
 
 #include "common/interface/subject.h"
 
-#include <api/data_channel_interface.h>
 #include <map>
+#include <fstream>
+#include <vector>
+
+#include <api/data_channel_interface.h>
 #include <nlohmann/json.hpp>
 using json = nlohmann::json;
 
@@ -49,6 +52,7 @@ class DataChannelSubject : public webrtc::DataChannelObserver,
 
     void Send(CommandType type, const std::string data);
     void Send(const uint8_t *data, size_t size);
+    void Send(std::ifstream &file, int size);
     void SetDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> data_channel);
 
   private:

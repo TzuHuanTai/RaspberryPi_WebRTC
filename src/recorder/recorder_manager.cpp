@@ -116,7 +116,7 @@ RecorderManager::RecorderManager(std::string record_path)
 
 void RecorderManager::StartRotationThread() {
     rotation_worker_.reset(new Worker("Record Rotation", [this]() {
-        if (!Utils::CheckDriveSpace(record_path, 400)) {
+        while (!Utils::CheckDriveSpace(record_path, 400)) {
             Utils::RotateFiles(record_path);
         }
         sleep(60);

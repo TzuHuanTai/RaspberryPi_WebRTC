@@ -47,6 +47,7 @@ class Conductor {
     void AddTracks(rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer_connection);
     void RefreshPeerList();
     void SetPeerReadyState(bool state);
+    void OnRecord(std::shared_ptr<DataChannelSubject> datachannel, std::string msg);
 
     std::unique_ptr<rtc::Thread> network_thread_;
     std::unique_ptr<rtc::Thread> worker_thread_;

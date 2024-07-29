@@ -169,6 +169,10 @@ bool Conductor::CreatePeerConnection() {
         }
     });
 
+    peer_->OnRecord([this](std::shared_ptr<DataChannelSubject> datachannel, std::string msg) {
+        OnRecord(datachannel, msg);
+    });
+
     peer_->OnReadyToConnect([this](PeerState state) {
         SetPeerReadyState(state.isReadyToConnect);
     });
@@ -178,6 +182,30 @@ bool Conductor::CreatePeerConnection() {
 
     DEBUG_PRINT("Peer connection(%d) is created!", peers_idx);
     return true;
+}
+
+void Conductor::OnRecord(std::shared_ptr<DataChannelSubject> datachannel, std::string msg) {
+    if (args.record_path.empty()) {
+        return;
+    }
+    try {
+        auto latest_mp4_path = Utils::FindSecondNewestFile(args.record_path, ".mp4");
+
+        std::ifstream file(latest_mp4_path, std::ios::binary | std::ios::ate);
+        if (!file) {
+            ERROR_PRINT("Unable to open file: %s", latest_mp4_path.c_str());
+            return;
+        }
+
+        int file_size = file.tellg();
+        datachannel->Send(file, file_size);
+
+        DEBUG_PRINT("Sent Video: %s, %d bytes", latest_mp4_path.c_str(), file_size);
+        std::string end_signal = "";
+        datachannel->Send((uint8_t *)end_signal.c_str(), end_signal.length());
+    } catch (const std::exception &e) {
+        ERROR_PRINT("%s", e.what());
+    }
 }
 
 rtc::scoped_refptr<webrtc::PeerConnectionInterface> Conductor::GetPeer() const {

@@ -1,15 +1,11 @@
 #include "common/utils.h"
 
 #include <algorithm>
-#include <iostream>
-#include <vector>
 
 #include <jpeglib.h>
 #include <third_party/libyuv/include/libyuv.h>
 
 #include "common/logging.h"
-
-namespace fs = std::filesystem;
 
 bool Utils::CreateFolder(const std::string &folder_path) {
     if (folder_path.empty()) {
@@ -123,6 +119,95 @@ std::string Utils::ReadFileInBinary(const std::string &file_path) {
     std::ostringstream ss;
     ss << file.rdbuf();
     return ss.str();
+}
+
+std::vector<std::pair<fs::file_time_type, fs::path>> Utils::GetFiles(const std::string &path,
+                                                                     const std::string &extension) {
+    std::vector<std::pair<fs::file_time_type, fs::path>> files;
+    for (const auto &entry : fs::directory_iterator(path)) {
+        if (entry.is_regular_file() && entry.path().extension() == extension) {
+            files.emplace_back(fs::last_write_time(entry), entry.path());
+        }
+    }
+    return files;
+}
+
+std::string Utils::FindLatestSubDir(const std::string &path) {
+    std::string latestDir;
+    for (const auto &entry : fs::directory_iterator(path)) {
+        if (entry.is_directory()) {
+            if (entry.path().filename().string() > latestDir) {
+                latestDir = entry.path().filename().string();
+            }
+        }
+    }
+    return latestDir;
+}
+
+std::string Utils::GetPreviousDate(const std::string &dateStr) {
+    std::tm tm = {};
+    std::istringstream ss(dateStr);
+    ss >> std::get_time(&tm, "%Y%m%d");
+
+    tm.tm_mday -= 1;
+    mktime(&tm);
+
+    std::ostringstream oss;
+    oss << std::put_time(&tm, "%Y%m%d");
+
+    return oss.str();
+}
+
+std::string Utils::FindSecondNewestFile(const std::string &path, const std::string &extension) {
+    std::string latestDateDir = Utils::FindLatestSubDir(path);
+    if (latestDateDir.empty()) {
+        std::cerr << "No date directories found." << std::endl;
+        return "";
+    }
+
+    std::string datePath = path + "/" + latestDateDir;
+    std::string latestHourDir = Utils::FindLatestSubDir(datePath);
+    if (latestHourDir.empty()) {
+        std::cerr << "No hour directories found." << std::endl;
+        return "";
+    }
+
+    std::string latestDir = datePath + "/" + latestHourDir;
+    auto files = Utils::GetFiles(latestDir, extension);
+
+    if (files.size() < 2) {
+        std::string prevHourDir = latestHourDir;
+        if (!prevHourDir.empty() && prevHourDir > "00") {
+            prevHourDir = std::to_string(std::stoi(prevHourDir) - 1);
+            while (prevHourDir.length() < 2)
+                prevHourDir = "0" + prevHourDir;
+
+            std::string prevDir = datePath + "/" + prevHourDir;
+            auto prevFiles = Utils::GetFiles(prevDir, extension);
+
+            files.insert(files.end(), prevFiles.begin(), prevFiles.end());
+        }
+    }
+
+    if (files.size() < 2) {
+        std::string prevDateDir = Utils::GetPreviousDate(latestDateDir);
+
+        std::string prevDatePath = path + "/" + prevDateDir;
+        latestHourDir = Utils::FindLatestSubDir(prevDatePath);
+        std::string prevDir = prevDatePath + "/" + latestHourDir;
+        auto prevFiles = Utils::GetFiles(prevDir, extension);
+
+        files.insert(files.end(), prevFiles.begin(), prevFiles.end());
+    }
+
+    std::sort(files.begin(), files.end(), std::greater<>());
+
+    if (files.size() < 2) {
+        std::cerr << "Not enough files to determine the second newest file." << std::endl;
+        return "";
+    }
+
+    return files[1].second.string();
 }
 
 std::string Utils::FindLatestJpg(const std::string &directory) {

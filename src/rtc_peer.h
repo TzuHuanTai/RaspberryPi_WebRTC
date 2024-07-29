@@ -72,6 +72,7 @@ class RtcPeer : public webrtc::PeerConnectionObserver,
     void CreateDataChannel();
     void OnSnapshot(OnCommand func);
     void OnThumbnail(OnCommand func);
+    void OnRecord(OnCommand func);
     void OnReadyToConnect(std::function<void(PeerState)> func);
 
   private:
