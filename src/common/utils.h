@@ -51,6 +51,7 @@ class Utils {
                                    int quality = 100);
     static void CreateJpegImage(const uint8_t *yuv_data, int width, int height, std::string url);
     static void WriteJpegImage(Buffer buffer, std::string url);
+    static int GetVideoDuration(const std::string &filePath);
 };
 
 #endif // UTILS_

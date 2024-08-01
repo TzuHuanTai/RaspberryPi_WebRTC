@@ -141,18 +141,20 @@ bool Conductor::CreatePeerConnection() {
         }
     });
 
-    peer_->OnThumbnail([this](std::shared_ptr<DataChannelSubject> datachannel, std::string msg) {
+    peer_->OnMetadata([this](std::shared_ptr<DataChannelSubject> datachannel, std::string msg) {
         if (args.record_path.empty()) {
             return;
         }
         try {
-            auto latest_jpg_path = Utils::FindLatestJpg(args.record_path);
-            auto binary_data = Utils::ReadFileInBinary(latest_jpg_path);
-            auto base64_data = Utils::ToBase64(binary_data);
+            auto latest_mp4_path = Utils::FindSecondNewestFile(args.record_path, ".mp4");
+            MetaMessage metadata(latest_mp4_path);
+            auto metadata_str = metadata.ToString();
+            int file_size = metadata_str.length();
+            std::string size_str = std::to_string(file_size);
 
-            DEBUG_PRINT("Send Image: %s", latest_jpg_path.c_str());
-            std::string data_uri = "data:image/jpeg;base64," + base64_data;
-            datachannel->Send(CommandType::THUMBNAIL, data_uri);
+            datachannel->Send(CommandType::METADATA, (uint8_t *)size_str.c_str(), size_str.length());
+            datachannel->Send(CommandType::METADATA, (uint8_t *)metadata_str.c_str(), file_size);
+            datachannel->Send(CommandType::METADATA, nullptr, 0);
         } catch (const std::exception &e) {
             ERROR_PRINT("%s", e.what());
         }
@@ -173,22 +175,18 @@ bool Conductor::CreatePeerConnection() {
     return true;
 }
 
-void Conductor::OnRecord(std::shared_ptr<DataChannelSubject> datachannel, std::string msg) {
+void Conductor::OnRecord(std::shared_ptr<DataChannelSubject> datachannel, std::string path) {
     if (args.record_path.empty()) {
         return;
     }
     try {
-        auto latest_mp4_path = Utils::FindSecondNewestFile(args.record_path, ".mp4");
-
-        std::ifstream file(latest_mp4_path, std::ios::binary | std::ios::ate);
+        std::ifstream file(path, std::ios::binary | std::ios::ate);
         if (!file) {
-            ERROR_PRINT("Unable to open file: %s", latest_mp4_path.c_str());
+            ERROR_PRINT("Unable to open file: %s", path.c_str());
             return;
         }
-
         datachannel->Send(file);
-
-        DEBUG_PRINT("Sent Video: %s", latest_mp4_path.c_str());
+        DEBUG_PRINT("Sent Video: %s", path.c_str());
     } catch (const std::exception &e) {
         ERROR_PRINT("%s", e.what());
     }
