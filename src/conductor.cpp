@@ -134,19 +134,8 @@ bool Conductor::CreatePeerConnection() {
             auto i420buff = video_track_source_->GetI420Frame();
             auto jpg_buffer =
                 Utils::ConvertYuvToJpeg(i420buff->DataY(), args.width, args.height, quality);
-
-            const int chunk_size = 16384; // 1024*16
-            const int file_size = jpg_buffer.length;
-            int offset = 0;
-
-            while (offset < file_size) {
-                int current_chunk_size = std::min(chunk_size, file_size - offset);
-                datachannel->Send(((uint8_t *)jpg_buffer.start.get() + offset), current_chunk_size);
-                offset += current_chunk_size;
-            }
-
-            std::string end_signal = "";
-            datachannel->Send((uint8_t *)end_signal.c_str(), end_signal.length());
+            datachannel->Send(std::move(jpg_buffer));
+           
         } catch (const std::exception &e) {
             ERROR_PRINT("%s", e.what());
         }
@@ -197,12 +186,9 @@ void Conductor::OnRecord(std::shared_ptr<DataChannelSubject> datachannel, std::s
             return;
         }
 
-        int file_size = file.tellg();
-        datachannel->Send(file, file_size);
+        datachannel->Send(file);
 
-        DEBUG_PRINT("Sent Video: %s, %d bytes", latest_mp4_path.c_str(), file_size);
-        std::string end_signal = "";
-        datachannel->Send((uint8_t *)end_signal.c_str(), end_signal.length());
+        DEBUG_PRINT("Sent Video: %s", latest_mp4_path.c_str());
     } catch (const std::exception &e) {
         ERROR_PRINT("%s", e.what());
     }

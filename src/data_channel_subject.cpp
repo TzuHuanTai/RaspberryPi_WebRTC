@@ -70,13 +70,32 @@ void DataChannelSubject::UnSubscribe() {
     }
 }
 
-void DataChannelSubject::Send(CommandType type, const std::string data) {
-    if (data_channel_->state() != webrtc::DataChannelInterface::kOpen) {
+void DataChannelSubject::Send(CommandType type, const uint8_t *data, size_t size) {
+    int bytes_read = 0;
+    const size_t header_size = sizeof(CommandType);
+
+    std::vector<char> data_with_header(CHUNK_SIZE);
+
+    if (size == 0) {
+        std::memcpy(data_with_header.data(), &type, header_size);
+        Send((uint8_t *)data_with_header.data(), header_size);
         return;
     }
-    RtcMessage msg(type, data);
-    webrtc::DataBuffer data_buffer(msg.ToString());
-    data_channel_->Send(data_buffer);
+
+    while (bytes_read < size) {
+        if (data_channel_->buffered_amount() + CHUNK_SIZE > data_channel_->MaxSendQueueSize()) {
+            sleep(1);
+            DEBUG_PRINT("Sleeping for 1 second due to MaxSendQueueSize reached.");
+            continue;
+        }
+        int read_size = std::min(CHUNK_SIZE - header_size, size - bytes_read);
+
+        std::memcpy(data_with_header.data(), &type, header_size);
+        std::memcpy(data_with_header.data() + header_size, data + bytes_read, read_size);
+
+        Send((uint8_t *)data_with_header.data(), read_size + header_size);
+        bytes_read += read_size;
+    }
 }
 
 void DataChannelSubject::Send(const uint8_t *data, size_t size) {
@@ -88,25 +107,45 @@ void DataChannelSubject::Send(const uint8_t *data, size_t size) {
     data_channel_->Send(data_buffer);
 }
 
-void DataChannelSubject::Send(std::ifstream &file, int size) {
-    file.seekg(0, std::ios::beg);
+void DataChannelSubject::Send(Buffer image) {
+    const int file_size = image.length;
+    auto type = CommandType::SNAPSHOT;
+    std::string size_str = std::to_string(file_size);
+    Send(type, (uint8_t *)size_str.c_str(), size_str.length());
+    Send(type, (uint8_t *)image.start.get(), file_size);
+    Send(type, nullptr, 0);
 
-    std::vector<char> buffer(size);
+    DEBUG_PRINT("Image sent: %d bytes", file_size);
+}
+
+void DataChannelSubject::Send(std::ifstream &file) {
+    std::vector<char> buffer(CHUNK_SIZE);
     int bytes_read = 0;
     int count = 0;
+    const int header_size = sizeof(CommandType);
+    auto type = CommandType::RECORD;
 
-    while (bytes_read < size) {
+    int file_size = file.tellg();
+    std::string size_str = std::to_string(file_size);
+    file.seekg(0, std::ios::beg);
+
+    Send(type, (uint8_t *)size_str.c_str(), size_str.length());
+
+    while (bytes_read < file_size) {
         if (data_channel_->buffered_amount() + CHUNK_SIZE > data_channel_->MaxSendQueueSize()) {
             sleep(1);
             DEBUG_PRINT("Sleeping for 1 second due to MaxSendQueueSize reached.");
             continue;
         }
-        int read_size = std::min(CHUNK_SIZE, size - bytes_read);
-        file.read(buffer.data() + bytes_read, read_size);
-        Send((uint8_t *)(buffer.data() + bytes_read), read_size);
+        int read_size = std::min(CHUNK_SIZE - header_size, file_size - bytes_read);
+        std::memcpy(buffer.data(), &type, header_size);
+        file.read(buffer.data() + header_size, read_size);
 
+        Send((uint8_t *)buffer.data(), read_size + header_size);
         bytes_read += read_size;
     }
+
+    Send(type, nullptr, 0);
 }
 
 void DataChannelSubject::SetDataChannel(

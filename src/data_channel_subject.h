@@ -3,15 +3,18 @@
 
 #include "common/interface/subject.h"
 
-#include <map>
 #include <fstream>
+#include <map>
 #include <vector>
 
 #include <api/data_channel_interface.h>
 #include <nlohmann/json.hpp>
+
+#include "common/utils.h"
+
 using json = nlohmann::json;
 
-enum class CommandType {
+enum class CommandType : uint8_t {
     CONNECT,
     SNAPSHOT,
     THUMBNAIL,
@@ -50,9 +53,10 @@ class DataChannelSubject : public webrtc::DataChannelObserver,
     std::shared_ptr<Observable<std::string>> AsObservable(CommandType type);
     void UnSubscribe() override;
 
-    void Send(CommandType type, const std::string data);
+    void Send(CommandType type, const uint8_t *data, size_t size);
     void Send(const uint8_t *data, size_t size);
-    void Send(std::ifstream &file, int size);
+    void Send(Buffer image);
+    void Send(std::ifstream &file);
     void SetDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> data_channel);
 
   private:
