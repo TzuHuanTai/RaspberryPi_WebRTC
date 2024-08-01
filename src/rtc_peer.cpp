@@ -77,7 +77,7 @@ void RtcPeer::CreateDataChannel() {
 
 void RtcPeer::OnSnapshot(OnCommand func) { SubscribeCommandChannel(CommandType::SNAPSHOT, func); }
 
-void RtcPeer::OnThumbnail(OnCommand func) { SubscribeCommandChannel(CommandType::THUMBNAIL, func); }
+void RtcPeer::OnMetadata(OnCommand func) { SubscribeCommandChannel(CommandType::METADATA, func); }
 
 void RtcPeer::OnRecord(OnCommand func) { SubscribeCommandChannel(CommandType::RECORD, func); }
 

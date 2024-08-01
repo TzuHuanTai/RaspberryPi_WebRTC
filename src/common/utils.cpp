@@ -2,6 +2,9 @@
 
 #include <algorithm>
 
+extern "C" {
+#include <libavformat/avformat.h>
+}
 #include <jpeglib.h>
 #include <third_party/libyuv/include/libyuv.h>
 
@@ -331,4 +334,30 @@ void Utils::CreateJpegImage(const uint8_t *yuv_data, int width, int height, std:
     } catch (const std::exception &e) {
         std::cerr << "Error: " << e.what() << std::endl;
     }
+}
+
+int Utils::GetVideoDuration(const std::string &filePath) {
+    AVFormatContext* formatContext = nullptr;
+    if (avformat_open_input(&formatContext, filePath.c_str(), nullptr, nullptr) != 0) {
+        std::cerr << "Could not open file: " << filePath << std::endl;
+        return -1;
+    }
+
+    if (avformat_find_stream_info(formatContext, nullptr) < 0) {
+        std::cerr << "Could not find stream information" << std::endl;
+        avformat_close_input(&formatContext);
+        return -1;
+    }
+
+    if (!formatContext) {
+        std::cerr << "Invalid format context!" << std::endl;
+        return -1;
+    }
+
+    int64_t duration = formatContext->duration;
+    int durationInSeconds = static_cast<int>(duration / AV_TIME_BASE);
+
+    avformat_close_input(&formatContext);
+
+    return durationInSeconds;
 }
