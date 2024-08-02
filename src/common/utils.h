@@ -43,7 +43,8 @@ class Utils {
     static std::string FindLatestSubDir(const std::string &path);
     static std::string GetPreviousDate(const std::string &dateStr);
     static std::string FindSecondNewestFile(const std::string &path, const std::string &extension);
-    static std::string FindLatestJpg(const std::string &directory);
+    static std::vector<std::string> FindOlderFiles(const std::string &file_path, int request_num);
+
     static bool CreateFolder(const std::string &folder_path);
     static void RotateFiles(std::string folder_path);
     static bool CheckDriveSpace(const std::string &file_path, unsigned long min_free_space_mb);

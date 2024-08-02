@@ -142,19 +142,44 @@ bool Conductor::CreatePeerConnection() {
     });
 
     peer_->OnMetadata([this](std::shared_ptr<DataChannelSubject> datachannel, std::string msg) {
+        std::cout <<"======> OnMetadata msg:" << msg << std::endl;
+        json jsonObj = json::parse(msg.c_str());
+
+        MetadataCommand cmd = jsonObj["command"];
+        std::string message = jsonObj["message"];
+        DEBUG_PRINT("parse meta cmd message => %hhu, %s", cmd, message.c_str());
+
         if (args.record_path.empty()) {
             return;
         }
         try {
-            auto latest_mp4_path = Utils::FindSecondNewestFile(args.record_path, ".mp4");
-            MetaMessage metadata(latest_mp4_path);
-            auto metadata_str = metadata.ToString();
-            int file_size = metadata_str.length();
-            std::string size_str = std::to_string(file_size);
+            if (cmd == MetadataCommand::LATEST) {
+                auto latest_mp4_path = Utils::FindSecondNewestFile(args.record_path, ".mp4");
+                MetaMessage metadata(latest_mp4_path);
+                auto metadata_str = metadata.ToString();
+                int file_size = metadata_str.length();
+                std::string size_str = std::to_string(file_size);
 
-            datachannel->Send(CommandType::METADATA, (uint8_t *)size_str.c_str(), size_str.length());
-            datachannel->Send(CommandType::METADATA, (uint8_t *)metadata_str.c_str(), file_size);
-            datachannel->Send(CommandType::METADATA, nullptr, 0);
+                datachannel->Send(CommandType::METADATA, (uint8_t *)size_str.c_str(), size_str.length());
+                datachannel->Send(CommandType::METADATA, (uint8_t *)metadata_str.c_str(), file_size);
+                datachannel->Send(CommandType::METADATA, nullptr, 0);
+            } else if (cmd == MetadataCommand::OLDER) {
+                if (message.empty()) {
+                    message = Utils::FindSecondNewestFile(args.record_path, ".mp4");
+                }
+                auto paths = Utils::FindOlderFiles(message, 8);
+
+                for (auto &path : paths) {
+                    MetaMessage metadata(path);
+                    auto metadata_str = metadata.ToString();
+                    int file_size = metadata_str.length();
+                    std::string size_str = std::to_string(file_size);
+
+                    datachannel->Send(CommandType::METADATA, (uint8_t *)size_str.c_str(), size_str.length());
+                    datachannel->Send(CommandType::METADATA, (uint8_t *)metadata_str.c_str(), file_size);
+                    datachannel->Send(CommandType::METADATA, nullptr, 0);
+                }
+            }
         } catch (const std::exception &e) {
             ERROR_PRINT("%s", e.what());
         }

@@ -22,6 +22,11 @@ enum class CommandType : uint8_t {
     UNKNOWN
 };
 
+enum class MetadataCommand : uint8_t {
+    LATEST,
+    OLDER
+};
+
 struct RtcMessage {
     CommandType type;
     std::string message;
