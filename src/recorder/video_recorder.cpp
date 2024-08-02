@@ -106,7 +106,10 @@ void VideoRecorder::MakePreviewImage(V4l2Buffer &buffer) {
             }
             auto raw_buffer = RawBuffer::Create(config.width, config.height, decoded_buffer.length,
                                                 decoded_buffer);
-            auto i420buff = raw_buffer->ToI420();
+            int dst_stride = config.width / 2;
+            auto i420buff = webrtc::I420Buffer::Create(config.width / 2, config.height / 2, dst_stride,
+                                                 dst_stride / 2, dst_stride / 2);
+            i420buff->ScaleFrom(*raw_buffer->ToI420());
             Utils::CreateJpegImage(i420buff->DataY(), i420buff->width(), i420buff->height(),
                                    ReplaceExtension(file_url, ".jpg"));
             feeded_frames = -1;
