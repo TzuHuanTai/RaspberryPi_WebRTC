@@ -178,13 +178,14 @@ std::string Utils::FindSecondNewestFile(const std::string &path, const std::stri
     std::string latestDir = datePath + "/" + latestHourDir;
     auto files = Utils::GetFiles(latestDir, extension);
 
+    // find previous hour
     if (files.size() < 2) {
         std::string prevHourDir = latestHourDir;
         if (!prevHourDir.empty() && prevHourDir > "00") {
             prevHourDir = std::to_string(std::stoi(prevHourDir) - 1);
-            while (prevHourDir.length() < 2)
+            if (prevHourDir.length() < 2) {
                 prevHourDir = "0" + prevHourDir;
-
+            }
             std::string prevDir = datePath + "/" + prevHourDir;
             auto prevFiles = Utils::GetFiles(prevDir, extension);
 
@@ -192,6 +193,7 @@ std::string Utils::FindSecondNewestFile(const std::string &path, const std::stri
         }
     }
 
+    // find previous date
     if (files.size() < 2) {
         std::string prevDateDir = Utils::GetPreviousDate(latestDateDir);
 
@@ -213,25 +215,59 @@ std::string Utils::FindSecondNewestFile(const std::string &path, const std::stri
     return files[1].second.string();
 }
 
-std::string Utils::FindLatestJpg(const std::string &directory) {
-    std::string latest_file;
-    auto latest_time = std::filesystem::file_time_type::min();
+std::vector<std::string> Utils::FindOlderFiles(const std::string &file_path, int request_num) {
+    std::vector<std::string> result;
+    fs::path file(file_path);
+    if (!fs::exists(file)) {
+        return result;
+    }
+    auto file_last_write_time = fs::last_write_time(file);
+    auto extension = file.extension();
 
-    for (const auto &entry : std::filesystem::directory_iterator(directory)) {
-        if (entry.path().extension() == ".jpg") {
-            auto file_time = std::filesystem::last_write_time(entry);
-            if (latest_file.empty() || file_time > latest_time) {
-                latest_time = file_time;
-                latest_file = entry.path().string();
+    fs::path hour_path = file.parent_path();
+    fs::path date_path = hour_path.parent_path();
+    fs::path root_path = date_path.parent_path();
+
+    while (result.size() < request_num) {
+        // find in the same hour
+        auto files = GetFiles(hour_path.string(), extension.string());
+        std::sort(files.begin(), files.end(), std::greater<>());
+
+        for (auto &p : files) {
+            if (p.first < file_last_write_time) {
+                result.push_back(p.second.string());
+                if (result.size() == request_num) {
+                    return result;
+                }
+            }
+        }
+
+        std::string hour = hour_path.filename();
+        if (hour > "00") {
+            // update hour path to previous hour
+            auto prev_hour = std::to_string(std::stoi(hour) - 1);
+            if (prev_hour.length() < 2) {
+                prev_hour = "0" + prev_hour;
+            }
+            hour_path = date_path / prev_hour;
+            if (!fs::exists(hour_path)) {
+                std::cout << "pre hour path "<< hour_path.string() <<" is not found" << std::endl;
+                break;
+            }
+        } else {
+            // update date path to previous date
+            std::string date = date_path.filename();
+            auto prev_date = GetPreviousDate(date);
+            date_path = root_path / prev_date;
+            hour_path = date_path / "23";
+            if (!fs::exists(date_path)) {
+                std::cout << "pre date path "<< date_path.string() <<" is not found" << std::endl;
+                break;
             }
         }
     }
 
-    if (latest_file.empty()) {
-        throw std::runtime_error("No jpg files found in the directory");
-    }
-
-    return latest_file;
+    return result;
 }
 
 bool Utils::CheckDriveSpace(const std::string &file_path, unsigned long min_free_space_mb) {
@@ -337,7 +373,7 @@ void Utils::CreateJpegImage(const uint8_t *yuv_data, int width, int height, std:
 }
 
 int Utils::GetVideoDuration(const std::string &filePath) {
-    AVFormatContext* formatContext = nullptr;
+    AVFormatContext *formatContext = nullptr;
     if (avformat_open_input(&formatContext, filePath.c_str(), nullptr, nullptr) != 0) {
         std::cerr << "Could not open file: " << filePath << std::endl;
         return -1;
