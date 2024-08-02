@@ -42,6 +42,7 @@ class Utils {
                                                                      const std::string &extension);
     static std::string FindLatestSubDir(const std::string &path);
     static std::string GetPreviousDate(const std::string &dateStr);
+    static std::string FindLatestFile(const std::string &path, const std::string &extension);
     static std::string FindSecondNewestFile(const std::string &path, const std::string &extension);
     static std::vector<std::string> FindOlderFiles(const std::string &file_path, int request_num);
 

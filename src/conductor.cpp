@@ -165,7 +165,7 @@ bool Conductor::CreatePeerConnection() {
                 datachannel->Send(CommandType::METADATA, nullptr, 0);
             } else if (cmd == MetadataCommand::OLDER) {
                 if (message.empty()) {
-                    message = Utils::FindSecondNewestFile(args.record_path, ".mp4");
+                    message = Utils::FindLatestFile(args.record_path, ".mp4");
                 }
                 auto paths = Utils::FindOlderFiles(message, 8);
 
