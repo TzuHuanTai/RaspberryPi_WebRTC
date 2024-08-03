@@ -1,4 +1,8 @@
 #include "rtc_peer.h"
+
+#include <thread>
+#include <chrono>
+
 #include "common/logging.h"
 #if USE_MQTT_SIGNALING
 #include "signaling/mqtt_service.h"
@@ -125,7 +129,15 @@ void RtcPeer::OnIceGatheringChange(webrtc::PeerConnectionInterface::IceGathering
 void RtcPeer::OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionState new_state) {
     auto state = webrtc::PeerConnectionInterface::AsString(new_state);
     DEBUG_PRINT("OnConnectionChange => %s", std::string(state).c_str());
-    if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kConnected) {
+    if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kConnecting) {
+        std::thread([this]() {
+            std::this_thread::sleep_for(std::chrono::seconds(10));
+            if (!is_connected_) {
+                DEBUG_PRINT("Connection timeout after kConnecting. Closing connection.");
+                peer_connection_->Close();
+            }
+        }).detach();
+    } else if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kConnected) {
         signaling_client_.reset();
         is_connected_ = true;
         EmitReadyToConnect(false);

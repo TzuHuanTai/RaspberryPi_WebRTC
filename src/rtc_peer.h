@@ -2,6 +2,7 @@
 #define RTC_PEER_H_
 
 #include <iostream>
+#include <atomic>
 
 #include <api/data_channel_interface.h>
 #include <api/peer_connection_interface.h>
@@ -98,7 +99,7 @@ class RtcPeer : public webrtc::PeerConnectionObserver,
     void OnRemoteIce(std::string sdp_mid, int sdp_mline_index, std::string candidate) override;
 
     int id_;
-    bool is_connected_;
+    std::atomic<bool> is_connected_;
     bool is_ready_to_connect_;
     std::shared_ptr<SignalingService> signaling_client_;
     std::shared_ptr<DataChannelSubject> data_channel_subject_;
