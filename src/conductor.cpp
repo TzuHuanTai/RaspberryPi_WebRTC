@@ -179,6 +179,17 @@ bool Conductor::CreatePeerConnection() {
                     datachannel->Send(CommandType::METADATA, (uint8_t *)metadata_str.c_str(), file_size);
                     datachannel->Send(CommandType::METADATA, nullptr, 0);
                 }
+            } else if (cmd == MetadataCommand::SPECIFIC_TIME) {
+                auto path = Utils::FindFilesFromDatetime(args.record_path, message);
+
+                MetaMessage metadata(path);
+                auto metadata_str = metadata.ToString();
+                int file_size = metadata_str.length();
+                std::string size_str = std::to_string(file_size);
+
+                datachannel->Send(CommandType::METADATA, (uint8_t *)size_str.c_str(), size_str.length());
+                datachannel->Send(CommandType::METADATA, (uint8_t *)metadata_str.c_str(), file_size);
+                datachannel->Send(CommandType::METADATA, nullptr, 0);
             }
         } catch (const std::exception &e) {
             ERROR_PRINT("%s", e.what());

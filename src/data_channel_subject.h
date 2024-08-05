@@ -24,7 +24,8 @@ enum class CommandType : uint8_t {
 
 enum class MetadataCommand : uint8_t {
     LATEST,
-    OLDER
+    OLDER,
+    SPECIFIC_TIME
 };
 
 struct RtcMessage {
