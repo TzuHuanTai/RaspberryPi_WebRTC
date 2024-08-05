@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.18)
 project(pi_webrtc)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(BUILD_TEST "" CACHE STRING "test")
 
 string(TOLOWER "${CMAKE_BUILD_TYPE}" BUILD_TYPE_LOWER)

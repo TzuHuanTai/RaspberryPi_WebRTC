@@ -236,6 +236,76 @@ std::string Utils::FindSecondNewestFile(const std::string &path, const std::stri
     return files[1].second.string();
 }
 
+std::chrono::system_clock::time_point Utils::ParseDatetime(const std::string& datetime_str) {
+    std::tm tm = {};
+    std::stringstream ss(datetime_str);
+    ss >> std::get_time(&tm, "%Y%m%d_%H%M%S");
+    tm.tm_isdst = -1;
+    return std::chrono::system_clock::from_time_t(std::mktime(&tm));
+}
+
+std::string Utils::FindFilesFromDatetime(const std::string &root, const std::string basename) {
+    if (basename.length() < 15) {
+        return "";
+    }
+
+    std::string date = basename.substr(0, 8);
+    std::string time = basename.substr(9);
+    std::string hour = time.substr(0, 2);
+
+    fs::path hour_path(root + date + "/" + hour);
+
+    if (!fs::exists(hour_path)) {
+        return "";
+    }
+
+    auto time_limit = ParseDatetime(basename);
+
+    auto files = GetFiles(hour_path.string(), ".mp4");
+    std::sort(files.begin(), files.end(), std::greater<>());
+
+    int max_searching_folder = 10;
+    for (int count = 0; count < max_searching_folder; count++) {
+        // find in the same hour
+        auto files = GetFiles(hour_path.string(), ".mp4");
+        std::sort(files.begin(), files.end(), std::greater<>());
+
+        for (auto &p : files) {
+            std::cout << p.second.string() << std::endl;
+            if (fs::file_time_type::clock::to_sys(p.first) < time_limit) {
+                return p.second.string();
+            }
+        }
+
+        fs::path date_path = hour_path.parent_path();
+        if (hour > "00") {
+            // update hour path to previous hour
+            auto prev_hour = std::to_string(std::stoi(hour) - 1);
+            if (prev_hour.length() < 2) {
+                prev_hour = "0" + prev_hour;
+            }
+            hour_path = date_path / prev_hour;
+            if (!fs::exists(hour_path)) {
+                std::cout << "pre hour path " << hour_path.string() << " is not found" << std::endl;
+                break;
+            }
+        } else {
+            // update date path to previous date
+            fs::path root_path = date_path.parent_path();
+            std::string date = date_path.filename();
+            auto prev_date = GetPreviousDate(date);
+            date_path = root_path / prev_date;
+            hour_path = date_path / "23";
+            if (!fs::exists(date_path)) {
+                std::cout << "pre date path " << date_path.string() << " is not found" << std::endl;
+                break;
+            }
+        }
+    }
+
+    return "";
+}
+
 std::vector<std::string> Utils::FindOlderFiles(const std::string &file_path, int request_num) {
     std::vector<std::string> result;
     fs::path file(file_path);
@@ -272,7 +342,7 @@ std::vector<std::string> Utils::FindOlderFiles(const std::string &file_path, int
             }
             hour_path = date_path / prev_hour;
             if (!fs::exists(hour_path)) {
-                std::cout << "pre hour path "<< hour_path.string() <<" is not found" << std::endl;
+                std::cout << "pre hour path " << hour_path.string() << " is not found" << std::endl;
                 break;
             }
         } else {
@@ -282,7 +352,7 @@ std::vector<std::string> Utils::FindOlderFiles(const std::string &file_path, int
             date_path = root_path / prev_date;
             hour_path = date_path / "23";
             if (!fs::exists(date_path)) {
-                std::cout << "pre date path "<< date_path.string() <<" is not found" << std::endl;
+                std::cout << "pre date path " << date_path.string() << " is not found" << std::endl;
                 break;
             }
         }
