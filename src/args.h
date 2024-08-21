@@ -9,7 +9,7 @@ struct Args {
     int height = 480;
     int rotation_angle = 0;
     int sample_rate = 44100;
-    bool enable_v4l2_dma = false;
+    bool hw_accel = false;
     std::string v4l2_format = "mjpeg";
     std::string device = "";
     std::string uid = "";

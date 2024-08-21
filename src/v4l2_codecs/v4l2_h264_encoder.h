@@ -10,8 +10,8 @@
 
 class V4l2H264Encoder : public webrtc::VideoEncoder {
   public:
-    static std::unique_ptr<webrtc::VideoEncoder> Create(bool is_dma);
-    V4l2H264Encoder(bool is_dma);
+    static std::unique_ptr<webrtc::VideoEncoder> Create();
+    V4l2H264Encoder();
     ~V4l2H264Encoder();
 
     int32_t InitEncode(const webrtc::VideoCodec *codec_settings,

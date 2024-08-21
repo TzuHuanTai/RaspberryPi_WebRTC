@@ -42,7 +42,7 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
              "The path to save the recording video files")(
                 "max_files", bpo::value<uint32_t>()->default_value(args.max_files),
                 "The limitation of total video files in the folder")(
-                "enable_v4l2_dma", bpo::bool_switch()->default_value(args.enable_v4l2_dma),
+                "hw_accel", bpo::bool_switch()->default_value(args.hw_accel),
                 "Share DMA buffers between decoder/scaler/encoder, which can decrease cpu usage")(
                 "v4l2_format", bpo::value<std::string>()->default_value(args.v4l2_format),
                 "Set v4l2 input format i420/mjpeg/h264 while capturing, if the camera is "
@@ -143,8 +143,8 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
         args.max_files = vm["max_files"].as<uint32_t>();
     }
 
-    if (vm.count("enable_v4l2_dma")) {
-        args.enable_v4l2_dma = vm["enable_v4l2_dma"].as<bool>();
+    if (vm.count("hw_accel")) {
+        args.hw_accel = vm["hw_accel"].as<bool>();
     }
 
     if (vm.count("v4l2_format")) {
