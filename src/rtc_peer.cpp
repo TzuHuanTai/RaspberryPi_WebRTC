@@ -19,12 +19,14 @@ rtc::scoped_refptr<RtcPeer> RtcPeer::Create(Args args, int id) {
 
 RtcPeer::RtcPeer(int id)
     : id_(id),
-      is_connected_(false) {}
+      is_connected_(false),
+      is_complete_(false) {}
 
 RtcPeer::~RtcPeer() {
     peer_connection_ = nullptr;
     signaling_client_.reset();
     data_channel_subject_.reset();
+    timeout_thread_.join();
     DEBUG_PRINT("peer connection (%d) was destroyed!", id_);
 }
 
@@ -94,22 +96,30 @@ void RtcPeer::SubscribeCommandChannel(CommandType type, OnCommand func) {
     });
 }
 
-void RtcPeer::OnReadyToConnect(std::function<void(PeerState)> func) {
+void RtcPeer::OnPaired(std::function<void(PeerState)> func) {
     auto observer = AsObservable();
     observer->Subscribe(func);
 }
 
-void RtcPeer::EmitReadyToConnect(bool is_ready) {
-    is_ready_to_connect_ = is_ready;
+void RtcPeer::OnPaired(bool is_paired) {
     PeerState state = {
-        .id = id_, .isConnected = is_connected_, .isReadyToConnect = is_ready_to_connect_};
+        .id = id_, .is_connected = is_connected_, .is_paired = is_paired};
     Next(state);
 }
 
 void RtcPeer::OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState new_state) {
     auto state = webrtc::PeerConnectionInterface::AsString(new_state);
     DEBUG_PRINT("OnSignalingChange => %s", std::string(state).c_str());
-    if (new_state == webrtc::PeerConnectionInterface::SignalingState::kClosed) {
+    if (new_state == webrtc::PeerConnectionInterface::SignalingState::kHaveRemoteOffer) {
+        OnPaired(true);
+        timeout_thread_ = std::thread([this]() {
+            std::this_thread::sleep_for(std::chrono::seconds(10));
+            if (!is_complete_ && !is_connected_) {
+                DEBUG_PRINT("Connection timeout after kConnecting. Closing connection.");
+                peer_connection_->Close();
+            }
+        });
+    } else if (new_state == webrtc::PeerConnectionInterface::SignalingState::kClosed) {
         signaling_client_.reset();
     }
 }
@@ -121,26 +131,14 @@ void RtcPeer::OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> cha
 void RtcPeer::OnIceGatheringChange(webrtc::PeerConnectionInterface::IceGatheringState new_state) {
     auto state = webrtc::PeerConnectionInterface::AsString(new_state);
     DEBUG_PRINT("OnIceGatheringChange => %s", std::string(state).c_str());
-    if (new_state == webrtc::PeerConnectionInterface::IceGatheringState::kIceGatheringGathering) {
-        EmitReadyToConnect(true);
-    }
 }
 
 void RtcPeer::OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionState new_state) {
     auto state = webrtc::PeerConnectionInterface::AsString(new_state);
     DEBUG_PRINT("OnConnectionChange => %s", std::string(state).c_str());
-    if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kConnecting) {
-        std::thread([this]() {
-            std::this_thread::sleep_for(std::chrono::seconds(10));
-            if (!is_connected_) {
-                DEBUG_PRINT("Connection timeout after kConnecting. Closing connection.");
-                peer_connection_->Close();
-            }
-        }).detach();
-    } else if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kConnected) {
+    if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kConnected) {
         signaling_client_.reset();
         is_connected_ = true;
-        EmitReadyToConnect(false);
         UnSubscribe();
     } else if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kFailed) {
         is_connected_ = false;
@@ -148,7 +146,7 @@ void RtcPeer::OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnection
     } else if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kClosed) {
         signaling_client_.reset();
         is_connected_ = false;
-        EmitReadyToConnect(false);
+        is_complete_ = true;
         data_channel_subject_.reset();
     }
 }
