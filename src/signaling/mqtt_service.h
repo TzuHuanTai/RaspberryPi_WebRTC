@@ -31,9 +31,10 @@ class MqttService : public SignalingService {
     std::string ice_base_topic_;
     std::string remote_client_id_;
     struct mosquitto *connection_;
-    void ListenOfferSdp(std::string message);
-    void ListenOfferIce(std::string message);
+    void OnRemoteSdp(std::string message);
+    void OnRemoteIce(std::string message);
     void Subscribe(const std::string &topic);
+    void Unsubscribe(const std::string &topic);
     void Publish(const std::string &topic, const std::string &msg);
     void OnConnect(struct mosquitto *mosq, void *obj, int result);
     void OnMessage(struct mosquitto *mosq, void *obj, const struct mosquitto_message *message);

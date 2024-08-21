@@ -36,7 +36,7 @@ std::shared_ptr<Conductor> Conductor::Create(Args args) {
 Conductor::Conductor(Args args)
     : args(args),
       peers_idx(0),
-      is_ready(false) {}
+      is_paired(false) {}
 
 Args Conductor::config() const { return args; }
 
@@ -200,8 +200,11 @@ bool Conductor::CreatePeerConnection() {
         OnRecord(datachannel, msg);
     });
 
-    peer_->OnReadyToConnect([this](PeerState state) {
-        SetPeerReadyState(state.isReadyToConnect);
+    is_paired = false;
+    peer_->OnPaired([this](PeerState state) {
+        std::unique_lock<std::mutex> lock(state_mtx);
+        is_paired = state.is_paired;
+        peer_state.notify_all();
     });
 
     AddTracks(peer_->GetPeer());
@@ -283,28 +286,12 @@ void Conductor::InitializePeerConnectionFactory() {
     peer_connection_factory_ = CreateModularPeerConnectionFactory(std::move(dependencies));
 }
 
-void Conductor::SetPeerReadyState(bool state) {
-    std::unique_lock<std::mutex> lock(state_mtx);
-    is_ready = state;
-    ready_state.notify_all();
-}
-
-bool Conductor::IsReady() const { return is_ready; }
-
 void Conductor::AwaitCompletion() {
-    {
-        std::unique_lock<std::mutex> lock(state_mtx);
-        ready_state.wait(lock, [this] {
-            return IsReady();
-        });
-    }
+    std::unique_lock<std::mutex> lock(state_mtx);
+    peer_state.wait(lock, [this] {
+        return is_paired;
+    });
 
-    {
-        std::unique_lock<std::mutex> lock(state_mtx);
-        ready_state.wait(lock, [this] {
-            return !IsReady();
-        });
-    }
 
     RefreshPeerList();
 }

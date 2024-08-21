@@ -44,7 +44,7 @@ std::string MqttService::GetTopic(const std::string &topic, const std::string &c
 
 MqttService::~MqttService() { Disconnect(); }
 
-void MqttService::ListenOfferSdp(std::string message) {
+void MqttService::OnRemoteSdp(std::string message) {
     nlohmann::json jsonObj = nlohmann::json::parse(message);
     std::string sdp = jsonObj["sdp"];
     std::string type = jsonObj["type"];
@@ -54,7 +54,7 @@ void MqttService::ListenOfferSdp(std::string message) {
     }
 }
 
-void MqttService::ListenOfferIce(std::string message) {
+void MqttService::OnRemoteIce(std::string message) {
     nlohmann::json jsonObj = nlohmann::json::parse(message);
     std::string sdp_mid = jsonObj["sdpMid"];
     int sdp_mline_index = jsonObj["sdpMLineIndex"];
@@ -116,6 +116,15 @@ void MqttService::Subscribe(const std::string &topic) {
     }
 }
 
+void MqttService::Unsubscribe(const std::string &topic) {
+    int unsubscribe_result = mosquitto_unsubscribe_v5(connection_, nullptr, topic.c_str(), nullptr);
+    if (unsubscribe_result == MOSQ_ERR_SUCCESS) {
+        DEBUG_PRINT("Successfully unsubscribed to topic: %s", topic.c_str());
+    } else {
+        DEBUG_PRINT("Failed to unsubscribe topic: %s", topic.c_str());
+    }
+}
+
 void MqttService::OnConnect(struct mosquitto *mosq, void *obj, int result) {
     if (result == 0) {
         Subscribe(sdp_base_topic_ + "/+/offer");
@@ -138,9 +147,10 @@ void MqttService::OnMessage(struct mosquitto *mosq, void *obj,
     if (!sdp_received_ && topic.substr(0, sdp_base_topic_.length()) == sdp_base_topic_) {
         remote_client_id_ = GetClientId(topic);
         sdp_received_ = true;
-        ListenOfferSdp(payload);
+        OnRemoteSdp(payload);
+        Unsubscribe(sdp_base_topic_ + "/+/offer");
     } else if (sdp_received_ && topic.substr(0, ice_base_topic_.length()) == ice_base_topic_) {
-        ListenOfferIce(payload);
+        OnRemoteIce(payload);
     }
 }
 
@@ -167,7 +177,7 @@ std::string MqttService::GetClientId(std::string &topic) {
 void MqttService::Connect() {
     mosquitto_lib_init();
 
-    connection_ = mosquitto_new(uid_.c_str(), true, this);
+    connection_ = mosquitto_new(NULL, true, this);
     mosquitto_int_option(connection_, MOSQ_OPT_PROTOCOL_VERSION, MQTT_PROTOCOL_V5);
     if (port_ == 8883) {
         mosquitto_int_option(connection_, MOSQ_OPT_TLS_USE_OS_CERTS, 1);

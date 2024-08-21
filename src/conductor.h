@@ -30,15 +30,14 @@ class Conductor {
     std::shared_ptr<PaCapture> AudioSource() const;
     std::shared_ptr<V4L2Capture> VideoSource() const;
     void SetSink(rtc::VideoSinkInterface<webrtc::VideoFrame> *video_sink_obj);
-    bool IsReady() const;
     void AwaitCompletion();
 
   private:
     Args args;
     int peers_idx;
-    bool is_ready;
+    bool is_paired;
     std::mutex state_mtx;
-    std::condition_variable ready_state;
+    std::condition_variable peer_state;
     std::unordered_map<int, rtc::scoped_refptr<RtcPeer>> peers_map;
 
     void InitializePeerConnectionFactory();
@@ -46,7 +45,7 @@ class Conductor {
     bool InitializeRecorder();
     void AddTracks(rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer_connection);
     void RefreshPeerList();
-    void SetPeerReadyState(bool state);
+    void SetPeerOnPaired(bool state);
     void OnRecord(std::shared_ptr<DataChannelSubject> datachannel, std::string path);
 
     std::unique_ptr<rtc::Thread> network_thread_;

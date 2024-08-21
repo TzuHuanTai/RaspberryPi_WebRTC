@@ -49,8 +49,8 @@ class SetSessionDescription : public webrtc::SetSessionDescriptionObserver {
 
 struct PeerState {
     int id;
-    bool isConnected;
-    bool isReadyToConnect;
+    bool is_connected;
+    bool is_paired;
 };
 
 class RtcPeer : public webrtc::PeerConnectionObserver,
@@ -74,10 +74,10 @@ class RtcPeer : public webrtc::PeerConnectionObserver,
     void OnSnapshot(OnCommand func);
     void OnMetadata(OnCommand func);
     void OnRecord(OnCommand func);
-    void OnReadyToConnect(std::function<void(PeerState)> func);
+    void OnPaired(std::function<void(PeerState)> func);
 
   private:
-    void EmitReadyToConnect(bool is_ready);
+    void OnPaired(bool is_ready);
     void SubscribeCommandChannel(CommandType type, OnCommand func);
 
     // PeerConnectionObserver implementation.
@@ -100,7 +100,8 @@ class RtcPeer : public webrtc::PeerConnectionObserver,
 
     int id_;
     std::atomic<bool> is_connected_;
-    bool is_ready_to_connect_;
+    std::atomic<bool> is_complete_;
+    std::thread timeout_thread_;
     std::shared_ptr<SignalingService> signaling_client_;
     std::shared_ptr<DataChannelSubject> data_channel_subject_;
     rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer_connection_;
