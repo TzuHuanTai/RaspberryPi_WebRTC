@@ -47,7 +47,6 @@ Both `signalr` and `mqtt` are the options for signaling in this project.
 |   -DUSE_SIGNALR_SIGNALING   | Build the project by using SignalR as signaling. | ON, OFF |
 |   -DUSE_MQTT_SIGNALING      | Build the project by using MOSQUITTO as signaling. | ON, OFF |
 |   -DBUILD_TEST              | Build the test codes | recorder, mqtt, v4l2_capture, v4l2_encoder, v4l2_decoder, v4l2_scaler |
-|   -DUSE_BUILT_IN_H264       | Use the built-in openh264 software encoder | ON, OFF |
 
 Build on raspberry pi and it'll output a `pi_webrtc` file in `/build`.
 ```bash
@@ -61,15 +60,15 @@ Run `pi_webrtc` to start the service.
 
 * If use signalr as signaling.
     ```bash
-    ./pi_webrtc --device=/dev/video0 --fps=30 --width=1280 --height=720 --v4l2_format=mjpeg --signaling_url=http://localhost:6080/SignalingServer --enable_v4l2_dma
+    ./pi_webrtc --device=/dev/video0 --fps=30 --width=1280 --height=720 --v4l2_format=mjpeg --signaling_url=http://localhost:6080/SignalingServer --hw_accel
     ```
 * If use mosquitto mqtt as signaling.
     ```bash
-    ./pi_webrtc --device=/dev/video0 --fps=30 --width=1280 --height=720 --v4l2_format=mjpeg --mqtt_host=127.0.0.1 --mqtt_port=1883 --mqtt_username=<username> --mqtt_password=<password>  --enable_v4l2_dma
+    ./pi_webrtc --device=/dev/video0 --fps=30 --width=1280 --height=720 --v4l2_format=mjpeg --mqtt_host=127.0.0.1 --mqtt_port=1883 --mqtt_username=<username> --mqtt_password=<password>  --hw_accel
     ```
 * `./pi_webrtc -h` to list all available args.
-* `--enable_v4l2_dma` only apply to `--v4l2_format=h264` source stream. The `VP8`, `VP9` are available only if the flag not be assigned, and frames will be decoded/scaled by software, the buffer will be copied between HW encoder and user space.
-* If the `--record_path` is assigned, the background recorder will start immediately after running the program. But the performance of Pi 3B is limited, if the `--v4l2_format=mjpeg` source resolution is above 640x368@15fps the HW codec will be unstable, stuck, or even crash. However, it can record smoothly at 960x480@30fps when the `--v4l2_format=h264` and `--enable_v4l2_dma` flags are applied, even with two clients watching p2p streams simultaneously. Since the h264 source directly records into mp4 files without going through the decode/encode process.
+* The `VP8`, `VP9` are available only if the source format is `mjpeg` or `i420` not be assigned, and frames will be decoded/scaled by software, the buffer will be copied between HW encoder and user space.
+* If the `--record_path` is assigned, the background recorder will start immediately after running the program. But the performance of Pi 3B is limited, if the `--v4l2_format=mjpeg` source resolution is above 640x368@15fps the HW codec will be unstable, stuck, or even crash. However, it can record smoothly at 960x480@30fps when the `--v4l2_format=h264` and `--hw_accel` flags are applied, even with two clients watching p2p streams simultaneously. Since the h264 source directly records into mp4 files without going through the decode/encode process.
 
 ## Run as Linux Service
 Set `pi_webrtc` to run as a daemon. 
@@ -82,7 +81,7 @@ Set `pi_webrtc` to run as a daemon.
     [Service]
     Type=simple
     WorkingDirectory=/home/pi/IoT/RaspberryPi_WebRTC/build
-    ExecStart=/home/pi/IoT/RaspberryPi_WebRTC/build/pi_webrtc --fps=30 --width=1280 --height=720 --v4l2_format=h264 --enable_v4l2_dma --mqtt_username=hakunamatata --mqtt_password=wonderful --record_path=/home/pi/video/
+    ExecStart=/home/pi/IoT/RaspberryPi_WebRTC/build/pi_webrtc --fps=30 --width=1280 --height=720 --v4l2_format=h264 --hw_accel --mqtt_username=hakunamatata --mqtt_password=wonderful --record_path=/home/pi/video/
     ExecStop=/bin/kill -s SIGTERM $MAINPID
     Restart=always
     RestartSec=20

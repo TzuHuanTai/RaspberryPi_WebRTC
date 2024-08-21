@@ -2,13 +2,13 @@
 #include "common/logging.h"
 #include "v4l2_codecs/raw_buffer.h"
 
-std::unique_ptr<webrtc::VideoEncoder> V4l2H264Encoder::Create(bool is_dma) {
-    return std::make_unique<V4l2H264Encoder>(is_dma);
+std::unique_ptr<webrtc::VideoEncoder> V4l2H264Encoder::Create() {
+    return std::make_unique<V4l2H264Encoder>();
 }
 
-V4l2H264Encoder::V4l2H264Encoder(bool is_dma)
+V4l2H264Encoder::V4l2H264Encoder()
     : fps_adjuster_(30),
-      is_dma_(is_dma),
+      is_dma_(true),
       bitrate_adjuster_(.85, 1),
       callback_(nullptr) {}
 

@@ -19,11 +19,6 @@ else()
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2")
 endif()
 
-if(USE_BUILT_IN_H264)
-    add_definitions(-DUSE_BUILT_IN_H264)
-    add_compile_definitions(WEBRTC_USE_H264)
-endif()
-
 if(USE_MQTT_SIGNALING)
     add_definitions(-DUSE_MQTT_SIGNALING)
 elseif(USE_SIGNALR_SIGNALING)
@@ -37,7 +32,6 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
 message(STATUS "BUILD_TEST: ${BUILD_TEST}")
-message(STATUS "WEBRTC_USE_H264: ${USE_BUILT_IN_H264}")
 message(STATUS "WEBRTC_INCLUDE_DIR: ${WEBRTC_INCLUDE_DIR}")
 message(STATUS "WEBRTC_LIBRARY: ${WEBRTC_LIBRARY}")
 
@@ -45,6 +39,7 @@ add_compile_definitions(
     NDEBUG
     WEBRTC_POSIX
     WEBRTC_LINUX
+    WEBRTC_USE_H264
     USE_CPPRESTSDK
 )
 

@@ -22,7 +22,7 @@ std::shared_ptr<V4L2Capture> V4L2Capture::Create(Args args) {
 
 V4L2Capture::V4L2Capture(Args args)
     : buffer_count_(4),
-      is_dma_(args.enable_v4l2_dma),
+      is_dma_(args.hw_accel),
       config_(args) {}
 
 void V4L2Capture::Init(std::string device) {

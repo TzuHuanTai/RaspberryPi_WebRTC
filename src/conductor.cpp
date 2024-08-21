@@ -55,9 +55,12 @@ void Conductor::InitializeTracks() {
         video_capture_source_ = V4L2Capture::Create(args);
 
         video_track_source_ = ([this]() -> rtc::scoped_refptr<ScaleTrackSource> {
-            if (video_capture_source_->format() == V4L2_PIX_FMT_H264) {
+            if (!args.hw_accel && video_capture_source_->format() == V4L2_PIX_FMT_H264) {
+                std::cout << "Ssoftware decoding h264 is not support now." << std::endl;
+                exit(1);
+            } else if (args.hw_accel && video_capture_source_->format() == V4L2_PIX_FMT_H264) {
                 return H264DmaTrackSource::Create(video_capture_source_);
-            } else if (args.enable_v4l2_dma) {
+            } else if (args.hw_accel) {
                 return V4l2DmaTrackSource::Create(video_capture_source_);
             } else {
                 return ScaleTrackSource::Create(video_capture_source_);
