@@ -58,10 +58,28 @@
 
 * Build
     ``` bash
-    gn gen out/Release64 --args='target_os="linux" target_cpu="arm64" rtc_include_tests=false rtc_use_h264=false use_rtti=true rtc_use_x11=false use_glib=false is_component_build=false is_debug=false rtc_build_examples=false use_custom_libcxx=false rtc_build_tools=false rtc_use_pipewire=false clang_base_path="/home/pi/clang+llvm-16.0.6-aarch64-linux-gnu" clang_use_chrome_plugins=false'
+    gn gen out/Release64 --args='target_os="linux" \
+    target_cpu="arm64" \
+    is_debug=false \
+    rtc_include_tests=false \
+    rtc_use_x11=false \
+    rtc_use_h264=true \
+    rtc_use_pipewire=false \
+    use_rtti=true \
+    use_glib=false \
+    use_custom_libcxx=false \
+    rtc_build_tools=false \
+    rtc_build_examples=false \
+    is_component_build=false \
+    is_component_ffmpeg=true \
+    ffmpeg_branding="Chrome" \
+    proprietary_codecs=true \
+    clang_use_chrome_plugins=false'
+
     ninja -C out/Release64
     ```
-    *note: In contrast to the release version, debug version cause frames to be blocked by the video sender.*
+    
+    *Note: add flag `clang_base_path="/home/pi/clang+llvm-16.0.6-aarch64-linux-gnu"` for using specific clang.*
 
 * Extract header files
     ```bash
