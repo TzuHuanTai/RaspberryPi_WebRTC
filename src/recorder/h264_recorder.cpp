@@ -26,6 +26,10 @@ void H264Recorder::Encode(V4l2Buffer &buffer) {
     });
 }
 
+bool H264Recorder::MakePreviewImage(V4l2Buffer &raw_buffer) {
+    return true;
+}
+
 void H264Recorder::PreStart() { ResetCodecs(); }
 
 void H264Recorder::ResetCodecs() {

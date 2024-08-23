@@ -14,6 +14,7 @@ class H264Recorder : public VideoRecorder {
 
   protected:
     void Encode(V4l2Buffer &buffer) override;
+    bool MakePreviewImage(V4l2Buffer &raw_buffer) override;
 
   private:
     bool is_ready_;

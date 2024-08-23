@@ -12,7 +12,8 @@ VideoRecorder::VideoRecorder(Args config, std::string encoder_name)
       encoder_name(encoder_name),
       config(config),
       feeded_frames(0),
-      has_first_keyframe(false) {}
+      has_first_keyframe(false),
+      has_preview_image(false) {}
 
 void VideoRecorder::InitializeEncoderCtx(AVCodecContext *&encoder) {
     frame_rate = {.num = (int)config.fps, .den = 1};
@@ -40,21 +41,13 @@ void VideoRecorder::PostStop() {
         ConsumeBuffer();
     }
     feeded_frames = 0;
+    has_preview_image = false;
     has_first_keyframe = false;
 }
 
 void VideoRecorder::SetBaseTimestamp(struct timeval time) { base_time_ = time; }
 
 void VideoRecorder::OnEncoded(V4l2Buffer &buffer) {
-    if (!has_first_keyframe && (buffer.flags & V4L2_BUF_FLAG_KEYFRAME)) {
-        has_first_keyframe = true;
-        SetBaseTimestamp(buffer.timestamp);
-    }
-
-    if (!has_first_keyframe) {
-        return;
-    }
-
     AVPacket pkt;
     av_init_packet(&pkt);
     pkt.data = static_cast<uint8_t *>(buffer.start);
@@ -78,12 +71,17 @@ bool VideoRecorder::ConsumeBuffer() {
     V4l2Buffer buffer((void *)frame_buffer->Data(), frame_buffer->size(), frame_buffer->flags(),
                       frame_buffer->timestamp());
 
-    Encode(buffer);
+    if (!has_first_keyframe && (buffer.flags & V4L2_BUF_FLAG_KEYFRAME)) {
+        has_first_keyframe = true;
+        SetBaseTimestamp(buffer.timestamp);
+    }
 
-    if (feeded_frames >= 0) {
-        MakePreviewImage(buffer);
-    } else if (feeded_frames < 0 && image_decoder_->IsCapturing()) {
-        image_decoder_->ReleaseCodec();
+    if (!has_preview_image && has_first_keyframe) {
+        has_preview_image = MakePreviewImage(buffer);
+    }
+
+    if (has_first_keyframe) {
+        Encode(buffer);
     }
 
     frame_buffer_queue.pop();
@@ -91,7 +89,7 @@ bool VideoRecorder::ConsumeBuffer() {
     return true;
 }
 
-void VideoRecorder::MakePreviewImage(V4l2Buffer &buffer) {
+bool VideoRecorder::MakePreviewImage(V4l2Buffer &buffer) {
     if (feeded_frames == 0 || buffer.flags & V4L2_BUF_FLAG_KEYFRAME) {
         image_decoder_ = std::make_unique<V4l2Decoder>();
         image_decoder_->Configure(config.width, config.height, V4L2_PIX_FMT_H264, false);
@@ -115,6 +113,12 @@ void VideoRecorder::MakePreviewImage(V4l2Buffer &buffer) {
             feeded_frames = -1;
         });
     }
+
+    if (feeded_frames == -1 && image_decoder_->IsCapturing()) {
+        image_decoder_->ReleaseCodec();
+        return true;
+    }
+    return false;
 }
 
 std::string VideoRecorder::ReplaceExtension(const std::string &url,
