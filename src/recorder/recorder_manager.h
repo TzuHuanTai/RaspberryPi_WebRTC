@@ -20,7 +20,6 @@ extern "C" {
 class RecUtil {
   public:
     static AVFormatContext *CreateContainer(std::string record_path, std::string filename);
-    static void CreateThumbnail(std::string record_path, std::string filename);
     static bool WriteFormatHeader(AVFormatContext *fmt_ctx);
     static void CloseContext(AVFormatContext *fmt_ctx);
 };

@@ -35,24 +35,6 @@ AVFormatContext *RecUtil::CreateContainer(std::string record_path, std::string f
     return fmt_ctx;
 }
 
-void RecUtil::CreateThumbnail(std::string record_path, std::string filename) {
-    const std::string ffmpegCommand =
-        std::string("ffmpeg -xerror -loglevel quiet -hide_banner -y") + " -i " + record_path + "/" +
-        filename + ".mp4" + " -vf \"select=eq(pict_type\\,I)\" -vsync vfr -frames:v 1 " +
-        record_path + "/" + filename + ".jpg";
-    DEBUG_PRINT("%s", ffmpegCommand.c_str());
-
-    // Execute the command
-    int result = std::system(ffmpegCommand.c_str());
-
-    // Check the result
-    if (result == 0) {
-        DEBUG_PRINT("Thumbnail created successfully.");
-    } else {
-        DEBUG_PRINT("Error executing FFmpeg command.");
-    }
-}
-
 bool RecUtil::WriteFormatHeader(AVFormatContext *fmt_ctx) {
     if (avformat_write_header(fmt_ctx, nullptr) < 0) {
         ERROR_PRINT("Error occurred when opening output file");
