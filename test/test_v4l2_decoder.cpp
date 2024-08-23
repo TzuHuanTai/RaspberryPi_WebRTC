@@ -46,7 +46,7 @@ int main(int argc, char *argv[]) {
     // scaler->Configure(args.width, args.height, scaled_width, scaled_height, true, false);
 
     auto capture = V4L2Capture::Create(args);
-    auto observer = capture->AsObservable();
+    auto observer = capture->AsRawBufferObservable();
     observer->Subscribe([&](V4l2Buffer buffer) {
         decoder->EmplaceBuffer(buffer, [&](V4l2Buffer decoded_buffer) {
             // scaler->EmplaceBuffer(decoded_buffer, [&](V4l2Buffer scaled_buffer) {

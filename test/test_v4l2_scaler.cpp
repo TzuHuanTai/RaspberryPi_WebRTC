@@ -39,7 +39,7 @@ int main(int argc, char *argv[]) {
     scaler->Configure(args.width, args.height, 320, 240, false, false);
 
     auto capture = V4L2Capture::Create(args);
-    auto observer = capture->AsObservable();
+    auto observer = capture->AsRawBufferObservable();
     observer->Subscribe([&](V4l2Buffer buffer) {
         scaler->EmplaceBuffer(buffer, [&](V4l2Buffer scaled_buffer) {
             if (is_finished) {

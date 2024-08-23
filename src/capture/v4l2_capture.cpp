@@ -7,6 +7,7 @@
 
 // WebRTC
 #include <modules/video_capture/video_capture_factory.h>
+#include <third_party/libyuv/include/libyuv.h>
 
 #include "common/logging.h"
 
@@ -23,6 +24,7 @@ std::shared_ptr<V4L2Capture> V4L2Capture::Create(Args args) {
 V4L2Capture::V4L2Capture(Args args)
     : buffer_count_(4),
       is_dma_(args.hw_accel),
+      has_first_keyframe_(false),
       config_(args) {}
 
 void V4L2Capture::Init(std::string device) {
@@ -35,6 +37,7 @@ void V4L2Capture::Init(std::string device) {
 
 V4L2Capture::~V4L2Capture() {
     worker_.reset();
+    decoder_.reset();
     V4l2Util::StreamOff(fd_, capture_.type);
     V4l2Util::DeallocateBuffer(fd_, &capture_);
     V4l2Util::CloseDevice(fd_);
@@ -46,13 +49,20 @@ int V4L2Capture::width() const { return width_; }
 
 int V4L2Capture::height() const { return height_; }
 
-bool V4L2Capture::is_dma() const { return is_dma_; }
+bool V4L2Capture::is_dma_capture() const { 
+    return is_dma_ && (format_ == V4L2_PIX_FMT_MJPEG 
+            || format_ == V4L2_PIX_FMT_H264); 
+}
 
 uint32_t V4L2Capture::format() const { return format_; }
 
 Args V4L2Capture::config() const { return config_; }
 
 webrtc::VideoType V4L2Capture::type() const { return video_type_; }
+
+bool V4L2Capture::IsCompressedFormat() const {
+    return format_ == V4L2_PIX_FMT_MJPEG || format_ == V4L2_PIX_FMT_H264;
+}
 
 bool V4L2Capture::CheckMatchingDevice(std::string unique_name) {
     struct v4l2_capability cap;
@@ -156,19 +166,63 @@ void V4L2Capture::CaptureImage() {
     frame_buffer->CopyBuffer((uint8_t *)capture_.buffers[buf.index].start, buf.bytesused, buf.flags,
                              buf.timestamp);
 
+    NextBuffer(frame_buffer);
+
     if (!V4l2Util::QueueBuffer(fd_, &buf)) {
         return;
     }
-
-    Next(frame_buffer);
 }
 
-void V4L2Capture::Next(rtc::scoped_refptr<V4l2FrameBuffer> buffer) {
-    for (auto &observer : observers_) {
-        if (observer && observer->subscribed_func_ != nullptr) {
-            observer->subscribed_func_(buffer);
+void V4L2Capture::NextBuffer(rtc::scoped_refptr<V4l2FrameBuffer> frame_buffer) {
+    if (is_dma_) { 
+        // hardware encoding
+        V4l2Buffer buffer((void *)frame_buffer->Data(), frame_buffer->size(),
+                            frame_buffer->flags(), frame_buffer->timestamp());
+
+        if (!has_first_keyframe_) {
+            has_first_keyframe_ = (frame_buffer->flags() & V4L2_BUF_FLAG_KEYFRAME) != 0;
+        }
+
+        if (IsCompressedFormat()) {
+            decoder_->EmplaceBuffer(buffer, [this](V4l2Buffer decoded_buffer) {
+                yuv_buffer_frame_ = RawFrameBuffer::Create(width_, height_, decoded_buffer);
+                yuv_buffer_subject_.Next(yuv_buffer_frame_);
+            });
+        } else {
+            yuv_buffer_frame_ = RawFrameBuffer::Create(width_, height_, buffer);
+            yuv_buffer_subject_.Next(yuv_buffer_frame_);
+        }
+    } else { 
+        // software decoding
+        if (format_ != V4L2_PIX_FMT_H264) {
+            rtc::scoped_refptr<webrtc::I420Buffer> i420_buffer(webrtc::I420Buffer::Create(width_, height_));
+            i420_buffer->InitializeData();
+
+            if (libyuv::ConvertToI420((uint8_t *)frame_buffer->Data(), frame_buffer->size(),
+                                    i420_buffer.get()->MutableDataY(), i420_buffer.get()->StrideY(),
+                                    i420_buffer.get()->MutableDataU(), i420_buffer.get()->StrideU(),
+                                    i420_buffer.get()->MutableDataV(), i420_buffer.get()->StrideV(), 0, 0,
+                                    width_, height_, width_, height_, libyuv::kRotate0,
+                                    ConvertVideoType(video_type_)) < 0) {
+                ERROR_PRINT("ConvertToI420 Failed");
+            }
+            yuv_buffer_frame_ = i420_buffer;
+
+            yuv_buffer_subject_.Next(yuv_buffer_frame_);
+        } else {
+            // todo: h264 decode
         }
     }
+
+    raw_buffer_subject_.Next(frame_buffer);
+}
+
+std::shared_ptr<Observable<rtc::scoped_refptr<V4l2FrameBuffer>>> V4L2Capture::AsRawBufferObservable() {
+    return raw_buffer_subject_.AsObservable();
+}
+
+std::shared_ptr<Observable<rtc::scoped_refptr<webrtc::VideoFrameBuffer>>> V4L2Capture::AsYuvBufferObservable() {
+    return yuv_buffer_subject_.AsObservable();
 }
 
 void V4L2Capture::StartCapture() {
@@ -178,6 +232,12 @@ void V4L2Capture::StartCapture() {
     }
 
     V4l2Util::StreamOn(fd_, capture_.type);
+
+    if (is_dma_ && IsCompressedFormat()) {
+        decoder_ = std::make_unique<V4l2Decoder>();
+        decoder_->Configure(config_.width, config_.height, format_, true);
+        decoder_->Start();
+    }
 
     worker_.reset(new Worker("V4l2Capture", [this]() {
         CaptureImage();

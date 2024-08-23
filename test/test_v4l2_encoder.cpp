@@ -30,7 +30,7 @@ int main(int argc, char *argv[]) {
     auto scaler = std::make_unique<V4l2Scaler>();
     auto encoder = std::make_unique<V4l2Encoder>();
     auto capture = V4L2Capture::Create(args);
-    auto observer = capture->AsObservable();
+    auto observer = capture->AsRawBufferObservable();
 
     decoder->Configure(args.width, args.height, V4L2_PIX_FMT_H264, true);
     scaler->Configure(args.width, args.height, dst_width, dst_heigh, true, true);

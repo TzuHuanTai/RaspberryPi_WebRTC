@@ -5,7 +5,7 @@
 #include "common/utils.h"
 #include "recorder/h264_recorder.h"
 #include "recorder/raw_h264_recorder.h"
-#include "v4l2_codecs/raw_buffer.h"
+#include "v4l2_codecs/raw_frame_buffer.h"
 
 VideoRecorder::VideoRecorder(Args config, std::string encoder_name)
     : Recorder(),
@@ -102,8 +102,7 @@ bool VideoRecorder::MakePreviewImage(V4l2Buffer &buffer) {
             if (feeded_frames < 0) {
                 return;
             }
-            auto raw_buffer = RawBuffer::Create(config.width, config.height, decoded_buffer.length,
-                                                decoded_buffer);
+            auto raw_buffer = RawFrameBuffer::Create(config.width, config.height, decoded_buffer);
             int dst_stride = config.width / 2;
             auto i420buff = webrtc::I420Buffer::Create(config.width / 2, config.height / 2, dst_stride,
                                                  dst_stride / 2, dst_stride / 2);

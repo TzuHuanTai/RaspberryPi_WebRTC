@@ -1,6 +1,5 @@
 #include "v4l2_codecs/v4l2_scaler.h"
 #include "common/logging.h"
-#include "v4l2_codecs/raw_buffer.h"
 
 const char *SCALER_FILE = "/dev/video12";
 const int BUFFER_NUM = 2;

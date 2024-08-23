@@ -25,7 +25,7 @@ template <typename T> class Subject {
     virtual void Next(T message) {
         for (auto &observer : observers_) {
             if (observer && observer->subscribed_func_ != nullptr) {
-                auto task = std::async(std::launch::async, observer->subscribed_func_, message);
+                observer->subscribed_func_(message);
             }
         }
     }

@@ -23,7 +23,6 @@
 #include "common/logging.h"
 #include "common/utils.h"
 #include "customized_video_encoder_factory.h"
-#include "track/h264_dma_track_source.h"
 #include "track/v4l2dma_track_source.h"
 
 std::shared_ptr<Conductor> Conductor::Create(Args args) {
@@ -58,8 +57,6 @@ void Conductor::InitializeTracks() {
             if (!args.hw_accel && video_capture_source_->format() == V4L2_PIX_FMT_H264) {
                 std::cout << "Ssoftware decoding h264 is not support now." << std::endl;
                 exit(1);
-            } else if (args.hw_accel && video_capture_source_->format() == V4L2_PIX_FMT_H264) {
-                return H264DmaTrackSource::Create(video_capture_source_);
             } else if (args.hw_accel) {
                 return V4l2DmaTrackSource::Create(video_capture_source_);
             } else {

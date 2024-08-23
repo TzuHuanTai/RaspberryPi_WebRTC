@@ -3,7 +3,6 @@
 #include <sys/ioctl.h>
 
 #include "common/logging.h"
-#include "v4l2_codecs/raw_buffer.h"
 
 const char *DECODER_FILE = "/dev/video10";
 const int BUFFER_NUM = 2;

@@ -35,7 +35,7 @@ int main(int argc, char *argv[]) {
               .v4l2_format = "mjpeg"};
 
     auto capture = V4L2Capture::Create(args);
-    auto observer = capture->AsObservable();
+    auto observer = capture->AsRawBufferObservable();
     observer->Subscribe([&](V4l2Buffer buffer) {
         if (i < images_nb) {
             WriteImage(buffer, ++i);

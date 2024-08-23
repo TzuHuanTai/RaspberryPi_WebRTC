@@ -19,11 +19,16 @@ void H264Recorder::Encode(V4l2Buffer &buffer) {
     if (!is_ready_) {
         return;
     }
-    decoder_->EmplaceBuffer(buffer, [this](V4l2Buffer decoded_buffer) {
-        encoder_->EmplaceBuffer(decoded_buffer, [this](V4l2Buffer encoded_buffer) {
-            OnEncoded(encoded_buffer);
+
+    if (config.hw_accel) {
+        decoder_->EmplaceBuffer(buffer, [this](V4l2Buffer decoded_buffer) {
+            encoder_->EmplaceBuffer(decoded_buffer, [this](V4l2Buffer encoded_buffer) {
+                OnEncoded(encoded_buffer);
+            });
         });
-    });
+    } else {
+        // software encoder
+    }
 }
 
 bool H264Recorder::MakePreviewImage(V4l2Buffer &raw_buffer) {
@@ -34,12 +39,17 @@ void H264Recorder::PreStart() { ResetCodecs(); }
 
 void H264Recorder::ResetCodecs() {
     is_ready_ = false;
-    decoder_ = std::make_unique<V4l2Decoder>();
-    decoder_->Configure(config.width, config.height, V4L2_PIX_FMT_MJPEG, true);
 
-    encoder_ = std::make_unique<V4l2Encoder>();
-    encoder_->SetProfile(V4L2_MPEG_VIDEO_H264_PROFILE_HIGH);
-    encoder_->Configure(config.width, config.height, true);
-    V4l2Util::SetExtCtrl(encoder_->GetFd(), V4L2_CID_MPEG_VIDEO_FORCE_KEY_FRAME, 1);
+    if (config.hw_accel) {
+        decoder_ = std::make_unique<V4l2Decoder>();
+        decoder_->Configure(config.width, config.height, V4L2_PIX_FMT_MJPEG, true);
+        encoder_ = std::make_unique<V4l2Encoder>();
+        encoder_->SetProfile(V4L2_MPEG_VIDEO_H264_PROFILE_HIGH);
+        encoder_->Configure(config.width, config.height, true);
+        V4l2Util::SetExtCtrl(encoder_->GetFd(), V4L2_CID_MPEG_VIDEO_FORCE_KEY_FRAME, 1);
+    } else {
+        // software encoder
+    }
+
     is_ready_ = true;
 }
