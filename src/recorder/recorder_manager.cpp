@@ -72,6 +72,7 @@ std::unique_ptr<RecorderManager> RecorderManager::Create(std::shared_ptr<Conduct
 }
 
 void RecorderManager::CreateVideoRecorder(std::shared_ptr<V4L2Capture> capture) {
+    video_src_ = capture;
     fps = capture->fps();
     width = capture->width();
     height = capture->height();
@@ -180,6 +181,8 @@ void RecorderManager::Start() {
     }
     RecUtil::WriteFormatHeader(fmt_ctx);
 
+    MakePreviewImage(fmt_ctx->url);
+
     has_first_keyframe = true;
 }
 
@@ -205,4 +208,25 @@ RecorderManager::~RecorderManager() {
     video_observer->UnSubscribe();
     audio_observer->UnSubscribe();
     rotation_worker_.reset();
+}
+
+void RecorderManager::MakePreviewImage(const std::string &file_url) {
+    if (video_src_ == nullptr) {
+        return;
+    }
+    auto i420buff = video_src_->GetI420Frame();
+    Utils::CreateJpegImage(i420buff->DataY(), i420buff->width(), i420buff->height(),
+                            ReplaceExtension(file_url, ".jpg"));
+}
+
+std::string RecorderManager::ReplaceExtension(const std::string &url,
+                                            const std::string &new_extension) {
+    size_t last_dot_pos = url.find_last_of('.');
+    if (last_dot_pos == std::string::npos) {
+        // No extension found, append the new extension
+        return url + new_extension;
+    } else {
+        // Replace the existing extension
+        return url.substr(0, last_dot_pos) + new_extension;
+    }
 }

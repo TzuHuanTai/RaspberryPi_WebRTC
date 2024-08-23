@@ -11,7 +11,6 @@ VideoRecorder::VideoRecorder(Args config, std::string encoder_name)
     : Recorder(),
       encoder_name(encoder_name),
       config(config),
-      feeded_frames(0),
       has_first_keyframe(false),
       has_preview_image(false) {}
 
@@ -40,7 +39,6 @@ void VideoRecorder::PostStop() {
            (frame_buffer_queue.front()->flags() & V4L2_BUF_FLAG_KEYFRAME) != 0) {
         ConsumeBuffer();
     }
-    feeded_frames = 0;
     has_preview_image = false;
     has_first_keyframe = false;
 }
@@ -76,10 +74,6 @@ bool VideoRecorder::ConsumeBuffer() {
         SetBaseTimestamp(buffer.timestamp);
     }
 
-    if (!has_preview_image && has_first_keyframe) {
-        has_preview_image = MakePreviewImage(buffer);
-    }
-
     if (has_first_keyframe) {
         Encode(buffer);
     }
@@ -87,47 +81,4 @@ bool VideoRecorder::ConsumeBuffer() {
     frame_buffer_queue.pop();
 
     return true;
-}
-
-bool VideoRecorder::MakePreviewImage(V4l2Buffer &buffer) {
-    if (feeded_frames == 0 || buffer.flags & V4L2_BUF_FLAG_KEYFRAME) {
-        image_decoder_ = std::make_unique<V4l2Decoder>();
-        image_decoder_->Configure(config.width, config.height, V4L2_PIX_FMT_H264, false);
-        image_decoder_->Start();
-    }
-
-    if (feeded_frames >= 0) {
-        feeded_frames++;
-        image_decoder_->EmplaceBuffer(buffer, [this](V4l2Buffer decoded_buffer) {
-            if (feeded_frames < 0) {
-                return;
-            }
-            auto raw_buffer = RawFrameBuffer::Create(config.width, config.height, decoded_buffer);
-            int dst_stride = config.width / 2;
-            auto i420buff = webrtc::I420Buffer::Create(config.width / 2, config.height / 2, dst_stride,
-                                                 dst_stride / 2, dst_stride / 2);
-            i420buff->ScaleFrom(*raw_buffer->ToI420());
-            Utils::CreateJpegImage(i420buff->DataY(), i420buff->width(), i420buff->height(),
-                                   ReplaceExtension(file_url, ".jpg"));
-            feeded_frames = -1;
-        });
-    }
-
-    if (feeded_frames == -1 && image_decoder_->IsCapturing()) {
-        image_decoder_->ReleaseCodec();
-        return true;
-    }
-    return false;
-}
-
-std::string VideoRecorder::ReplaceExtension(const std::string &url,
-                                            const std::string &new_extension) {
-    size_t last_dot_pos = url.find_last_of('.');
-    if (last_dot_pos == std::string::npos) {
-        // No extension found, append the new extension
-        return url + new_extension;
-    } else {
-        // Replace the existing extension
-        return url.substr(0, last_dot_pos) + new_extension;
-    }
 }

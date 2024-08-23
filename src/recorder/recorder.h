@@ -36,7 +36,6 @@ template <typename T> class Recorder {
     virtual void PreStart(){};
 
     bool AddStream(AVFormatContext *output_fmt_ctx) {
-        file_url = output_fmt_ctx->url;
         st = avformat_new_stream(output_fmt_ctx, encoder->codec);
         avcodec_parameters_from_context(st->codecpar, encoder);
 
@@ -63,7 +62,6 @@ template <typename T> class Recorder {
     }
 
   protected:
-    std::string file_url;
     OnPacketedFunc on_packeted;
     std::unique_ptr<Worker> worker;
     AVCodecContext *encoder;

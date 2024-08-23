@@ -24,7 +24,6 @@ class VideoRecorder : public Recorder<rtc::scoped_refptr<V4l2FrameBuffer>> {
 
   protected:
     Args config;
-    int feeded_frames;
     bool has_first_keyframe;
     std::atomic<bool> has_preview_image;
     std::string encoder_name;
@@ -33,7 +32,6 @@ class VideoRecorder : public Recorder<rtc::scoped_refptr<V4l2FrameBuffer>> {
     AVRational frame_rate;
 
     virtual void Encode(V4l2Buffer &buffer) = 0;
-    virtual bool MakePreviewImage(V4l2Buffer &raw_buffer);
 
     void OnEncoded(V4l2Buffer &buffer);
     void SetBaseTimestamp(struct timeval time);

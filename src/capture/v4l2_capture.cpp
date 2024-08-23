@@ -193,6 +193,7 @@ void V4L2Capture::NextBuffer(rtc::scoped_refptr<V4l2FrameBuffer> frame_buffer) {
                 yuv_buffer_subject_.Next(yuv_buffer_frame_);
             });
         } else {
+            //todo: key flag miss
             yuv_buffer_frame_ = RawFrameBuffer::Create(width_, height_, buffer);
             yuv_buffer_subject_.Next(yuv_buffer_frame_);
         }
