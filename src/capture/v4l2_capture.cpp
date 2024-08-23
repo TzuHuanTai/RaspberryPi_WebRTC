@@ -173,6 +173,10 @@ void V4L2Capture::CaptureImage() {
     }
 }
 
+rtc::scoped_refptr<webrtc::I420BufferInterface> V4L2Capture::GetI420Frame() {
+    return yuv_buffer_frame_->ToI420();
+}
+
 void V4L2Capture::NextBuffer(rtc::scoped_refptr<V4l2FrameBuffer> frame_buffer) {
     if (is_dma_) { 
         // hardware encoding

@@ -27,6 +27,8 @@ class V4L2Capture {
     V4L2Capture &SetFormat(int width, int height, std::string video_type);
     V4L2Capture &SetFps(int fps = 30);
     V4L2Capture &SetRotation(int angle);
+    rtc::scoped_refptr<webrtc::I420BufferInterface> GetI420Frame();
+
     void StartCapture();
 
     std::shared_ptr<Observable<rtc::scoped_refptr<V4l2FrameBuffer>>> AsRawBufferObservable();

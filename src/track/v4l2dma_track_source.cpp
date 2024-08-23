@@ -37,7 +37,6 @@ void V4l2DmaTrackSource::Init() {
 void V4l2DmaTrackSource::StartTrack() {
     auto observer = capture->AsYuvBufferObservable();
     observer->Subscribe([this](rtc::scoped_refptr<webrtc::VideoFrameBuffer> frame_buffer) {
-        i420_raw_buffer = frame_buffer;
         RawFrameBuffer *raw_buffer = static_cast<RawFrameBuffer *>(frame_buffer.get());
         OnFrameCaptured(raw_buffer->GetBuffer());
     });

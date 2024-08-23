@@ -131,7 +131,7 @@ bool Conductor::CreatePeerConnection() {
             ss >> num;
             int quality = ss.fail() ? 100 : num;
 
-            auto i420buff = video_track_source_->GetI420Frame();
+            auto i420buff = video_capture_source_->GetI420Frame();
             auto jpg_buffer =
                 Utils::ConvertYuvToJpeg(i420buff->DataY(), args.width, args.height, quality);
             datachannel->Send(std::move(jpg_buffer));

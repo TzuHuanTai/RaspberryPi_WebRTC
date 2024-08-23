@@ -31,7 +31,6 @@ ScaleTrackSource::~ScaleTrackSource() {
 void ScaleTrackSource::StartTrack() {
     auto observer = capture->AsYuvBufferObservable();
     observer->Subscribe([this](rtc::scoped_refptr<webrtc::VideoFrameBuffer> frame_buffer) {
-        i420_raw_buffer = frame_buffer;
         OnFrameCaptured(frame_buffer);
     });
 }
@@ -62,10 +61,6 @@ void ScaleTrackSource::OnFrameCaptured(rtc::scoped_refptr<webrtc::VideoFrameBuff
                 .set_rotation(webrtc::kVideoRotation_0)
                 .set_timestamp_us(translated_timestamp_us)
                 .build());
-}
-
-rtc::scoped_refptr<webrtc::I420BufferInterface> ScaleTrackSource::GetI420Frame() {
-    return i420_raw_buffer->ToI420();
 }
 
 webrtc::MediaSourceInterface::SourceState ScaleTrackSource::state() const {
