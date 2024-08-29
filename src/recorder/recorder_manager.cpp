@@ -1,9 +1,11 @@
 #include "recorder/recorder_manager.h"
 
+#include <chrono>
 #include <condition_variable>
 #include <csignal>
 #include <filesystem>
 #include <mutex>
+#include <thread>
 
 #include "common/logging.h"
 #include "common/utils.h"
@@ -80,7 +82,7 @@ void RecorderManager::CreateVideoRecorder(std::shared_ptr<V4L2Capture> capture) 
         if (capture->format() == V4L2_PIX_FMT_H264) {
             return RawH264Recorder::Create(capture->config());
         } else {
-            return H264Recorder::Create(capture->config());
+            return H264Recorder::Create(capture->config()); // Openh264Recorder(prefer) or HwH264
         }
     })();
 }
@@ -109,24 +111,24 @@ void RecorderManager::StartRotationThread() {
 
 void RecorderManager::SubscribeVideoSource(std::shared_ptr<V4L2Capture> video_src) {
     video_observer = video_src->AsRawBufferObservable();
-    video_observer->Subscribe([this](rtc::scoped_refptr<V4l2FrameBuffer> buffer) {
+    video_observer->Subscribe([this](V4l2Buffer buffer) {
         // waiting first keyframe to start recorders.
-        if (!has_first_keyframe && (buffer->flags() & V4L2_BUF_FLAG_KEYFRAME)) {
+        if (!has_first_keyframe && (buffer.flags & V4L2_BUF_FLAG_KEYFRAME)) {
             Start();
-            last_created_time_ = buffer->timestamp();
+            last_created_time_ = buffer.timestamp;
         }
 
         // restart to write in the new file.
-        if (elapsed_time_ >= SECOND_PER_FILE && buffer->flags() & V4L2_BUF_FLAG_KEYFRAME) {
-            last_created_time_ = buffer->timestamp();
+        if (elapsed_time_ >= SECOND_PER_FILE && buffer.flags & V4L2_BUF_FLAG_KEYFRAME) {
+            last_created_time_ = buffer.timestamp;
             Stop();
             Start();
         }
 
         if (has_first_keyframe && video_recorder) {
             video_recorder->OnBuffer(buffer);
-            elapsed_time_ = (buffer->timestamp().tv_sec - last_created_time_.tv_sec) +
-                            (buffer->timestamp().tv_usec - last_created_time_.tv_usec) / 1000000.0;
+            elapsed_time_ = (buffer.timestamp.tv_sec - last_created_time_.tv_sec) +
+                            (buffer.timestamp.tv_usec - last_created_time_.tv_usec) / 1000000.0;
         }
     });
 
@@ -181,7 +183,7 @@ void RecorderManager::Start() {
     }
     RecUtil::WriteFormatHeader(fmt_ctx);
 
-    MakePreviewImage(fmt_ctx->url);
+    MakePreviewImage();
 
     has_first_keyframe = true;
 }
@@ -210,17 +212,20 @@ RecorderManager::~RecorderManager() {
     rotation_worker_.reset();
 }
 
-void RecorderManager::MakePreviewImage(const std::string &file_url) {
-    if (video_src_ == nullptr) {
-        return;
-    }
-    auto i420buff = video_src_->GetI420Frame();
-    Utils::CreateJpegImage(i420buff->DataY(), i420buff->width(), i420buff->height(),
-                            ReplaceExtension(file_url, ".jpg"));
+void RecorderManager::MakePreviewImage() {
+    std::thread([this]() {
+        std::this_thread::sleep_for(std::chrono::seconds(3));
+        if (video_src_ == nullptr) {
+            return;
+        }
+        auto i420buff = video_src_->GetI420Frame();
+        Utils::CreateJpegImage(i420buff->DataY(), i420buff->width(), i420buff->height(),
+                               ReplaceExtension(fmt_ctx->url, ".jpg"));
+    }).detach();
 }
 
 std::string RecorderManager::ReplaceExtension(const std::string &url,
-                                            const std::string &new_extension) {
+                                              const std::string &new_extension) {
     size_t last_dot_pos = url.find_last_of('.');
     if (last_dot_pos == std::string::npos) {
         // No extension found, append the new extension

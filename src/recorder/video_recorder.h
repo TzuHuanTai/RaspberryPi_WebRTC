@@ -15,11 +15,11 @@ extern "C" {
 #include "recorder/recorder.h"
 #include "v4l2_codecs/v4l2_decoder.h"
 
-class VideoRecorder : public Recorder<rtc::scoped_refptr<V4l2FrameBuffer>> {
+class VideoRecorder : public Recorder<V4l2Buffer> {
   public:
     VideoRecorder(Args config, std::string encoder_name);
     virtual ~VideoRecorder(){};
-    void OnBuffer(rtc::scoped_refptr<V4l2FrameBuffer> &buffer) override;
+    void OnBuffer(V4l2Buffer &buffer) override;
     void PostStop() override;
 
   protected:

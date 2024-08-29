@@ -1,6 +1,6 @@
 #include "v4l2_codecs/v4l2_h264_encoder.h"
 #include "common/logging.h"
-#include "v4l2_codecs/raw_frame_buffer.h"
+#include "common/v4l2_frame_buffer.h"
 
 std::unique_ptr<webrtc::VideoEncoder> V4l2H264Encoder::Create() {
     return std::make_unique<V4l2H264Encoder>();
@@ -59,8 +59,8 @@ int32_t V4l2H264Encoder::Encode(const webrtc::VideoFrame &frame,
 
     V4l2Buffer src_buffer;
     if (frame_buffer->type() == webrtc::VideoFrameBuffer::Type::kNative) {
-        RawFrameBuffer *raw_buffer = static_cast<RawFrameBuffer *>(frame_buffer.get());
-        src_buffer = raw_buffer->GetBuffer();
+        V4l2FrameBuffer *raw_buffer = static_cast<V4l2FrameBuffer *>(frame_buffer.get());
+        src_buffer = raw_buffer->GetRawBuffer();
     } else {
         auto i420_buffer = frame_buffer->GetI420();
         unsigned int i420_buffer_size =

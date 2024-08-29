@@ -8,6 +8,7 @@
 #include <third_party/libyuv/include/libyuv.h>
 
 #include "common/logging.h"
+#include "common/v4l2_frame_buffer.h"
 
 static const int kBufferAlignment = 64;
 
@@ -21,15 +22,14 @@ ScaleTrackSource::Create(std::shared_ptr<V4L2Capture> capture) {
 ScaleTrackSource::ScaleTrackSource(std::shared_ptr<V4L2Capture> capture)
     : capture(capture),
       width(capture->width()),
-      height(capture->height()),
-      src_video_type(capture->type()) {}
+      height(capture->height()) {}
 
 ScaleTrackSource::~ScaleTrackSource() {
     // todo: tell capture unsubscribe observer.
 }
 
 void ScaleTrackSource::StartTrack() {
-    auto observer = capture->AsYuvBufferObservable();
+    auto observer = capture->AsFrameBufferObservable();
     observer->Subscribe([this](rtc::scoped_refptr<webrtc::VideoFrameBuffer> frame_buffer) {
         OnFrameCaptured(frame_buffer);
     });
@@ -51,7 +51,7 @@ void ScaleTrackSource::OnFrameCaptured(rtc::scoped_refptr<webrtc::VideoFrameBuff
     if (adapted_width != width || adapted_height != height) {
         int dst_stride = std::ceil((double)adapted_width / kBufferAlignment) * kBufferAlignment;
         auto i420_buffer = webrtc::I420Buffer::Create(adapted_width, adapted_height, dst_stride,
-                                                 dst_stride / 2, dst_stride / 2);
+                                                      dst_stride / 2, dst_stride / 2);
         i420_buffer->ScaleFrom(*frame_buffer->ToI420());
         dst_buffer = i420_buffer;
     }

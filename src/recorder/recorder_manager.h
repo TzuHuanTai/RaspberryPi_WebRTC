@@ -42,7 +42,7 @@ class RecorderManager {
     std::string record_path;
     AVFormatContext *fmt_ctx;
     bool has_first_keyframe;
-    std::shared_ptr<Observable<rtc::scoped_refptr<V4l2FrameBuffer>>> video_observer;
+    std::shared_ptr<Observable<V4l2Buffer>> video_observer;
     std::shared_ptr<Observable<PaBuffer>> audio_observer;
     std::unique_ptr<VideoRecorder> video_recorder;
     std::unique_ptr<AudioRecorder> audio_recorder;
@@ -59,9 +59,8 @@ class RecorderManager {
     std::shared_ptr<V4L2Capture> video_src_;
 
     void StartRotationThread();
-    void MakePreviewImage(const std::string &file_url);
-    std::string ReplaceExtension(const std::string &url,
-                                const std::string &new_extension);
+    void MakePreviewImage();
+    std::string ReplaceExtension(const std::string &url, const std::string &new_extension);
 };
 
 #endif

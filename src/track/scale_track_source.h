@@ -22,7 +22,6 @@ class ScaleTrackSource : public rtc::AdaptedVideoTrackSource {
   protected:
     int width;
     int height;
-    webrtc::VideoType src_video_type;
     std::shared_ptr<V4L2Capture> capture;
     rtc::TimestampAligner timestamp_aligner;
 

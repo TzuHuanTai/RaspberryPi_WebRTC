@@ -5,7 +5,6 @@
 #include "common/utils.h"
 #include "recorder/h264_recorder.h"
 #include "recorder/raw_h264_recorder.h"
-#include "v4l2_codecs/raw_frame_buffer.h"
 
 VideoRecorder::VideoRecorder(Args config, std::string encoder_name)
     : Recorder(),
@@ -27,9 +26,12 @@ void VideoRecorder::InitializeEncoderCtx(AVCodecContext *&encoder) {
     encoder->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
 }
 
-void VideoRecorder::OnBuffer(rtc::scoped_refptr<V4l2FrameBuffer> &buffer) {
+void VideoRecorder::OnBuffer(V4l2Buffer &buffer) {
     if (frame_buffer_queue.size() < config.fps * 10) {
-        frame_buffer_queue.push(buffer);
+        rtc::scoped_refptr<V4l2FrameBuffer> frame_buffer(
+            V4l2FrameBuffer::Create(config.width, config.height, buffer, 0));
+        frame_buffer->CopyBufferData();
+        frame_buffer_queue.push(frame_buffer);
     }
 }
 

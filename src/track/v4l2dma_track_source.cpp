@@ -8,7 +8,7 @@
 #include <rtc_base/timestamp_aligner.h>
 #include <third_party/libyuv/include/libyuv.h>
 
-#include "v4l2_codecs/raw_frame_buffer.h"
+#include "common/v4l2_utils.h"
 
 rtc::scoped_refptr<V4l2DmaTrackSource>
 V4l2DmaTrackSource::Create(std::shared_ptr<V4L2Capture> capture) {
@@ -35,17 +35,16 @@ void V4l2DmaTrackSource::Init() {
 }
 
 void V4l2DmaTrackSource::StartTrack() {
-    auto observer = capture->AsYuvBufferObservable();
-    observer->Subscribe([this](rtc::scoped_refptr<webrtc::VideoFrameBuffer> frame_buffer) {
-        RawFrameBuffer *raw_buffer = static_cast<RawFrameBuffer *>(frame_buffer.get());
-        OnFrameCaptured(raw_buffer->GetBuffer());
+    auto observer = capture->AsFrameBufferObservable();
+    observer->Subscribe([this](rtc::scoped_refptr<V4l2FrameBuffer> frame_buffer) {
+        OnFrameCaptured(frame_buffer->GetRawBuffer());
     });
 }
 
 void V4l2DmaTrackSource::OnFrameCaptured(V4l2Buffer decoded_buffer) {
     const int64_t timestamp_us = rtc::TimeMicros();
     const int64_t translated_timestamp_us =
-    timestamp_aligner.TranslateTimestamp(timestamp_us, rtc::TimeMicros());
+        timestamp_aligner.TranslateTimestamp(timestamp_us, rtc::TimeMicros());
 
     int adapted_width, adapted_height, crop_width, crop_height, crop_x, crop_y;
     if (!AdaptFrame(width, height, timestamp_us, &adapted_width, &adapted_height, &crop_width,
@@ -63,7 +62,8 @@ void V4l2DmaTrackSource::OnFrameCaptured(V4l2Buffer decoded_buffer) {
 
     scaler->EmplaceBuffer(
         decoded_buffer, [this, translated_timestamp_us](V4l2Buffer scaled_buffer) {
-            auto dst_buffer = RawFrameBuffer::Create(config_width_, config_height_, scaled_buffer);
+            auto dst_buffer = V4l2FrameBuffer::Create(config_width_, config_height_, scaled_buffer,
+                                                      V4L2_PIX_FMT_YUV420);
 
             OnFrame(webrtc::VideoFrame::Builder()
                         .set_video_frame_buffer(dst_buffer)
