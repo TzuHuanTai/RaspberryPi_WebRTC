@@ -25,14 +25,14 @@ class VideoRecorder : public Recorder<V4l2Buffer> {
   protected:
     Args config;
     bool has_first_keyframe;
-    std::atomic<bool> has_preview_image;
     std::string encoder_name;
     std::queue<rtc::scoped_refptr<V4l2FrameBuffer>> frame_buffer_queue;
 
     AVRational frame_rate;
 
-    virtual void Encode(V4l2Buffer &buffer) = 0;
+    virtual void Encode(rtc::scoped_refptr<V4l2FrameBuffer> frame_buffer) = 0;
 
+    bool ConsumeBuffer() override;
     void OnEncoded(V4l2Buffer &buffer);
     void SetBaseTimestamp(struct timeval time);
 
@@ -41,7 +41,6 @@ class VideoRecorder : public Recorder<V4l2Buffer> {
     std::unique_ptr<V4l2Decoder> image_decoder_;
 
     void InitializeEncoderCtx(AVCodecContext *&encoder) override;
-    bool ConsumeBuffer() override;
     void InitializeImageDecoder();
     std::string ReplaceExtension(const std::string &url, const std::string &new_extension);
 };

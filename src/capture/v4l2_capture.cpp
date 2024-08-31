@@ -24,6 +24,7 @@ std::shared_ptr<V4L2Capture> V4L2Capture::Create(Args args) {
 V4L2Capture::V4L2Capture(Args args)
     : buffer_count_(4),
       hw_accel_(args.hw_accel),
+      format_(args.format),
       has_first_keyframe_(false),
       config_(args) {}
 
@@ -87,14 +88,10 @@ V4L2Capture &V4L2Capture::SetFormat(int width, int height, std::string video_typ
     width_ = width;
     height_ = height;
 
-    if (video_type == "mjpeg") {
-        DEBUG_PRINT("Use mjpeg format source in v4l2");
-        V4l2Util::SetFormat(fd_, &capture_, width, height, V4L2_PIX_FMT_MJPEG);
-        V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_BITRATE, 10000000);
-        format_ = V4L2_PIX_FMT_MJPEG;
-    } else if (video_type == "h264") {
-        DEBUG_PRINT("Use h264 format source in v4l2");
-        V4l2Util::SetFormat(fd_, &capture_, width, height, V4L2_PIX_FMT_H264);
+    V4l2Util::SetFormat(fd_, &capture_, width, height, format_);
+    V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_BITRATE, 10000 * 1000);
+
+    if (format_ == V4L2_PIX_FMT_H264) {
         V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_BITRATE_MODE,
                              V4L2_MPEG_VIDEO_BITRATE_MODE_VBR);
         V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_H264_PROFILE,
@@ -103,13 +100,7 @@ V4L2Capture &V4L2Capture::SetFormat(int width, int height, std::string video_typ
         V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_H264_LEVEL, V4L2_MPEG_VIDEO_H264_LEVEL_4_0);
         V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_H264_I_PERIOD, 60); /* trick */
         V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_FORCE_KEY_FRAME, 1);
-        V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_BITRATE, 10000000);
-        format_ = V4L2_PIX_FMT_H264;
-    } else {
-        DEBUG_PRINT("Use yuv420(i420) format source in v4l2");
-        V4l2Util::SetFormat(fd_, &capture_, width, height, V4L2_PIX_FMT_YUV420);
-        V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_BITRATE, 10000000);
-        format_ = V4L2_PIX_FMT_YUV420;
+        V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_BITRATE, 2500 * 1000);
     }
     return *this;
 }

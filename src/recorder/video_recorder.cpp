@@ -10,8 +10,7 @@ VideoRecorder::VideoRecorder(Args config, std::string encoder_name)
     : Recorder(),
       encoder_name(encoder_name),
       config(config),
-      has_first_keyframe(false),
-      has_preview_image(false) {}
+      has_first_keyframe(false) {}
 
 void VideoRecorder::InitializeEncoderCtx(AVCodecContext *&encoder) {
     frame_rate = {.num = (int)config.fps, .den = 1};
@@ -27,21 +26,15 @@ void VideoRecorder::InitializeEncoderCtx(AVCodecContext *&encoder) {
 }
 
 void VideoRecorder::OnBuffer(V4l2Buffer &buffer) {
-    if (frame_buffer_queue.size() < config.fps * 10) {
+    if (frame_buffer_queue.size() < 8) {
         rtc::scoped_refptr<V4l2FrameBuffer> frame_buffer(
-            V4l2FrameBuffer::Create(config.width, config.height, buffer, 0));
+            V4l2FrameBuffer::Create(config.width, config.height, buffer, config.format));
         frame_buffer->CopyBufferData();
         frame_buffer_queue.push(frame_buffer);
     }
 }
 
 void VideoRecorder::PostStop() {
-    // Wait P-frames are all consumed until I-frame appear.
-    while (!frame_buffer_queue.empty() &&
-           (frame_buffer_queue.front()->flags() & V4L2_BUF_FLAG_KEYFRAME) != 0) {
-        ConsumeBuffer();
-    }
-    has_preview_image = false;
     has_first_keyframe = false;
 }
 
@@ -68,16 +61,13 @@ bool VideoRecorder::ConsumeBuffer() {
     }
     auto frame_buffer = frame_buffer_queue.front();
 
-    V4l2Buffer buffer((void *)frame_buffer->Data(), frame_buffer->size(), frame_buffer->flags(),
-                      frame_buffer->timestamp());
-
-    if (!has_first_keyframe && (buffer.flags & V4L2_BUF_FLAG_KEYFRAME)) {
+    if (!has_first_keyframe && (frame_buffer->flags() & V4L2_BUF_FLAG_KEYFRAME)) {
         has_first_keyframe = true;
-        SetBaseTimestamp(buffer.timestamp);
+        SetBaseTimestamp(frame_buffer->timestamp());
     }
 
     if (has_first_keyframe) {
-        Encode(buffer);
+        Encode(frame_buffer);
     }
 
     frame_buffer_queue.pop();

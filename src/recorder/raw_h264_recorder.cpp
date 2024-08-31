@@ -27,7 +27,19 @@ void RawH264Recorder::PreStart() {
     has_first_keyframe_ = false;
 }
 
-void RawH264Recorder::Encode(V4l2Buffer &buffer) {
+void RawH264Recorder::PostStop() {
+    // Wait P-frames are all consumed until I-frame appear.
+    while (!frame_buffer_queue.empty() &&
+           (frame_buffer_queue.front()->flags() & V4L2_BUF_FLAG_KEYFRAME) != 0) {
+        ConsumeBuffer();
+    }
+    has_first_keyframe = false;
+}
+
+void RawH264Recorder::Encode(rtc::scoped_refptr<V4l2FrameBuffer> frame_buffer) {
+    V4l2Buffer buffer((void *)frame_buffer->Data(), frame_buffer->size(), frame_buffer->flags(),
+                      frame_buffer->timestamp());
+
     if (buffer.flags & V4L2_BUF_FLAG_KEYFRAME && !has_first_keyframe_) {
         CheckNALUnits(buffer);
         if (has_sps_ && has_pps_) {

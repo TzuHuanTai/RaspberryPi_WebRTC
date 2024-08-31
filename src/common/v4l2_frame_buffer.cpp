@@ -25,6 +25,7 @@ V4l2FrameBuffer::V4l2FrameBuffer(int width, int height, V4l2Buffer buffer, uint3
       flags_(buffer.flags),
       timestamp_(buffer.timestamp),
       buffer_(buffer),
+      is_buffer_copied(false),
       data_(static_cast<uint8_t *>(webrtc::AlignedMalloc(size_, kBufferAlignment))) {}
 
 V4l2FrameBuffer::V4l2FrameBuffer(int width, int height, int size, uint32_t format)
@@ -34,6 +35,7 @@ V4l2FrameBuffer::V4l2FrameBuffer(int width, int height, int size, uint32_t forma
       size_(size),
       flags_(0),
       timestamp_({0, 0}),
+      is_buffer_copied(false),
       data_(static_cast<uint8_t *>(webrtc::AlignedMalloc(size_, kBufferAlignment))) {}
 
 V4l2FrameBuffer::~V4l2FrameBuffer() {}
@@ -57,7 +59,7 @@ rtc::scoped_refptr<webrtc::I420BufferInterface> V4l2FrameBuffer::ToI420() {
     i420_buffer->InitializeData();
 
     if (format_ == V4L2_PIX_FMT_MJPEG) {
-        if (libyuv::ConvertToI420((uint8_t *)buffer_.start, size_,
+        if (libyuv::ConvertToI420(is_buffer_copied ? data_.get() : (uint8_t *)buffer_.start, size_,
                                   i420_buffer.get()->MutableDataY(), i420_buffer.get()->StrideY(),
                                   i420_buffer.get()->MutableDataU(), i420_buffer.get()->StrideU(),
                                   i420_buffer.get()->MutableDataV(), i420_buffer.get()->StrideV(),
@@ -66,7 +68,8 @@ rtc::scoped_refptr<webrtc::I420BufferInterface> V4l2FrameBuffer::ToI420() {
             ERROR_PRINT("Mjpeg ConvertToI420 Failed");
         }
     } else if (format_ == V4L2_PIX_FMT_YUV420) {
-        memcpy(i420_buffer->MutableDataY(), (uint8_t *)buffer_.start, size_);
+        memcpy(i420_buffer->MutableDataY(),
+               is_buffer_copied ? data_.get() : (uint8_t *)buffer_.start, size_);
     } else if (format_ == V4L2_PIX_FMT_H264) {
         // use hw decoded frame from track.
     }
@@ -74,7 +77,10 @@ rtc::scoped_refptr<webrtc::I420BufferInterface> V4l2FrameBuffer::ToI420() {
     return i420_buffer;
 }
 
-void V4l2FrameBuffer::CopyBufferData() { memcpy(data_.get(), (uint8_t *)buffer_.start, size_); }
+void V4l2FrameBuffer::CopyBufferData() {
+    memcpy(data_.get(), (uint8_t *)buffer_.start, size_); 
+    is_buffer_copied=true;
+}
 
 V4l2Buffer V4l2FrameBuffer::GetRawBuffer() { return buffer_; }
 

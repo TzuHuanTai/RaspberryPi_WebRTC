@@ -11,28 +11,35 @@ H264Recorder::H264Recorder(Args config, std::string encoder_name)
       is_ready_(false){};
 
 H264Recorder::~H264Recorder() {
-    decoder_.reset();
     encoder_.reset();
+    sw_encoder_.reset();
 }
 
-void H264Recorder::Encode(V4l2Buffer &buffer) {
+void H264Recorder::Encode(rtc::scoped_refptr<V4l2FrameBuffer> frame_buffer) {
     if (!is_ready_) {
         return;
     }
 
+    auto i420_buffer = frame_buffer->ToI420();
     if (config.hw_accel) {
-        decoder_->EmplaceBuffer(buffer, [this](V4l2Buffer decoded_buffer) {
-            encoder_->EmplaceBuffer(decoded_buffer, [this](V4l2Buffer encoded_buffer) {
-                OnEncoded(encoded_buffer);
-            });
+        unsigned int i420_buffer_size =
+            (i420_buffer->StrideY() * frame_buffer->height()) +
+            ((i420_buffer->StrideY() + 1) / 2) * ((frame_buffer->height() + 1) / 2) * 2;
+
+        V4l2Buffer decoded_buffer((void *)i420_buffer->DataY(), i420_buffer_size);
+
+        encoder_->EmplaceBuffer(decoded_buffer, [this, frame_buffer](V4l2Buffer encoded_buffer) {
+            encoded_buffer.timestamp = frame_buffer->timestamp();
+            OnEncoded(encoded_buffer);
         });
     } else {
-        // software encoder
+        sw_encoder_->Encode(i420_buffer, [this, frame_buffer](uint8_t *encoded_buffer,
+                                                              int size) {
+            V4l2Buffer buffer((void *)encoded_buffer, size, frame_buffer->flags(),
+                              frame_buffer->timestamp());
+            OnEncoded(buffer);
+        });
     }
-}
-
-bool H264Recorder::MakePreviewImage(V4l2Buffer &raw_buffer) {
-    return true;
 }
 
 void H264Recorder::PreStart() { ResetCodecs(); }
@@ -41,14 +48,18 @@ void H264Recorder::ResetCodecs() {
     is_ready_ = false;
 
     if (config.hw_accel) {
-        decoder_ = std::make_unique<V4l2Decoder>();
-        decoder_->Configure(config.width, config.height, V4L2_PIX_FMT_MJPEG, true);
         encoder_ = std::make_unique<V4l2Encoder>();
-        encoder_->SetProfile(V4L2_MPEG_VIDEO_H264_PROFILE_HIGH);
-        encoder_->Configure(config.width, config.height, true);
+        encoder_->Configure(config.width, config.height, false);
+        V4l2Util::SetExtCtrl(encoder_->GetFd(), V4L2_CID_MPEG_VIDEO_BITRATE_MODE,
+                             V4L2_MPEG_VIDEO_BITRATE_MODE_VBR);
+        V4l2Util::SetExtCtrl(encoder_->GetFd(), V4L2_CID_MPEG_VIDEO_H264_LEVEL,
+                             V4L2_MPEG_VIDEO_H264_LEVEL_4_0);
         V4l2Util::SetExtCtrl(encoder_->GetFd(), V4L2_CID_MPEG_VIDEO_FORCE_KEY_FRAME, 1);
+        V4l2Util::SetExtCtrl(encoder_->GetFd(), V4L2_CID_MPEG_VIDEO_H264_I_PERIOD, 60);
+        V4l2Util::SetExtCtrl(encoder_->GetFd(), V4L2_CID_MPEG_VIDEO_BITRATE, 2500 * 1000);
+        encoder_->Start();
     } else {
-        // software encoder
+        sw_encoder_ = H264Encoder::Create(config);
     }
 
     is_ready_ = true;

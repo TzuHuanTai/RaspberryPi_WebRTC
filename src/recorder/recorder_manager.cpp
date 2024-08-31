@@ -82,7 +82,7 @@ void RecorderManager::CreateVideoRecorder(std::shared_ptr<V4L2Capture> capture) 
         if (capture->format() == V4L2_PIX_FMT_H264) {
             return RawH264Recorder::Create(capture->config());
         } else {
-            return H264Recorder::Create(capture->config()); // Openh264Recorder(prefer) or HwH264
+            return H264Recorder::Create(capture->config());
         }
     })();
 }
@@ -113,7 +113,8 @@ void RecorderManager::SubscribeVideoSource(std::shared_ptr<V4L2Capture> video_sr
     video_observer = video_src->AsRawBufferObservable();
     video_observer->Subscribe([this](V4l2Buffer buffer) {
         // waiting first keyframe to start recorders.
-        if (!has_first_keyframe && (buffer.flags & V4L2_BUF_FLAG_KEYFRAME)) {
+        if (!has_first_keyframe && ((buffer.flags & V4L2_BUF_FLAG_KEYFRAME) ||
+                                    video_src_->format() != V4L2_PIX_FMT_H264)) {
             Start();
             last_created_time_ = buffer.timestamp;
         }

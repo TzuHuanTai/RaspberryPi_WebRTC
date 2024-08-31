@@ -43,6 +43,7 @@ class V4l2FrameBuffer : public webrtc::VideoFrameBuffer {
     const uint32_t format_;
     unsigned int size_;
     unsigned int flags_;
+    bool is_buffer_copied;
     timeval timestamp_;
     V4l2Buffer buffer_;
     const std::unique_ptr<uint8_t, webrtc::AlignedFreeDeleter> data_;

@@ -9,10 +9,11 @@ class RawH264Recorder : public VideoRecorder {
     RawH264Recorder(Args config, std::string encoder_name);
     ~RawH264Recorder();
     void PreStart() override;
+    void PostStop() override;
     bool CheckNALUnits(const V4l2Buffer &buffer);
 
   protected:
-    void Encode(V4l2Buffer &buffer) override;
+    void Encode(rtc::scoped_refptr<V4l2FrameBuffer> frame_buffer) override;
 
   private:
     bool has_sps_;
