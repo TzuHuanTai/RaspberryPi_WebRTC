@@ -23,7 +23,6 @@
 #include "common/logging.h"
 #include "common/utils.h"
 #include "customized_video_encoder_factory.h"
-#include "track/h264_dma_track_source.h"
 #include "track/v4l2dma_track_source.h"
 
 std::shared_ptr<Conductor> Conductor::Create(Args args) {
@@ -55,12 +54,7 @@ void Conductor::InitializeTracks() {
         video_capture_source_ = V4L2Capture::Create(args);
 
         video_track_source_ = ([this]() -> rtc::scoped_refptr<ScaleTrackSource> {
-            if (!args.hw_accel && video_capture_source_->format() == V4L2_PIX_FMT_H264) {
-                std::cout << "Ssoftware decoding h264 is not support now." << std::endl;
-                exit(1);
-            } else if (args.hw_accel && video_capture_source_->format() == V4L2_PIX_FMT_H264) {
-                return H264DmaTrackSource::Create(video_capture_source_);
-            } else if (args.hw_accel) {
+            if (args.hw_accel) {
                 return V4l2DmaTrackSource::Create(video_capture_source_);
             } else {
                 return ScaleTrackSource::Create(video_capture_source_);
@@ -134,18 +128,17 @@ bool Conductor::CreatePeerConnection() {
             ss >> num;
             int quality = ss.fail() ? 100 : num;
 
-            auto i420buff = video_track_source_->GetI420Frame();
+            auto i420buff = video_capture_source_->GetI420Frame();
             auto jpg_buffer =
                 Utils::ConvertYuvToJpeg(i420buff->DataY(), args.width, args.height, quality);
             datachannel->Send(std::move(jpg_buffer));
-           
         } catch (const std::exception &e) {
             ERROR_PRINT("%s", e.what());
         }
     });
 
     peer_->OnMetadata([this](std::shared_ptr<DataChannelSubject> datachannel, std::string msg) {
-        std::cout <<"======> OnMetadata msg:" << msg << std::endl;
+        std::cout << "======> OnMetadata msg:" << msg << std::endl;
         json jsonObj = json::parse(msg.c_str());
 
         MetadataCommand cmd = jsonObj["command"];
@@ -163,8 +156,10 @@ bool Conductor::CreatePeerConnection() {
                 int file_size = metadata_str.length();
                 std::string size_str = std::to_string(file_size);
 
-                datachannel->Send(CommandType::METADATA, (uint8_t *)size_str.c_str(), size_str.length());
-                datachannel->Send(CommandType::METADATA, (uint8_t *)metadata_str.c_str(), file_size);
+                datachannel->Send(CommandType::METADATA, (uint8_t *)size_str.c_str(),
+                                  size_str.length());
+                datachannel->Send(CommandType::METADATA, (uint8_t *)metadata_str.c_str(),
+                                  file_size);
                 datachannel->Send(CommandType::METADATA, nullptr, 0);
             } else if (cmd == MetadataCommand::OLDER) {
                 if (message.empty()) {
@@ -178,8 +173,10 @@ bool Conductor::CreatePeerConnection() {
                     int file_size = metadata_str.length();
                     std::string size_str = std::to_string(file_size);
 
-                    datachannel->Send(CommandType::METADATA, (uint8_t *)size_str.c_str(), size_str.length());
-                    datachannel->Send(CommandType::METADATA, (uint8_t *)metadata_str.c_str(), file_size);
+                    datachannel->Send(CommandType::METADATA, (uint8_t *)size_str.c_str(),
+                                      size_str.length());
+                    datachannel->Send(CommandType::METADATA, (uint8_t *)metadata_str.c_str(),
+                                      file_size);
                     datachannel->Send(CommandType::METADATA, nullptr, 0);
                 }
             } else if (cmd == MetadataCommand::SPECIFIC_TIME) {
@@ -190,8 +187,10 @@ bool Conductor::CreatePeerConnection() {
                 int file_size = metadata_str.length();
                 std::string size_str = std::to_string(file_size);
 
-                datachannel->Send(CommandType::METADATA, (uint8_t *)size_str.c_str(), size_str.length());
-                datachannel->Send(CommandType::METADATA, (uint8_t *)metadata_str.c_str(), file_size);
+                datachannel->Send(CommandType::METADATA, (uint8_t *)size_str.c_str(),
+                                  size_str.length());
+                datachannel->Send(CommandType::METADATA, (uint8_t *)metadata_str.c_str(),
+                                  file_size);
                 datachannel->Send(CommandType::METADATA, nullptr, 0);
             }
         } catch (const std::exception &e) {
@@ -294,7 +293,6 @@ void Conductor::AwaitCompletion() {
     peer_state.wait(lock, [this] {
         return is_paired;
     });
-
 
     RefreshPeerList();
 }

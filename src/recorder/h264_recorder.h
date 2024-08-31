@@ -4,6 +4,7 @@
 #include "recorder/video_recorder.h"
 #include "v4l2_codecs/v4l2_decoder.h"
 #include "v4l2_codecs/v4l2_encoder.h"
+#include "codec/h264/h264_encoder.h"
 
 class H264Recorder : public VideoRecorder {
   public:
@@ -13,12 +14,13 @@ class H264Recorder : public VideoRecorder {
     void PreStart() override;
 
   protected:
-    void Encode(V4l2Buffer &buffer) override;
+    void Encode(rtc::scoped_refptr<V4l2FrameBuffer> frame_buffer) override;
 
   private:
     bool is_ready_;
     std::unique_ptr<V4l2Decoder> decoder_;
     std::unique_ptr<V4l2Encoder> encoder_;
+    std::unique_ptr<H264Encoder> sw_encoder_;
 
     void ResetCodecs();
 };

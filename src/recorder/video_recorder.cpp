@@ -5,13 +5,11 @@
 #include "common/utils.h"
 #include "recorder/h264_recorder.h"
 #include "recorder/raw_h264_recorder.h"
-#include "v4l2_codecs/raw_buffer.h"
 
 VideoRecorder::VideoRecorder(Args config, std::string encoder_name)
     : Recorder(),
       encoder_name(encoder_name),
       config(config),
-      feeded_frames(0),
       has_first_keyframe(false) {}
 
 void VideoRecorder::InitializeEncoderCtx(AVCodecContext *&encoder) {
@@ -27,34 +25,22 @@ void VideoRecorder::InitializeEncoderCtx(AVCodecContext *&encoder) {
     encoder->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
 }
 
-void VideoRecorder::OnBuffer(rtc::scoped_refptr<V4l2FrameBuffer> &buffer) {
-    if (frame_buffer_queue.size() < config.fps * 10) {
-        frame_buffer_queue.push(buffer);
+void VideoRecorder::OnBuffer(V4l2Buffer &buffer) {
+    if (frame_buffer_queue.size() < 8) {
+        rtc::scoped_refptr<V4l2FrameBuffer> frame_buffer(
+            V4l2FrameBuffer::Create(config.width, config.height, buffer, config.format));
+        frame_buffer->CopyBufferData();
+        frame_buffer_queue.push(frame_buffer);
     }
 }
 
 void VideoRecorder::PostStop() {
-    // Wait P-frames are all consumed until I-frame appear.
-    while (!frame_buffer_queue.empty() &&
-           (frame_buffer_queue.front()->flags() & V4L2_BUF_FLAG_KEYFRAME) != 0) {
-        ConsumeBuffer();
-    }
-    feeded_frames = 0;
     has_first_keyframe = false;
 }
 
 void VideoRecorder::SetBaseTimestamp(struct timeval time) { base_time_ = time; }
 
 void VideoRecorder::OnEncoded(V4l2Buffer &buffer) {
-    if (!has_first_keyframe && (buffer.flags & V4L2_BUF_FLAG_KEYFRAME)) {
-        has_first_keyframe = true;
-        SetBaseTimestamp(buffer.timestamp);
-    }
-
-    if (!has_first_keyframe) {
-        return;
-    }
-
     AVPacket pkt;
     av_init_packet(&pkt);
     pkt.data = static_cast<uint8_t *>(buffer.start);
@@ -75,56 +61,16 @@ bool VideoRecorder::ConsumeBuffer() {
     }
     auto frame_buffer = frame_buffer_queue.front();
 
-    V4l2Buffer buffer((void *)frame_buffer->Data(), frame_buffer->size(), frame_buffer->flags(),
-                      frame_buffer->timestamp());
+    if (!has_first_keyframe && (frame_buffer->flags() & V4L2_BUF_FLAG_KEYFRAME)) {
+        has_first_keyframe = true;
+        SetBaseTimestamp(frame_buffer->timestamp());
+    }
 
-    Encode(buffer);
-
-    if (feeded_frames >= 0) {
-        MakePreviewImage(buffer);
-    } else if (feeded_frames < 0 && image_decoder_->IsCapturing()) {
-        image_decoder_->ReleaseCodec();
+    if (has_first_keyframe) {
+        Encode(frame_buffer);
     }
 
     frame_buffer_queue.pop();
 
     return true;
-}
-
-void VideoRecorder::MakePreviewImage(V4l2Buffer &buffer) {
-    if (feeded_frames == 0 || buffer.flags & V4L2_BUF_FLAG_KEYFRAME) {
-        image_decoder_ = std::make_unique<V4l2Decoder>();
-        image_decoder_->Configure(config.width, config.height, V4L2_PIX_FMT_H264, false);
-        image_decoder_->Start();
-    }
-
-    if (feeded_frames >= 0) {
-        feeded_frames++;
-        image_decoder_->EmplaceBuffer(buffer, [this](V4l2Buffer decoded_buffer) {
-            if (feeded_frames < 0) {
-                return;
-            }
-            auto raw_buffer = RawBuffer::Create(config.width, config.height, decoded_buffer.length,
-                                                decoded_buffer);
-            int dst_stride = config.width / 2;
-            auto i420buff = webrtc::I420Buffer::Create(config.width / 2, config.height / 2, dst_stride,
-                                                 dst_stride / 2, dst_stride / 2);
-            i420buff->ScaleFrom(*raw_buffer->ToI420());
-            Utils::CreateJpegImage(i420buff->DataY(), i420buff->width(), i420buff->height(),
-                                   ReplaceExtension(file_url, ".jpg"));
-            feeded_frames = -1;
-        });
-    }
-}
-
-std::string VideoRecorder::ReplaceExtension(const std::string &url,
-                                            const std::string &new_extension) {
-    size_t last_dot_pos = url.find_last_of('.');
-    if (last_dot_pos == std::string::npos) {
-        // No extension found, append the new extension
-        return url + new_extension;
-    } else {
-        // Replace the existing extension
-        return url.substr(0, last_dot_pos) + new_extension;
-    }
 }

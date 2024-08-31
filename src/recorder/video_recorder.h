@@ -15,24 +15,24 @@ extern "C" {
 #include "recorder/recorder.h"
 #include "v4l2_codecs/v4l2_decoder.h"
 
-class VideoRecorder : public Recorder<rtc::scoped_refptr<V4l2FrameBuffer>> {
+class VideoRecorder : public Recorder<V4l2Buffer> {
   public:
     VideoRecorder(Args config, std::string encoder_name);
     virtual ~VideoRecorder(){};
-    void OnBuffer(rtc::scoped_refptr<V4l2FrameBuffer> &buffer) override;
+    void OnBuffer(V4l2Buffer &buffer) override;
     void PostStop() override;
 
   protected:
     Args config;
-    std::atomic<int> feeded_frames;
     bool has_first_keyframe;
     std::string encoder_name;
     std::queue<rtc::scoped_refptr<V4l2FrameBuffer>> frame_buffer_queue;
 
     AVRational frame_rate;
 
-    virtual void Encode(V4l2Buffer &buffer) = 0;
+    virtual void Encode(rtc::scoped_refptr<V4l2FrameBuffer> frame_buffer) = 0;
 
+    bool ConsumeBuffer() override;
     void OnEncoded(V4l2Buffer &buffer);
     void SetBaseTimestamp(struct timeval time);
 
@@ -41,8 +41,6 @@ class VideoRecorder : public Recorder<rtc::scoped_refptr<V4l2FrameBuffer>> {
     std::unique_ptr<V4l2Decoder> image_decoder_;
 
     void InitializeEncoderCtx(AVCodecContext *&encoder) override;
-    bool ConsumeBuffer() override;
-    void MakePreviewImage(V4l2Buffer &raw_buffer);
     void InitializeImageDecoder();
     std::string ReplaceExtension(const std::string &url, const std::string &new_extension);
 };

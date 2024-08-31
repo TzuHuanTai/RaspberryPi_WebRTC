@@ -15,6 +15,8 @@ class V4l2FrameBuffer : public webrtc::VideoFrameBuffer {
   public:
     static rtc::scoped_refptr<V4l2FrameBuffer> Create(int width, int height, int size,
                                                       uint32_t format);
+    static rtc::scoped_refptr<V4l2FrameBuffer> Create(int width, int height, V4l2Buffer buffer,
+                                                      uint32_t format);
 
     Type type() const override;
     int width() const override;
@@ -26,13 +28,13 @@ class V4l2FrameBuffer : public webrtc::VideoFrameBuffer {
     unsigned int flags() const;
     timeval timestamp() const;
 
-    const uint8_t *Data() const;
-    uint8_t *MutableData();
-
-    void CopyBuffer(const uint8_t *data, int size, unsigned int flags, timeval timestamp);
+    void CopyBufferData();
+    const void *Data() const;
+    V4l2Buffer GetRawBuffer();
 
   protected:
     V4l2FrameBuffer(int width, int height, int size, uint32_t format);
+    V4l2FrameBuffer(int width, int height, V4l2Buffer buffer, uint32_t format);
     ~V4l2FrameBuffer() override;
 
   private:
@@ -41,7 +43,9 @@ class V4l2FrameBuffer : public webrtc::VideoFrameBuffer {
     const uint32_t format_;
     unsigned int size_;
     unsigned int flags_;
+    bool is_buffer_copied;
     timeval timestamp_;
+    V4l2Buffer buffer_;
     const std::unique_ptr<uint8_t, webrtc::AlignedFreeDeleter> data_;
 };
 

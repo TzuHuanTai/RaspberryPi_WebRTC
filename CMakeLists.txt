@@ -88,6 +88,13 @@ elseif(BUILD_TEST STREQUAL "mqtt")
         Threads::Threads
         ${MOSQUITTO_LIBS}
     )
+elseif(BUILD_TEST STREQUAL "openh264")
+    add_executable(test_openh264 test/test_openh264.cpp)
+    target_link_libraries(test_openh264
+        ${WEBRTC_LINK_LIBS}
+        Threads::Threads
+        ${WEBRTC_LIBRARY}
+    )
 elseif(BUILD_TEST STREQUAL "v4l2_capture")
     add_subdirectory(src/capture)
     add_executable(test_v4l2_capture test/test_v4l2_capture.cpp)

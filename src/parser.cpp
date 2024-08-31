@@ -149,5 +149,16 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
 
     if (vm.count("v4l2_format")) {
         args.v4l2_format = vm["v4l2_format"].as<std::string>();
+
+        if (args.v4l2_format == "mjpeg") {
+            args.format = V4L2_PIX_FMT_MJPEG;
+            printf("Use mjpeg format source in v4l2\n");
+        } else if (args.v4l2_format == "h264") {
+            args.format = V4L2_PIX_FMT_H264;
+            printf("Use h264 format source in v4l2\n");
+        } else {
+            args.format = V4L2_PIX_FMT_YUV420;
+            printf("Use yuv420(i420) format source in v4l2\n");
+        }
     }
 }

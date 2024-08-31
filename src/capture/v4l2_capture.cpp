@@ -7,6 +7,7 @@
 
 // WebRTC
 #include <modules/video_capture/video_capture_factory.h>
+#include <third_party/libyuv/include/libyuv.h>
 
 #include "common/logging.h"
 
@@ -22,7 +23,9 @@ std::shared_ptr<V4L2Capture> V4L2Capture::Create(Args args) {
 
 V4L2Capture::V4L2Capture(Args args)
     : buffer_count_(4),
-      is_dma_(args.hw_accel),
+      hw_accel_(args.hw_accel),
+      format_(args.format),
+      has_first_keyframe_(false),
       config_(args) {}
 
 void V4L2Capture::Init(std::string device) {
@@ -35,6 +38,7 @@ void V4L2Capture::Init(std::string device) {
 
 V4L2Capture::~V4L2Capture() {
     worker_.reset();
+    decoder_.reset();
     V4l2Util::StreamOff(fd_, capture_.type);
     V4l2Util::DeallocateBuffer(fd_, &capture_);
     V4l2Util::CloseDevice(fd_);
@@ -46,13 +50,15 @@ int V4L2Capture::width() const { return width_; }
 
 int V4L2Capture::height() const { return height_; }
 
-bool V4L2Capture::is_dma() const { return is_dma_; }
+bool V4L2Capture::is_dma_capture() const { return hw_accel_ && IsCompressedFormat(); }
 
 uint32_t V4L2Capture::format() const { return format_; }
 
 Args V4L2Capture::config() const { return config_; }
 
-webrtc::VideoType V4L2Capture::type() const { return video_type_; }
+bool V4L2Capture::IsCompressedFormat() const {
+    return format_ == V4L2_PIX_FMT_MJPEG || format_ == V4L2_PIX_FMT_H264;
+}
 
 bool V4L2Capture::CheckMatchingDevice(std::string unique_name) {
     struct v4l2_capability cap;
@@ -82,15 +88,10 @@ V4L2Capture &V4L2Capture::SetFormat(int width, int height, std::string video_typ
     width_ = width;
     height_ = height;
 
-    if (video_type == "mjpeg") {
-        DEBUG_PRINT("Use mjpeg format source in v4l2");
-        V4l2Util::SetFormat(fd_, &capture_, width, height, V4L2_PIX_FMT_MJPEG);
-        V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_BITRATE, 10000000);
-        format_ = V4L2_PIX_FMT_MJPEG;
-        video_type_ = webrtc::VideoType::kMJPEG;
-    } else if (video_type == "h264") {
-        DEBUG_PRINT("Use h264 format source in v4l2");
-        V4l2Util::SetFormat(fd_, &capture_, width, height, V4L2_PIX_FMT_H264);
+    V4l2Util::SetFormat(fd_, &capture_, width, height, format_);
+    V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_BITRATE, 10000 * 1000);
+
+    if (format_ == V4L2_PIX_FMT_H264) {
         V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_BITRATE_MODE,
                              V4L2_MPEG_VIDEO_BITRATE_MODE_VBR);
         V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_H264_PROFILE,
@@ -99,15 +100,7 @@ V4L2Capture &V4L2Capture::SetFormat(int width, int height, std::string video_typ
         V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_H264_LEVEL, V4L2_MPEG_VIDEO_H264_LEVEL_4_0);
         V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_H264_I_PERIOD, 60); /* trick */
         V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_FORCE_KEY_FRAME, 1);
-        V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_BITRATE, 10000000);
-        format_ = V4L2_PIX_FMT_H264;
-        video_type_ = webrtc::VideoType::kUnknown;
-    } else {
-        DEBUG_PRINT("Use yuv420(i420) format source in v4l2");
-        V4l2Util::SetFormat(fd_, &capture_, width, height, V4L2_PIX_FMT_YUV420);
-        V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_BITRATE, 10000000);
-        format_ = V4L2_PIX_FMT_YUV420;
-        video_type_ = webrtc::VideoType::kI420;
+        V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_BITRATE, 2500 * 1000);
     }
     return *this;
 }
@@ -151,24 +144,58 @@ void V4L2Capture::CaptureImage() {
         return;
     }
 
-    rtc::scoped_refptr<V4l2FrameBuffer> frame_buffer(
-        V4l2FrameBuffer::Create(width_, height_, buf.bytesused, format_));
-    frame_buffer->CopyBuffer((uint8_t *)capture_.buffers[buf.index].start, buf.bytesused, buf.flags,
-                             buf.timestamp);
+    V4l2Buffer buffer((uint8_t *)capture_.buffers[buf.index].start, buf.bytesused, buf.flags,
+                      buf.timestamp);
+    NextBuffer(buffer);
 
     if (!V4l2Util::QueueBuffer(fd_, &buf)) {
         return;
     }
-
-    Next(frame_buffer);
 }
 
-void V4L2Capture::Next(rtc::scoped_refptr<V4l2FrameBuffer> buffer) {
-    for (auto &observer : observers_) {
-        if (observer && observer->subscribed_func_ != nullptr) {
-            observer->subscribed_func_(buffer);
+rtc::scoped_refptr<webrtc::I420BufferInterface> V4L2Capture::GetI420Frame() {
+    return frame_buffer_->ToI420();
+}
+
+void V4L2Capture::NextBuffer(V4l2Buffer &buffer) {
+    if (hw_accel_) {
+        // hardware encoding
+        if (!has_first_keyframe_) {
+            has_first_keyframe_ = (buffer.flags & V4L2_BUF_FLAG_KEYFRAME) != 0;
+        }
+
+        if (IsCompressedFormat()) {
+            decoder_->EmplaceBuffer(buffer, [this](V4l2Buffer decoded_buffer) {
+                frame_buffer_ =
+                    V4l2FrameBuffer::Create(width_, height_, decoded_buffer, V4L2_PIX_FMT_YUV420);
+                frame_buffer_subject_.Next(frame_buffer_);
+            });
+        } else {
+            frame_buffer_ = V4l2FrameBuffer::Create(width_, height_, buffer, format_);
+            frame_buffer_subject_.Next(frame_buffer_);
+        }
+    } else {
+        // software decoding
+        if (format_ != V4L2_PIX_FMT_H264) {
+            frame_buffer_ = V4l2FrameBuffer::Create(width_, height_, buffer, format_);
+            frame_buffer_subject_.Next(frame_buffer_);
+        } else {
+            // todo: h264 decoding
+            printf("Software decoding h264 camera source is not support now.");
+            exit(1);
         }
     }
+
+    raw_buffer_subject_.Next(buffer);
+}
+
+std::shared_ptr<Observable<V4l2Buffer>> V4L2Capture::AsRawBufferObservable() {
+    return raw_buffer_subject_.AsObservable();
+}
+
+std::shared_ptr<Observable<rtc::scoped_refptr<V4l2FrameBuffer>>>
+V4L2Capture::AsFrameBufferObservable() {
+    return frame_buffer_subject_.AsObservable();
 }
 
 void V4L2Capture::StartCapture() {
@@ -178,6 +205,12 @@ void V4L2Capture::StartCapture() {
     }
 
     V4l2Util::StreamOn(fd_, capture_.type);
+
+    if (hw_accel_ && IsCompressedFormat()) {
+        decoder_ = std::make_unique<V4l2Decoder>();
+        decoder_->Configure(config_.width, config_.height, format_, true);
+        decoder_->Start();
+    }
 
     worker_.reset(new Worker("V4l2Capture", [this]() {
         CaptureImage();

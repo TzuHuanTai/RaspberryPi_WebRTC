@@ -20,7 +20,6 @@ extern "C" {
 class RecUtil {
   public:
     static AVFormatContext *CreateContainer(std::string record_path, std::string filename);
-    static void CreateThumbnail(std::string record_path, std::string filename);
     static bool WriteFormatHeader(AVFormatContext *fmt_ctx);
     static void CloseContext(AVFormatContext *fmt_ctx);
 };
@@ -43,7 +42,7 @@ class RecorderManager {
     std::string record_path;
     AVFormatContext *fmt_ctx;
     bool has_first_keyframe;
-    std::shared_ptr<Observable<rtc::scoped_refptr<V4l2FrameBuffer>>> video_observer;
+    std::shared_ptr<Observable<V4l2Buffer>> video_observer;
     std::shared_ptr<Observable<PaBuffer>> audio_observer;
     std::unique_ptr<VideoRecorder> video_recorder;
     std::unique_ptr<AudioRecorder> audio_recorder;
@@ -57,8 +56,11 @@ class RecorderManager {
     double elapsed_time_;
     struct timeval last_created_time_;
     std::unique_ptr<Worker> rotation_worker_;
+    std::shared_ptr<V4L2Capture> video_src_;
 
     void StartRotationThread();
+    void MakePreviewImage();
+    std::string ReplaceExtension(const std::string &url, const std::string &new_extension);
 };
 
 #endif

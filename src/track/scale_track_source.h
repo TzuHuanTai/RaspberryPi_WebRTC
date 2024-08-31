@@ -17,18 +17,16 @@ class ScaleTrackSource : public rtc::AdaptedVideoTrackSource {
     bool remote() const override;
     bool is_screencast() const override;
     absl::optional<bool> needs_denoising() const override;
-    void StartTrack();
-    rtc::scoped_refptr<webrtc::I420BufferInterface> GetI420Frame();
+    virtual void StartTrack();
 
   protected:
     int width;
     int height;
-    webrtc::VideoType src_video_type;
     std::shared_ptr<V4L2Capture> capture;
     rtc::TimestampAligner timestamp_aligner;
-    rtc::scoped_refptr<webrtc::VideoFrameBuffer> i420_raw_buffer;
 
-    virtual void OnFrameCaptured(rtc::scoped_refptr<V4l2FrameBuffer> frame_buffer);
+  private:
+    void OnFrameCaptured(rtc::scoped_refptr<webrtc::VideoFrameBuffer> frame_buffer);
 };
 
 #endif

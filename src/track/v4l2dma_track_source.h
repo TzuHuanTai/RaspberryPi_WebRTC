@@ -12,17 +12,16 @@ class V4l2DmaTrackSource : public ScaleTrackSource {
     static rtc::scoped_refptr<V4l2DmaTrackSource> Create(std::shared_ptr<V4L2Capture> capture);
     V4l2DmaTrackSource(std::shared_ptr<V4L2Capture> capture);
     ~V4l2DmaTrackSource();
+    void StartTrack() override;
 
-  protected:
-    void Init();
-    void OnFrameCaptured(rtc::scoped_refptr<V4l2FrameBuffer> buffer) override;
-    virtual bool HasFirstKeyFrame(rtc::scoped_refptr<V4l2FrameBuffer> frame_buffer);
-
-    int config_width;
-    int config_height;
-    const uint32_t format;
+  private:
+    bool is_dma_src_;
+    int config_width_;
+    int config_height_;
     std::unique_ptr<V4l2Scaler> scaler;
-    std::unique_ptr<V4l2Decoder> decoder;
+  
+    void Init();
+    void OnFrameCaptured(V4l2Buffer buffer);
 };
 
 #endif
