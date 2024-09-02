@@ -1,7 +1,8 @@
 #ifndef VIDEO_RECODER_H_
 #define VIDEO_RECODER_H_
 
-#include <atomic>
+#include <condition_variable>
+#include <mutex>
 #include <queue>
 
 extern "C" {
@@ -15,6 +16,54 @@ extern "C" {
 #include "recorder/recorder.h"
 #include "v4l2_codecs/v4l2_decoder.h"
 
+template <typename T> class ThreadSafeQueue {
+  public:
+    void push(T t) {
+        std::unique_lock<std::mutex> lock(mutex_);
+        queue_.push(t);
+        cond_.notify_one();
+    }
+
+    T pop() {
+        std::unique_lock<std::mutex> lock(mutex_);
+        cond_.wait(lock, [this]() {
+            return !queue_.empty();
+        });
+        T t = queue_.front();
+        queue_.pop();
+        return t;
+    }
+
+    T front() {
+        std::unique_lock<std::mutex> lock(mutex_);
+        cond_.wait(lock, [this]() {
+            return !queue_.empty();
+        });
+        T t = queue_.front();
+        return t;
+    }
+
+    bool empty() {
+        std::lock_guard<std::mutex> lock(mutex_);
+        return queue_.empty();
+    }
+
+    size_t size() {
+        std::lock_guard<std::mutex> lock(mutex_);
+        return queue_.size();
+    }
+
+    void clear() {
+        std::lock_guard<std::mutex> lock(mutex_);
+        queue_ = std::queue<T>();
+    }
+
+  private:
+    std::queue<T> queue_;
+    std::mutex mutex_;
+    std::condition_variable cond_;
+};
+
 class VideoRecorder : public Recorder<V4l2Buffer> {
   public:
     VideoRecorder(Args config, std::string encoder_name);
@@ -26,7 +75,7 @@ class VideoRecorder : public Recorder<V4l2Buffer> {
     Args config;
     bool has_first_keyframe;
     std::string encoder_name;
-    std::queue<rtc::scoped_refptr<V4l2FrameBuffer>> frame_buffer_queue;
+    ThreadSafeQueue<rtc::scoped_refptr<V4l2FrameBuffer>> frame_buffer_queue;
 
     AVRational frame_rate;
 

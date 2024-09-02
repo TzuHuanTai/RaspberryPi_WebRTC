@@ -1,14 +1,56 @@
 #ifndef AUDIO_RECODER_H_
 #define AUDIO_RECODER_H_
 
+#include <condition_variable>
+#include <mutex>
+
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libavutil/audio_fifo.h>
 }
 
+#include "common/logging.h"
 #include "capture/pa_capture.h"
 #include "recorder/recorder.h"
+
+class ThreadSafeAudioFifo {
+  public:
+    void alloc(enum AVSampleFormat sample_fmt, int channels, int nb_samples) {
+        fifo_ = av_audio_fifo_alloc(sample_fmt, channels, nb_samples);
+        if (fifo_ == nullptr) {
+            DEBUG_PRINT("Failed to initialize audio fifo buffer.");
+        }
+    }
+
+    int write(void ** data, int nb_samples) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        return av_audio_fifo_write(fifo_, data, nb_samples);
+    }
+
+    int read(void ** data, int nb_samples) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (av_audio_fifo_size(fifo_) < nb_samples) {
+            return 0;
+        }
+        return av_audio_fifo_read(fifo_, data, nb_samples);
+    }
+
+    int size() {
+        std::lock_guard<std::mutex> lock(mutex_);
+        return av_audio_fifo_size(fifo_);
+    }
+
+    void reset() {
+        std::lock_guard<std::mutex> lock(mutex_);
+        av_audio_fifo_reset(fifo_);
+    }
+
+  private:
+    AVAudioFifo *fifo_;
+    std::mutex mutex_;
+    std::condition_variable cond_;
+};
 
 class AudioRecorder : public Recorder<PaBuffer> {
   public:
@@ -24,7 +66,7 @@ class AudioRecorder : public Recorder<PaBuffer> {
     int frame_size;
     unsigned int frame_count;
     std::string encoder_name;
-    AVAudioFifo *fifo_buffer;
+    ThreadSafeAudioFifo fifo_buffer;
     AVSampleFormat sample_fmt;
     AVFrame *frame;
 

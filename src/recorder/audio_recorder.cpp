@@ -48,10 +48,7 @@ void AudioRecorder::InitializeFrame() {
 }
 
 void AudioRecorder::InitializeFifoBuffer() {
-    fifo_buffer = av_audio_fifo_alloc(sample_fmt, channels, 1);
-    if (fifo_buffer == nullptr) {
-        DEBUG_PRINT("Failed to initialize audio fifo buffer.");
-    }
+    fifo_buffer.alloc(sample_fmt, channels, 1);
 }
 
 void AudioRecorder::Encode() {
@@ -60,8 +57,9 @@ void AudioRecorder::Encode() {
     pkt.data = nullptr;
     pkt.size = 0;
 
-    if (av_audio_fifo_read(fifo_buffer, (void **)&frame->data, frame_size) < 0) {
-        DEBUG_PRINT("Failed to read audio fifo buffer.");
+    if (fifo_buffer.read((void **)&frame->data, frame_size) < 0) {
+        DEBUG_PRINT("Failed to read audio data in fifo.");
+        return;
     }
 
     frame->pts = frame_count * frame->nb_samples;
@@ -112,9 +110,9 @@ void AudioRecorder::OnBuffer(PaBuffer &buffer) {
         }
     }
 
-    if (av_audio_fifo_write(fifo_buffer, reinterpret_cast<void **>(converted_input_samples),
+    if (fifo_buffer.write(reinterpret_cast<void **>(converted_input_samples),
                             samples_per_channel) < samples_per_channel) {
-        // Handle write error
+        DEBUG_PRINT("Failed to write audio date into fifo buffer.");
     }
 
     if (converted_input_samples) {
@@ -125,7 +123,7 @@ void AudioRecorder::OnBuffer(PaBuffer &buffer) {
 }
 
 bool AudioRecorder::ConsumeBuffer() {
-    if (av_audio_fifo_size(fifo_buffer) < frame_size) {
+    if (fifo_buffer.size() < frame_size) {
         return false;
     }
     Encode();
@@ -134,10 +132,5 @@ bool AudioRecorder::ConsumeBuffer() {
 
 void AudioRecorder::PreStart() {
     frame_count = 0;
-
-    // Skip redundant frame to ensure sync and keep 1 frame only
-    int fifo_size = av_audio_fifo_size(fifo_buffer);
-    if (fifo_size > frame_size) {
-        av_audio_fifo_drain(fifo_buffer, fifo_size - frame_size);
-    }
+    fifo_buffer.reset();
 }
