@@ -40,7 +40,6 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
 #endif
             ("record_path", bpo::value<std::string>()->default_value(args.record_path),
              "The path to save the recording video files")(
-                "max_files", bpo::value<uint32_t>()->default_value(args.max_files),
                 "The limitation of total video files in the folder")(
                 "hw_accel", bpo::bool_switch()->default_value(args.hw_accel),
                 "Share DMA buffers between decoder/scaler/encoder, which can decrease cpu usage")(
@@ -137,10 +136,6 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
         exit(1);
     } else if (vm.count("record_path")) {
         args.record_path = vm["record_path"].as<std::string>();
-    }
-
-    if (vm.count("max_files")) {
-        args.max_files = vm["max_files"].as<uint32_t>();
     }
 
     if (vm.count("hw_accel")) {
