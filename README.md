@@ -1,131 +1,96 @@
 ﻿# RaspberryPi_WebRTC
  
-Using v4l2 dma hardware encoder with WebRTC to reduce CPU usage on Raspberry Pi.
+Turn your Raspberry Pi into a home security camera using the v4l2 DMA hardware encoder and WebRTC.
 
-<i>Note: Pi 5 does not support hardware encoder.</i>
-
-## Architecture
-![architecture](doc/architecture.png)
-
-## Environment
-* RaspberryPi 3B + Raspberry Pi Camera v1.3
-* RaspberryPi OS 64bit
-* [clang 12+](https://github.com/llvm/llvm-project/releases)
-* `boringssl` replace `openssl`
-
-## Summary
-* Latency is about 0.2~0.3 seconds.
-* Temperatures up to 60~65°C.
-* Using the hardware DMA encoder can reduce CPU usage down to 30~35% @720p30fps.
-[![Demo](https://img.youtube.com/vi/BcuHNVsWaHk/0.jpg)](https://www.youtube.com/watch?v=BcuHNVsWaHk)
-![latency](doc/latency.jpg)
-![latency](doc/latency_chart.png)
-
-<hr>
+Raspberry Pi 5 and other SBCs do not support v4l2 hardware encoding, please run this project in software encoding mode.
 
 # How to use
-Both `signalr` and `mqtt` are the options for signaling in this project.
-## Preparation
-1. Follow [SETUP_ARM64_ENV](doc/SETUP_ARM64_ENV.md) to prepare an arm64 env for compilation (Optional)
-2. Follow [BUILD_WEBRTC](doc/BUILD_WEBRTC.md) to compile `libwebrtc.a` 
-3. Choose a signaling mechanisum
-    * Follow [BUILD_SIGNALR_CLIENT_CPP](doc/BUILD_SIGNALR_CLIENT_CPP.md) to compile `microsoft-signalr`
-    * Follow [BUILD_MOSQUITTO](doc/BUILD_MOSQUITTO.md) to compile `mosquitto`
-4. Install `FFmpeg` and the needed packages on pi
+
+* Download the latest binary file from [Releases](https://github.com/TzuHuanTai/RaspberryPi_WebRTC/releases).
+* Install the [Pi Camera](https://github.com/TzuHuanTai/Pi-Camera) app and follow the instructions.
+
+## Hardware Requirements
+
+<img src="https://assets.raspberrypi.com/static/51035ec4c2f8f630b3d26c32e90c93f1/2b8d7/zero2-hero.webp" height="96">
+
+* Raspberry Pi [Zero 2W](https://www.raspberrypi.com/products/raspberry-pi-zero-2-w/) (or better).
+* CSI Camera Module.
+* At least 4GB micro sd card.
+* A USB disk and a Micro-USB Male to USB-A Female adaptor.
+
+## Environment Setup
+
+* Use the [Raspberry Pi Imager](https://www.raspberrypi.com/software/) to write the Lite OS (Bookworm 64-bit) to the micro SD card.
+* Install essential libs
     ```bash
-    sudo apt install ffmpeg libboost-program-options-dev libavformat-dev libavcodec-dev libavutil-dev libswscale-dev libpulse-dev libasound2-dev libx11-dev libjpeg-dev
+    sudo apt install libmosquitto1 pulseaudio libavformat59 libswscale6
+    pulseaudio --start
     ```
-5. Copy the [nlohmann/json.hpp](https://github.com/nlohmann/json/blob/develop/single_include/nlohmann/json.hpp) to `/usr/local/include` 
-6. Run the chosen signaling server
-    * Create a [signalr server hub](https://github.com/TzuHuanTai/FarmerAPI/blob/master/FarmerAPI/Hubs/SignalingServer.cs) on .net
-    * Follow [SETUP_MOSQUITTO](doc/SETUP_MOSQUITTO.md)
 
-## Compile and run
+* Enable Raspberry Pi Hardware by adding below in `/boot/firmware/config.txt`
+    ```text
+    camera_auto_detect=0
+    start_x=1
+    gpu_mem=16
+    ```
+    Set `camera_auto_detect=0` in order to read camera by v4l2.
 
-| <div style="width:200px">Command line</div> | Description | Valid values |
-| --------------------------------------------| ----------- | ------------ |
-|   -DUSE_SIGNALR_SIGNALING   | Build the project by using SignalR as signaling. | ON, OFF |
-|   -DUSE_MQTT_SIGNALING      | Build the project by using MOSQUITTO as signaling. | ON, OFF |
-|   -DBUILD_TEST              | Build the test codes | recorder, mqtt, v4l2_capture, v4l2_encoder, v4l2_decoder, v4l2_scaler |
+* Mount USB disk [[ref]](https://wiki.gentoo.org/wiki/AutoFS)
 
-Build on raspberry pi and it'll output a `pi_webrtc` file in `/build`.
+    If the disk drive is detected, it will automatically mount to `/mnt/ext_disk`.
+    ```bash
+    sudo apt-get install autofs
+    echo '/- /etc/auto.usb --timeout=5' | sudo tee -a /etc/auto.master > /dev/null
+    echo '/mnt/ext_disk -fstype=auto,nofail,nodev,nosuid,noatime,umask=000 :/dev/sda1' | sudo tee -a /etc/auto.usb > /dev/null
+    sudo systemctl restart autofs
+    ```
+
+## Running the Application
+
+To start the application, use the following command:
+
 ```bash
-mkdir build
-cd build
-cmake .. -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DUSE_MQTT_SIGNALING=ON
-make -j
+/path/to/pi_webrtc --device=/dev/video0 --fps=30 --width=1280 --height=960 --v4l2_format=h264 --hw_accel --mqtt_host=example.s1.eu.hivemq.cloud --mqtt_port=8883 --mqtt_username=hakunamatata --mqtt_password=Wonderful --uid=home-pi-zero2w --record_path=/mnt/ext_disk/video/
 ```
+**For Pi 5**, remove the `--hw_accel` option and set `--v4l2_format` to `mjpeg`. Video encoding will be handled by [OpenH264](https://github.com/cisco/openh264).
 
-Run `pi_webrtc` to start the service.
+### Run as Linux Service
 
-* If use signalr as signaling.
-    ```bash
-    ./pi_webrtc --device=/dev/video0 --fps=30 --width=1280 --height=720 --v4l2_format=mjpeg --signaling_url=http://localhost:6080/SignalingServer --hw_accel
-    ```
-* If use mosquitto mqtt as signaling.
-    ```bash
-    ./pi_webrtc --device=/dev/video0 --fps=30 --width=1280 --height=720 --v4l2_format=mjpeg --mqtt_host=127.0.0.1 --mqtt_port=1883 --mqtt_username=<username> --mqtt_password=<password>  --hw_accel
-    ```
-* `./pi_webrtc -h` to list all available args.
-* The `VP8`, `VP9` are available only if the source format is `mjpeg` or `i420` not be assigned, and frames will be decoded/scaled by software, the buffer will be copied between HW encoder and user space.
-* If the `--record_path` is assigned, the background recorder will start immediately after running the program. But the performance of Pi 3B is limited, if the `--v4l2_format=mjpeg` source resolution is above 640x368@15fps the HW codec will be unstable, stuck, or even crash. However, it can record smoothly at 960x480@30fps when the `--v4l2_format=h264` and `--hw_accel` flags are applied, even with two clients watching p2p streams simultaneously. Since the h264 source directly records into mp4 files without going through the decode/encode process.
-
-## Run as Linux Service
-Set `pi_webrtc` to run as a daemon. 
-* Create `/etc/systemd/system/webrtc.service`, config sample:
+In order to run `pi_webrtc` and ensure it starts automatically on reboot:
+* Create a service file `/etc/systemd/system/pi-webrtc.service` with the following content:
     ```ini
     [Unit]
-    Description= the webrtc service need signaling server first
-    After=systemd-networkd.service farmer-api.service
+    Description= The p2p camera via webrtc.
+    After=systemd-networkd.service
 
     [Service]
     Type=simple
-    WorkingDirectory=/home/pi/IoT/RaspberryPi_WebRTC/build
-    ExecStart=/home/pi/IoT/RaspberryPi_WebRTC/build/pi_webrtc --fps=30 --width=1280 --height=720 --v4l2_format=h264 --hw_accel --mqtt_username=hakunamatata --mqtt_password=wonderful --record_path=/home/pi/video/
+    WorkingDirectory=/path/to
+    ExecStart=/path/to/pi_webrtc --fps=30 --width=1280 --height=960 --v4l2_format=h264 --hw_accel --mqtt_host=example.s1.eu.hivemq.cloud --mqtt_port=8883 --mqtt_username=hakunamatata --mqtt_password=wonderful --record_path=/mnt/ext_disk/video/
     ExecStop=/bin/kill -s SIGTERM $MAINPID
     Restart=always
-    RestartSec=20
+    RestartSec=10
       
     [Install]
     WantedBy=multi-user.target
     ```
-* Enable and run the service
+* Enable and Start the Service
     ```bash
-    sudo systemctl enable webrtc.service
-    sudo systemctl start webrtc.service
+    sudo systemctl enable pi-webrtc.service
+    sudo systemctl start pi-webrtc.service
     ```
 
-# Install the [coturn](https://github.com/coturn/coturn) (Optional)
-If the cellular network is used, the `coturn` is required because the 5G NAT setting by ISP may block p2p. Or try some cloud service that provides TURN server.
-1. Install
-    ```bash
-    sudo apt update
-    sudo apt install coturn
-    sudo systemctl stop coturn.service
-    ```
-2. Edit config `sudo nano /etc/turnserver.conf`, uncomment or modify below options
-    ```ini
-    listening-port=3478
-    listening-ip=192.168.x.x
-    relay-ip=192.168.x.x
-    external-ip=174.127.x.x/192.168.x.x
-    #verbose
-    lt-cred-mech
-    user=webrtc:webrtc
-    realm=greenhouse
-    no-tls
-    no-dtls
-    syslog
-    no-cli
-    ```
-3. Set the port `3478` forwarding on the router/modem.
-4. Start the service, `sudo systemctl start coturn.service`
+## Advance
 
-# Reference
-* [Version | WebRTC](https://chromiumdash.appspot.com/branches)
-* [Building old revisions | WebRTC](https://chromium.googlesource.com/chromium/src.git/+/HEAD/docs/building_old_revisions.md)
-* [Using a custom clang binary | WebRTC](https://chromium.googlesource.com/chromium/src/+/master/docs/clang.md#using-a-custom-clang-binary)
-* [Trickle ICE](https://webrtc.github.io/samples/src/content/peerconnection/trickle-ice/)
+To enable two-way communication, a microphone and speaker need to be added to the Pi.
+
+### Microphone
+
+Please see this [link](https://learn.adafruit.com/adafruit-i2s-mems-microphone-breakout/raspberry-pi-wiring-test) for instructions on wiring and testing your Pi.
+
+### Speaker
+
+You can use the [link](https://learn.adafruit.com/adafruit-max98357-i2s-class-d-mono-amp/raspberry-pi-wiring) for instructions on setting up a speaker on your Pi.
 
 # License
 
