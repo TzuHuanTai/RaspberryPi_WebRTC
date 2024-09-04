@@ -47,7 +47,7 @@ Raspberry Pi 5 and other SBCs do not support v4l2 hardware encoding, please run 
 
 ## Running the Application
 
-To start the application, use the following command:
+Running `pi_webrtc -h` will display all available options. To start the application, use the following command:
 
 ```bash
 /path/to/pi_webrtc --device=/dev/video0 --fps=30 --width=1280 --height=960 --v4l2_format=h264 --hw_accel --mqtt_host=example.s1.eu.hivemq.cloud --mqtt_port=8883 --mqtt_username=hakunamatata --mqtt_password=Wonderful --uid=home-pi-zero2w --record_path=/mnt/ext_disk/video/
