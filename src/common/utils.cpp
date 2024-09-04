@@ -28,7 +28,7 @@ bool Utils::CreateFolder(const std::string &folder_path) {
     }
 }
 
-void Utils::RotateFiles(std::string folder_path) {
+void Utils::RotateFiles(const std::string &folder_path) {
     std::vector<fs::path> date_folders;
 
     for (const auto &entry : fs::directory_iterator(folder_path)) {
@@ -36,9 +36,9 @@ void Utils::RotateFiles(std::string folder_path) {
             date_folders.push_back(entry.path());
         }
     }
-    std::sort(date_folders.begin(), date_folders.end());
 
     if (!date_folders.empty()) {
+        std::sort(date_folders.begin(), date_folders.end());
         fs::path oldest_date_folder = date_folders.front();
         std::vector<fs::path> hour_folders;
 
@@ -48,9 +48,8 @@ void Utils::RotateFiles(std::string folder_path) {
             }
         }
 
-        std::sort(hour_folders.begin(), hour_folders.end());
-
         if (!hour_folders.empty()) {
+            std::sort(hour_folders.begin(), hour_folders.end());
             fs::path oldest_hour_folder = hour_folders.front();
 
             std::vector<fs::path> mp4_files;
@@ -61,11 +60,10 @@ void Utils::RotateFiles(std::string folder_path) {
                 }
             }
 
-            std::sort(mp4_files.begin(), mp4_files.end(), [](const fs::path &a, const fs::path &b) {
-                return fs::last_write_time(a) < fs::last_write_time(b);
-            });
-
             if (!mp4_files.empty()) {
+                std::sort(mp4_files.begin(), mp4_files.end(), [](const fs::path &a, const fs::path &b) {
+                    return fs::last_write_time(a) < fs::last_write_time(b);
+                });
                 fs::remove(mp4_files.front());
                 std::cout << "Deleted oldest .mp4 file: " << mp4_files.front() << std::endl;
 
@@ -87,6 +85,9 @@ void Utils::RotateFiles(std::string folder_path) {
                                   << std::endl;
                     }
                 }
+            } else {
+                fs::remove_all(oldest_hour_folder);
+                std::cout << "Deleted empty hour folder: " << oldest_hour_folder << std::endl;
             }
         }
     }
@@ -236,7 +237,7 @@ std::string Utils::FindSecondNewestFile(const std::string &path, const std::stri
     return files[1].second.string();
 }
 
-std::chrono::system_clock::time_point Utils::ParseDatetime(const std::string& datetime_str) {
+std::chrono::system_clock::time_point Utils::ParseDatetime(const std::string &datetime_str) {
     std::tm tm = {};
     std::stringstream ss(datetime_str);
     ss >> std::get_time(&tm, "%Y%m%d_%H%M%S");
@@ -244,7 +245,7 @@ std::chrono::system_clock::time_point Utils::ParseDatetime(const std::string& da
     return std::chrono::system_clock::from_time_t(std::mktime(&tm));
 }
 
-std::string Utils::FindFilesFromDatetime(const std::string &root, const std::string basename) {
+std::string Utils::FindFilesFromDatetime(const std::string &root, const std::string &basename) {
     if (basename.length() < 15) {
         return "";
     }
@@ -361,15 +362,12 @@ std::vector<std::string> Utils::FindOlderFiles(const std::string &file_path, int
     return result;
 }
 
-bool Utils::CheckDriveSpace(const std::string &file_path, unsigned long min_free_space_mb) {
+bool Utils::CheckDriveSpace(const std::string &file_path, unsigned long min_free_byte) {
     struct statvfs stat;
     if (statvfs(file_path.c_str(), &stat) != 0) {
         return false;
     }
-    unsigned long free_space = stat.f_bsize * stat.f_bavail;
-    unsigned long free_space_mb = free_space / (1024 * 1024);
-
-    return free_space_mb >= min_free_space_mb;
+    return (stat.f_bsize * stat.f_bavail) >= min_free_byte;
 }
 
 std::string Utils::PrefixZero(int src, int digits) {
@@ -443,7 +441,7 @@ Buffer Utils::ConvertYuvToJpeg(const uint8_t *yuv_data, int width, int height, i
     return jpegBuffer;
 }
 
-void Utils::WriteJpegImage(Buffer buffer, std::string url) {
+void Utils::WriteJpegImage(Buffer buffer, const std::string &url) {
     FILE *file = fopen(url.c_str(), "wb");
     if (file) {
         fwrite((uint8_t *)buffer.start.get(), 1, buffer.length, file);
@@ -454,7 +452,8 @@ void Utils::WriteJpegImage(Buffer buffer, std::string url) {
     }
 }
 
-void Utils::CreateJpegImage(const uint8_t *yuv_data, int width, int height, std::string url) {
+void Utils::CreateJpegImage(const uint8_t *yuv_data, int width, int height,
+                            const std::string &url) {
     try {
         auto jpg_buffer = Utils::ConvertYuvToJpeg(yuv_data, width, height, 30);
         WriteJpegImage(std::move(jpg_buffer), url);

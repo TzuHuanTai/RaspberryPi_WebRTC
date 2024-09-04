@@ -14,6 +14,7 @@
 #include "recorder/raw_h264_recorder.h"
 
 const double SECOND_PER_FILE = 60.0;
+const unsigned long MIN_FREE_BYTE = 400 * 1024 * 1024;
 
 AVFormatContext *RecUtil::CreateContainer(std::string record_path, std::string filename) {
     AVFormatContext *fmt_ctx = nullptr;
@@ -101,7 +102,7 @@ RecorderManager::RecorderManager(std::string record_path)
 
 void RecorderManager::StartRotationThread() {
     rotation_worker_.reset(new Worker("Record Rotation", [this]() {
-        while (!Utils::CheckDriveSpace(record_path, 400)) {
+        while (!Utils::CheckDriveSpace(record_path, MIN_FREE_BYTE)) {
             Utils::RotateFiles(record_path);
         }
         sleep(60);
