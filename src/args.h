@@ -14,7 +14,7 @@ struct Args {
     bool hw_accel = false;
     uint32_t format = V4L2_PIX_FMT_MJPEG;
     std::string v4l2_format = "mjpeg";
-    std::string device = "";
+    std::string device = "/dev/video0";
     std::string uid = "";
     std::string stun_url = "stun:stun.l.google.com:19302";
     std::string turn_url = "";
