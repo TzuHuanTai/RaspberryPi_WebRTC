@@ -24,7 +24,6 @@ Raspberry Pi 5 and other SBCs do not support v4l2 hardware encoding, please run 
 * Install essential libs
     ```bash
     sudo apt install libmosquitto1 pulseaudio libavformat59 libswscale6
-    pulseaudio --start
     ```
 
 * Enable Raspberry Pi Hardware by adding below in `/boot/firmware/config.txt`
@@ -47,16 +46,53 @@ Raspberry Pi 5 and other SBCs do not support v4l2 hardware encoding, please run 
 
 ## Running the Application
 
-Running `pi_webrtc -h` will display all available options. To start the application, use the following command:
+### Run
+Running the binary file `pi_webrtc` with the `-h` flag will display all available options. Ensure that your MQTT server is ready before starting the application. To start the application, use the following command:
 
 ```bash
+# start pulseaudio service
+pulseaudio --start
+
+# run main program
 /path/to/pi_webrtc --device=/dev/video0 --fps=30 --width=1280 --height=960 --v4l2_format=h264 --hw_accel --mqtt_host=example.s1.eu.hivemq.cloud --mqtt_port=8883 --mqtt_username=hakunamatata --mqtt_password=Wonderful --uid=home-pi-zero2w --record_path=/mnt/ext_disk/video/
 ```
-**For Pi 5**, remove the `--hw_accel` option and set `--v4l2_format` to `mjpeg`. Video encoding will be handled by [OpenH264](https://github.com/cisco/openh264).
+
+**For Pi 5**, remove the `--hw_accel` option and change `--v4l2_format` to `mjpeg`. Video encoding will be handled by [OpenH264](https://github.com/cisco/openh264).
 
 ### Run as Linux Service
 
-In order to run `pi_webrtc` and ensure it starts automatically on reboot:
+#### 1. Run `pulseaudio` as system-wide daemon [[ref]](https://www.freedesktop.org/wiki/Software/PulseAudio/Documentation/User/SystemWide/):
+* create a file `/etc/systemd/system/pulseaudio.service`
+    ```ini
+    [Unit]
+    Description= Pulseaudio Daemon
+    After=rtkit-daemon.service systemd-udevd.service dbus.service
+
+    [Service]
+    Type=simple
+    ExecStart=/usr/bin/pulseaudio --system --disallow-exit --disallow-module-loading --log-target=journal
+    Restart=always
+    RestartSec=10
+
+    [Install]
+    WantedBy=multi-user.target
+    ```
+* Run the cmd to add a `autospawn = no` in the client conf
+    ```bash
+    echo 'autospawn = no' | sudo tee -a /etc/pulse/client.conf > /dev/null
+    ```
+* Add root to pulse group
+    ```bash
+    sudo adduser root pulse-access
+    ```
+* Enable and Start the Service
+    ```bash
+    sudo systemctl daemon-reload
+    sudo systemctl enable pulseaudio.service
+    sudo systemctl start pulseaudio.service
+    ```
+
+#### 2. In order to run `pi_webrtc` and ensure it starts automatically on reboot:
 * Create a service file `/etc/systemd/system/pi-webrtc.service` with the following content:
     ```ini
     [Unit]
@@ -66,8 +102,7 @@ In order to run `pi_webrtc` and ensure it starts automatically on reboot:
     [Service]
     Type=simple
     WorkingDirectory=/path/to
-    ExecStart=/path/to/pi_webrtc --fps=30 --width=1280 --height=960 --v4l2_format=h264 --hw_accel --mqtt_host=example.s1.eu.hivemq.cloud --mqtt_port=8883 --mqtt_username=hakunamatata --mqtt_password=wonderful --record_path=/mnt/ext_disk/video/
-    ExecStop=/bin/kill -s SIGTERM $MAINPID
+    ExecStart=/path/to/pi_webrtc --device=/dev/video0 --fps=30 --width=1280 --height=960 --v4l2_format=h264 --hw_accel --mqtt_host=example.s1.eu.hivemq.cloud --mqtt_port=8883 --mqtt_username=hakunamatata --mqtt_password=wonderful --record_path=/mnt/ext_disk/video/
     Restart=always
     RestartSec=10
       
@@ -76,6 +111,7 @@ In order to run `pi_webrtc` and ensure it starts automatically on reboot:
     ```
 * Enable and Start the Service
     ```bash
+    sudo systemctl daemon-reload
     sudo systemctl enable pi-webrtc.service
     sudo systemctl start pi-webrtc.service
     ```
