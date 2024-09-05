@@ -40,7 +40,6 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
 #endif
             ("record_path", bpo::value<std::string>()->default_value(args.record_path),
              "The path to save the recording video files")(
-                "The limitation of total video files in the folder")(
                 "hw_accel", bpo::bool_switch()->default_value(args.hw_accel),
                 "Share DMA buffers between decoder/scaler/encoder, which can decrease cpu usage")(
                 "v4l2_format", bpo::value<std::string>()->default_value(args.v4l2_format),
