@@ -2,7 +2,7 @@
  
 Turn your Raspberry Pi into a home security camera using the v4l2 DMA hardware encoder and WebRTC.
 
-Raspberry Pi 5 and other SBCs do not support v4l2 hardware encoding, please run this project in software encoding mode.
+Raspberry Pi 5 or other SBCs do not support v4l2 hardware encoding, please run this project in software encoding mode.
 
 # How to use
 
@@ -20,13 +20,13 @@ Raspberry Pi 5 and other SBCs do not support v4l2 hardware encoding, please run 
 
 ## Environment Setup
 
-* Use the [Raspberry Pi Imager](https://www.raspberrypi.com/software/) to write the Lite OS (Bookworm 64-bit) to the micro SD card.
-* Install essential libs
+1. Use the [Raspberry Pi Imager](https://www.raspberrypi.com/software/) to write the Lite OS (Bookworm 64-bit) to the micro SD card.
+2. Install essential libs
     ```bash
     sudo apt install libmosquitto1 pulseaudio libavformat59 libswscale6
     ```
 
-* Enable Raspberry Pi Hardware by adding below in `/boot/firmware/config.txt`
+3. Enable Raspberry Pi Hardware by adding below in `/boot/firmware/config.txt`
     ```text
     camera_auto_detect=0
     start_x=1
@@ -34,9 +34,10 @@ Raspberry Pi 5 and other SBCs do not support v4l2 hardware encoding, please run 
     ```
     Set `camera_auto_detect=0` in order to read camera by v4l2.
 
-* Mount USB disk [[ref]](https://wiki.gentoo.org/wiki/AutoFS)
+4. Mount USB disk [[ref]](https://wiki.gentoo.org/wiki/AutoFS)
 
-    If the disk drive is detected, it will automatically mount to `/mnt/ext_disk`.
+    * Skip this step if you don't want to record videos. Don't set the `record_path` flag while running.
+    * When the disk drive is detected, it will automatically mount to `/mnt/ext_disk`.
     ```bash
     sudo apt-get install autofs
     echo '/- /etc/auto.usb --timeout=5' | sudo tee -a /etc/auto.master > /dev/null
@@ -46,18 +47,23 @@ Raspberry Pi 5 and other SBCs do not support v4l2 hardware encoding, please run 
 
 ## Running the Application
 
+MQTT is currently the only signaling mechanism used, so ensure that your MQTT server is ready before starting the application. It is recommended to use a cloud-based MQTT server. If your ISP provides a dynamic IP and you want to access the signaling server remotely via mobile data while away from home, you might need to spend additional time setting up DDNS and port forwarding.
+
 ### Run
-Running the binary file `pi_webrtc` with the `-h` flag will display all available options. Ensure that your MQTT server is ready before starting the application. To start the application, use the following command:
+- Running the binary file `pi_webrtc` with the `-h` flag will display all available options. 
 
-```bash
-# start pulseaudio service
-pulseaudio --start
+- To start the application, use your settings and apply them to the following example command below. The SDP/ICE data will be transferred under the MQTT topic specified by your `uid` setting.
+    ```bash
+    # run the PulseAudio service if it is not started.
+    pulseaudio --start
 
-# run main program
-/path/to/pi_webrtc --device=/dev/video0 --fps=30 --width=1280 --height=960 --v4l2_format=h264 --hw_accel --mqtt_host=example.s1.eu.hivemq.cloud --mqtt_port=8883 --mqtt_username=hakunamatata --mqtt_password=Wonderful --uid=home-pi-zero2w --record_path=/mnt/ext_disk/video/
-```
+    # run main program with your settings
+    /path/to/pi_webrtc --device=/dev/video0 --fps=30 --width=1280 --height=960 --v4l2_format=h264 --hw_accel --mqtt_host=example.s1.eu.hivemq.cloud --mqtt_port=8883 --mqtt_username=hakunamatata --mqtt_password=Wonderful --uid=home-pi-zero2w --record_path=/mnt/ext_disk/video/
+    ```
 
-**For Pi 5**, remove the `--hw_accel` option and change `--v4l2_format` to `mjpeg`. Video encoding will be handled by [OpenH264](https://github.com/cisco/openh264).
+    **Hint 1:** Since the Pi 5 does not support hardware encoding, please remove the `--hw_accel` flag and set `--v4l2_format` to `mjpeg`. Video encoding will be handled by [OpenH264](https://github.com/cisco/openh264).
+    
+    **Hint 2:** I noticed that when I set `1920x1080`, the hardware decoder firmware changes it to `1920x1088`, but the isp/encoder does not adjust in the 6.6.31 kernel. This leads to memory being out of range. However, if I set `1920x1088`, all works fine.
 
 ### Run as Linux Service
 
