@@ -47,7 +47,7 @@ Raspberry Pi 5 or other SBCs do not support v4l2 hardware encoding, please run t
 
 ## Running the Application
 
-MQTT is currently the only signaling mechanism used, so ensure that your MQTT server is ready before starting the application. It is recommended to use a cloud-based MQTT server. If your ISP provides a dynamic IP and you want to access the signaling server remotely via mobile data while away from home, you might need to spend additional time setting up DDNS and port forwarding.
+MQTT is currently the only signaling mechanism used, so ensure that your MQTT server is ready before starting the application. It is recommended to use a cloud-based MQTT server. Free plans include, but are not limited to, [HiveMQ](https://www.hivemq.com) and [EXMQ](https://www.emqx.com/en). If you're self-hosting and you want to access the signaling server remotely via mobile data, you may need to set up DDNS and port forwarding if your ISP provides a dynamic IP.
 
 ### Run
 - Running the binary file `pi_webrtc` with the `-h` flag will display all available options. 
