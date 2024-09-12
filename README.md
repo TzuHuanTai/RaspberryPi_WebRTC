@@ -76,7 +76,7 @@ MQTT is currently the only signaling mechanism used, so ensure that your MQTT se
 
     [Service]
     Type=simple
-    ExecStart=/usr/bin/pulseaudio --system --disallow-exit --disallow-module-loading --log-target=journal
+    ExecStart=/usr/bin/pulseaudio --system --disallow-exit --disallow-module-loading
     Restart=always
     RestartSec=10
 
