@@ -7,17 +7,17 @@
 namespace bpo = boost::program_options;
 
 void Parser::ParseArgs(int argc, char *argv[], Args &args) {
-    bpo::options_description opts("all options");
-    opts.add_options()("help,h", "Please call me directly.")(
-        "fps", bpo::value<uint32_t>()->default_value(args.fps), "Set ioctl frame rate")(
-        "width", bpo::value<uint32_t>()->default_value(args.width), "Set ioctl frame width")(
-        "height", bpo::value<uint32_t>()->default_value(args.height), "Set ioctl frame height")(
+    bpo::options_description opts("Options");
+    opts.add_options()("help,h", "Display the help message")(
+        "fps", bpo::value<uint32_t>()->default_value(args.fps), "Set camera frame rate")(
+        "width", bpo::value<uint32_t>()->default_value(args.width), "Set camera frame width")(
+        "height", bpo::value<uint32_t>()->default_value(args.height), "Set camera frame height")(
         "rotation_angle", bpo::value<uint32_t>()->default_value(args.rotation_angle),
         "Set the rotation angle of the frame")(
         "device", bpo::value<std::string>()->default_value(args.device),
         "Set the specific camera file, default is /dev/video0")(
-        "uid", bpo::value<std::string>()->default_value(args.device),
-        "Set the unique id, default is empty string")(
+        "uid", bpo::value<std::string>()->default_value(args.uid),
+        "Set the unique id to identify the device")(
         "stun_url", bpo::value<std::string>()->default_value(args.stun_url),
         "Stun server, ex: stun:xxx.xxx.xxx")(
         "turn_url", bpo::value<std::string>()->default_value(args.turn_url),
@@ -39,12 +39,14 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
          "Signaling server url, ref: Repository > FarmerAPI > Hubs > SignalingServer")
 #endif
             ("record_path", bpo::value<std::string>()->default_value(args.record_path),
-             "The path to save the recording video files")(
+             "The path to save the recording video files. The recorder will not start if it's "
+             "empty")(
                 "hw_accel", bpo::bool_switch()->default_value(args.hw_accel),
                 "Share DMA buffers between decoder/scaler/encoder, which can decrease cpu usage")(
                 "v4l2_format", bpo::value<std::string>()->default_value(args.v4l2_format),
-                "Set v4l2 input format i420/mjpeg/h264 while capturing, if the camera is "
-                "supported");
+                "Set v4l2 camera capture format to `i420`, `mjpeg`, `h264`. The `h264` can pass "
+                "packets into mp4 without encoding to reduce cpu usage."
+                "Use `v4l2-ctl -d /dev/videoX --list-formats` can list available format");
 
     bpo::variables_map vm;
     bpo::store(bpo::parse_command_line(argc, argv, opts), vm);
@@ -127,14 +129,17 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
     }
 #endif
 
-    if (!vm["record_path"].as<std::string>().empty() &&
-        (!((vm["record_path"].as<std::string>()).front() == '/' ||
-           (vm["record_path"].as<std::string>()).front() == '.') ||
-         (vm["record_path"].as<std::string>()).back() != '/')) {
-        std::cout << "The file path needs to start and end with a \"/\" character" << std::endl;
-        exit(1);
-    } else if (vm.count("record_path")) {
-        args.record_path = vm["record_path"].as<std::string>();
+    if (vm.count("record_path") && !vm["record_path"].as<std::string>().empty()) {
+        if ((vm["record_path"].as<std::string>()).front() != '/') {
+            std::cout << "The file path needs to start with a \"/\" character" << std::endl;
+            exit(1);
+        }
+
+        if ((vm["record_path"].as<std::string>()).back() != '/') {
+            args.record_path = vm["record_path"].as<std::string>() + '/';
+        } else {
+            args.record_path = vm["record_path"].as<std::string>();
+        }
     }
 
     if (vm.count("hw_accel")) {
