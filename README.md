@@ -4,7 +4,7 @@
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 <p align=center>
-    <img src="doc/pi_4b_latency_demo.gif" width=320 alt="Pi 4b latency demo">
+    <img src="doc/pi_4b_latency_demo.gif" alt="Pi 4b latency demo">
 </p>
 
 Turn your Raspberry Pi into a low-latency home security camera using the v4l2 DMA hardware encoder and WebRTC. [[demo video](https://www.youtube.com/watch?v=JZ5bcSAsXog)]
