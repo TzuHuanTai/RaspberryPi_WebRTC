@@ -1,6 +1,12 @@
 ﻿# RaspberryPi_WebRTC
- 
-Turn your Raspberry Pi into a home security camera using the v4l2 DMA hardware encoder and WebRTC.
+
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+
+<p align=center>
+    <img src="doc/pi_4b_users_demo.gif" alt="Pi 4b multiple users demo">
+</p>
+
+Turn your Raspberry Pi into a home security camera using the v4l2 DMA hardware encoder and WebRTC. It's a pure P2P camera that doesn't require a media server and supports multiple users to watch the live stream simultaneously.
 
 Raspberry Pi 5 or other SBCs do not support v4l2 hardware encoding, please run this project in software encoding mode.
 
