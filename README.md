@@ -15,6 +15,7 @@ Turn your Raspberry Pi into a low-latency home security camera using the v4l2 DM
 - Raspberry Pi 5 or other SBCs do not support v4l2 hardware encoding, please run this project in software encoding mode.
 
 # How to use
+Please refer to the [tutorial video](https://youtu.be/t9aiqFlzkm4).
 
 * Download the latest binary file from [Releases](https://github.com/TzuHuanTai/RaspberryPi_WebRTC/releases).
 * Install the [Pi Camera](https://github.com/TzuHuanTai/Pi-Camera) app and follow the instructions.
