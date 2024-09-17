@@ -10,7 +10,7 @@
 Turn your Raspberry Pi into a low-latency home security camera using the v4l2 DMA hardware encoder and WebRTC. [[demo video](https://www.youtube.com/watch?v=JZ5bcSAsXog)]
 
 - It's designed as a pure P2P-based camera that allows video playback and download without needing a media server.
-- Support [multiple users](http://doc/pi_4b_users_demo) to watch the live stream simultaneously. 
+- Support [multiple users](doc/pi_4b_users_demo.gif) to watch the live stream simultaneously. 
 
 - Raspberry Pi 5 or other SBCs do not support v4l2 hardware encoding, please run this project in software encoding mode.
 
