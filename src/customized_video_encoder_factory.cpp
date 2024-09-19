@@ -57,7 +57,7 @@ CustomizedVideoEncoderFactory::CreateVideoEncoder(const webrtc::SdpVideoFormat &
         return webrtc::VP8Encoder::Create();
     } else if (absl::EqualsIgnoreCase(format.name, cricket::kVp9CodecName)) {
         return webrtc::VP9Encoder::Create(cricket::VideoCodec(format));
-    } else if (absl::EqualsIgnoreCase(format.name, cricket::kVp8CodecName)) {
+    } else if (absl::EqualsIgnoreCase(format.name, cricket::kAv1CodecName)) {
         return webrtc::CreateLibaomAv1Encoder();
     }
 
