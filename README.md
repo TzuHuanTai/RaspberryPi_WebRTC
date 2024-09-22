@@ -59,7 +59,7 @@ For the complete user manual, please refer to the [wiki page](https://github.com
 
 ## Running the Application
 
-MQTT is currently the only signaling mechanism used, so ensure that your MQTT server is ready before starting the application. If the application is only intended for use within a local area network (LAN), the MQTT server (such as [Mosquitto](https://github.com/eclipse/mosquitto)) can be installed on the same Pi. However, if remote access is required, it is recommended to use a cloud-based MQTT server. Free plans include, but are not limited to, [HiveMQ](https://www.hivemq.com) and [EXMQ](https://www.emqx.com/en). Because If you choose to self-host and need to access the signaling server remotely via mobile data, you may need to set up DDNS and port forwarding if your ISP provides a dynamic IP.
+MQTT is currently the only signaling mechanism used, so ensure that your MQTT server is ready before starting the application. If the application is only intended for use within a local area network (LAN), the MQTT server (such as [Mosquitto](doc/SETUP_MOSQUITTO.md)) can be installed on the same Pi. However, if remote access is required, it is recommended to use a cloud-based MQTT server. Free plans include, but are not limited to, [HiveMQ](https://www.hivemq.com) and [EXMQ](https://www.emqx.com/en). Because If you choose to self-host and need to access the signaling server remotely via mobile data, you may need to set up DDNS and port forwarding if your ISP provides a dynamic IP.
 
 ### Run
 - Running the binary file `pi_webrtc` with the `-h` flag will display all available options. 
