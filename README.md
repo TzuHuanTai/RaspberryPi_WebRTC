@@ -46,6 +46,8 @@ For the complete user manual, please refer to the [wiki page](https://github.com
     ```
     Set `camera_auto_detect=0` in order to read camera by v4l2.
 
+    **Hint**: For Raspberry Pi 4B the `gpu_mem` need to be `256` for the camera device loading to work properly. ([#182](https://github.com/TzuHuanTai/RaspberryPi_WebRTC/issues/182))
+
 4. Mount USB disk [[ref]](https://wiki.gentoo.org/wiki/AutoFS)
 
     * Skip this step if you don't want to record videos. Don't set the `record_path` flag while running.
