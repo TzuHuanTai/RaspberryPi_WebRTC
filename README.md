@@ -1,7 +1,14 @@
-﻿
-# RaspberryPi_WebRTC
+﻿<h1 align="center">
+    Raspberry Pi WebRTC
+</h1>
 
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+<p align="center">
+    <a href="https://chromium.googlesource.com/external/webrtc/+/branch-heads/5790"><img src="https://img.shields.io/badge/libwebrtc-m115.5790-red.svg" alt="WebRTC Version"></a>
+    <img src="https://img.shields.io/github/downloads/TzuHuanTai/RaspberryPi_WebRTC/total.svg?color=yellow" alt="Download">
+    <img src="https://img.shields.io/badge/C%2B%2B-17-brightgreen?logo=cplusplus">
+    <img src="https://img.shields.io/github/v/release/TzuHuanTai/RaspberryPi_WebRTC?color=blue" alt="Release">
+    <a href="https://opensource.org/licenses/Apache-2.0"><img src="https://img.shields.io/badge/License-Apache_2.0-purple.svg" alt="License Apache"></a>
+</p>
 
 <p align=center>
     <img src="doc/pi_4b_latency_demo.gif" alt="Pi 4b latency demo">
