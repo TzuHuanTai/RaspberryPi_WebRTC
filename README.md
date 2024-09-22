@@ -33,7 +33,7 @@ For the complete user manual, please refer to the [wiki page](https://github.com
 <img src="https://assets.raspberrypi.com/static/51035ec4c2f8f630b3d26c32e90c93f1/2b8d7/zero2-hero.webp" height="96">
 
 * Raspberry Pi ([Zero 2W](https://www.raspberrypi.com/products/raspberry-pi-zero-2-w/) or better).
-* CSI Camera Module.
+* CSI/USB Camera Module.
 * At least 4GB micro sd card.
 * A USB disk and a Micro-USB Male to USB-A Female adaptor.
 
