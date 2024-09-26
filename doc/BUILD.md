@@ -20,14 +20,15 @@
 
 | <div style="width:200px">Command line</div> | Default | Valid values |
 | --------------------------------------------| ----------- | ------------ |
-|   -DUSE_MQTT_SIGNALING | ON | (ON, OFF). Build the project by using MOSQUITTO as signaling. |
-|   -DBUILD_TEST |  | (recorder, mqtt, v4l2_capture, v4l2_encoder, v4l2_decoder, v4l2_scaler). Build the test codes |
+| -DUSE_MQTT_SIGNALING | ON | (ON, OFF). Build the project by using MOSQUITTO as signaling. |
+| -DBUILD_TEST |  | (recorder, mqtt, v4l2_capture, v4l2_encoder, v4l2_decoder, v4l2_scaler). Build the test codes |
+| -DCMAKE_BUILD_TYPE | Debug | (Debug, Release) |
 
 Build on raspberry pi and it'll output a `pi_webrtc` file in `/build`.
 ```bash
 mkdir build
 cd build
-cmake .. -DCMAKE_CXX_COMPILER=/usr/bin/clang++
+cmake .. -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_BUILD_TYPE=Release
 make -j
 ```
 
