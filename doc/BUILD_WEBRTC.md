@@ -3,9 +3,7 @@
 ## Preparations
 * Install some dependent packages
     ```bash
-    sudo apt remove libssl-dev
-    sudo apt install python pulseaudio libpulse-dev build-essential libncurses5 libx11-dev
-    pulseaudio --start
+    sudo apt install python build-essential libncurses5 libx11-dev
     ```
 
 * Install the Chromium `depot_tools`
@@ -93,3 +91,9 @@
     sudo mv /home/pi/webrtc /usr/local/include
     sudo mv /home/pi/libwebrtc.a /usr/local/lib
     ```
+
+# Reference
+* [Version | WebRTC](https://chromiumdash.appspot.com/branches)
+* [Building old revisions | WebRTC](https://chromium.googlesource.com/chromium/src.git/+/HEAD/docs/building_old_revisions.md)
+* [Using a custom clang binary | WebRTC](https://chromium.googlesource.com/chromium/src/+/master/docs/clang.md#using-a-custom-clang-binary)
+* [Trickle ICE](https://webrtc.github.io/samples/src/content/peerconnection/trickle-ice/)
