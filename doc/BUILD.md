@@ -35,35 +35,3 @@ Run `pi_webrtc` to start the service.
 ```bash
 ./pi_webrtc --device=/dev/video0 --fps=30 --width=1280 --height=720 --v4l2_format=mjpeg --mqtt_host=<hostname> --mqtt_port=1883 --mqtt_username=<username> --mqtt_password=<password> --hw_accel
 ```
-
-# Install the [coturn](https://github.com/coturn/coturn) (Optional)
-If the cellular network is used, the `coturn` is required because the 5G NAT setting by ISP may block p2p. Or try some cloud service that provides TURN server.
-1. Install
-    ```bash
-    sudo apt update
-    sudo apt install coturn
-    sudo systemctl stop coturn.service
-    ```
-2. Edit config `sudo nano /etc/turnserver.conf`, uncomment or modify below options
-    ```ini
-    listening-port=3478
-    listening-ip=192.168.x.x
-    relay-ip=192.168.x.x
-    external-ip=174.127.x.x/192.168.x.x
-    #verbose
-    lt-cred-mech
-    user=webrtc:webrtc
-    realm=greenhouse
-    no-tls
-    no-dtls
-    syslog
-    no-cli
-    ```
-3. Set the port `3478` forwarding on the router/modem.
-4. Start the service, `sudo systemctl start coturn.service`
-
-# Reference
-* [Version | WebRTC](https://chromiumdash.appspot.com/branches)
-* [Building old revisions | WebRTC](https://chromium.googlesource.com/chromium/src.git/+/HEAD/docs/building_old_revisions.md)
-* [Using a custom clang binary | WebRTC](https://chromium.googlesource.com/chromium/src/+/master/docs/clang.md#using-a-custom-clang-binary)
-* [Trickle ICE](https://webrtc.github.io/samples/src/content/peerconnection/trickle-ice/)
