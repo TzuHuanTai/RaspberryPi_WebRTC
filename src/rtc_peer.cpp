@@ -7,9 +7,6 @@
 #if USE_MQTT_SIGNALING
 #include "signaling/mqtt_service.h"
 #endif
-#if USE_SIGNALR_SIGNALING
-#include "signaling/signalr_service.h"
-#endif
 
 rtc::scoped_refptr<RtcPeer> RtcPeer::Create(Args args, int id) {
     auto ptr = rtc::make_ref_counted<RtcPeer>(id);
@@ -48,8 +45,6 @@ void RtcPeer::InitSignalingClient(Args args) {
     signaling_client_ = ([args]() -> std::shared_ptr<SignalingService> {
 #if USE_MQTT_SIGNALING
         return MqttService::Create(args);
-#elif USE_SIGNALR_SIGNALING
-        return SignalrService::Create(args);
 #else
         return nullptr;
 #endif
