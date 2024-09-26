@@ -34,9 +34,6 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
             "Mqtt server username")("mqtt_password",
                                     bpo::value<std::string>()->default_value(args.mqtt_password),
                                     "Mqtt server password")
-#elif USE_SIGNALR_SIGNALING
-        ("signaling_url", bpo::value<std::string>()->default_value(args.signaling_url),
-         "Signaling server url, ref: Repository > FarmerAPI > Hubs > SignalingServer")
 #endif
             ("record_path", bpo::value<std::string>()->default_value(args.record_path),
              "The path to save the recording video files. The recorder will not start if it's "
@@ -118,14 +115,6 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
 
     if (vm.count("mqtt_password")) {
         args.mqtt_password = vm["mqtt_password"].as<std::string>();
-    }
-#elif USE_SIGNALR_SIGNALING
-    if (!vm["signaling_url"].empty() &&
-        (vm["signaling_url"].as<std::string>()).substr(0, 4) != "http") {
-        std::cout << "Signaling url should not be empty and start with \"http:\"" << std::endl;
-        exit(1);
-    } else if (vm.count("signaling_url")) {
-        args.signaling_url = vm["signaling_url"].as<std::string>();
     }
 #endif
 

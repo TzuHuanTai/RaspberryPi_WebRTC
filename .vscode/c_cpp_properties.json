@@ -5,7 +5,6 @@
             "includePath": [
                 "${workspaceFolder}/**",
                 "/usr/local/include/**",
-                "/usr/local/include/signalrclient/*",
                 "/usr/local/include/webrtc/*",
                 "/usr/local/include/webrtc/third_party/abseil-cpp/*",
                 "/usr/local/include/webrtc/third_party/libyuv/include/*",
@@ -14,8 +13,8 @@
             ],
             "defines": [],
             "compilerPath": "/usr/bin/clang",
-            "cStandard": "c17",
-            "cppStandard": "c++17",
+            "cStandard": "c20",
+            "cppStandard": "c++20",
             "intelliSenseMode": "linux-clang-arm64"
         }
     ],

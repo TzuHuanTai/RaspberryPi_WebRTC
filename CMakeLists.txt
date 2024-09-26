@@ -19,10 +19,10 @@ else()
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2")
 endif()
 
+option(USE_MQTT_SIGNALING "Enable MQTT signaling" ON)
 if(USE_MQTT_SIGNALING)
     add_definitions(-DUSE_MQTT_SIGNALING)
-elseif(USE_SIGNALR_SIGNALING)
-    add_definitions(-DUSE_SIGNALR_SIGNALING)
+    message(STATUS "SIGNALING: MQTT")
 endif()
 
 set(WEBRTC_INCLUDE_DIR /usr/local/include/webrtc)
