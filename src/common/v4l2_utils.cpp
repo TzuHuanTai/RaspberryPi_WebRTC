@@ -166,6 +166,13 @@ bool V4l2Util::SetFormat(int fd, V4l2BufferGroup *gbuffer, int width, int height
                 V4l2Util::FourccToString(fmt.fmt.pix_mp.pixelformat).c_str(), fmt.fmt.pix_mp.width,
                 fmt.fmt.pix_mp.height);
 
+    if (fmt.fmt.pix_mp.width != width || fmt.fmt.pix_mp.height != height) {
+        ERROR_PRINT("fd(%d) input size (%dx%d) doesn't match driver's output size (%dx%d): %s",
+                    fd, width, height, fmt.fmt.pix_mp.width, fmt.fmt.pix_mp.height,
+                    strerror(EINVAL));
+        exit(0);
+    }
+
     return true;
 }
 
