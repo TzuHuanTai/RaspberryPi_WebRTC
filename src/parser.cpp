@@ -15,7 +15,9 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
         "rotation_angle", bpo::value<uint32_t>()->default_value(args.rotation_angle),
         "Set the rotation angle of the frame")(
         "device", bpo::value<std::string>()->default_value(args.device),
-        "Set the specific camera file, default is /dev/video0")(
+        "Read the specific camera file via V4L2, default is /dev/video0")(
+        "use_libcamera", bpo::bool_switch()->default_value(args.use_libcamera),
+        "Read YUV420 from the camera via libcamera, the `device` and `v4l2_format` flags will be suspended")(
         "uid", bpo::value<std::string>()->default_value(args.uid),
         "Set the unique id to identify the device")(
         "stun_url", bpo::value<std::string>()->default_value(args.stun_url),
@@ -72,6 +74,10 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
 
     if (vm.count("device")) {
         args.device = vm["device"].as<std::string>();
+    }
+
+    if (vm.count("use_libcamera")) {
+        args.use_libcamera = vm["use_libcamera"].as<bool>();
     }
 
     if (vm.count("uid")) {

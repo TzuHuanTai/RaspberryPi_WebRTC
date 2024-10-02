@@ -14,5 +14,6 @@ std::string GetFileName(const std::string &file_path);
 
 #define ERROR_PRINT(fmt, ...)                                                                      \
     fprintf(stderr, "[%s] Error: " fmt "\n", GetFileName(__FILE__).c_str(), ##__VA_ARGS__)
+#define INFO_PRINT(fmt, ...) printf("[%s] " fmt "\n", GetFileName(__FILE__).c_str(), ##__VA_ARGS__)
 
 #endif // LOGGING_H

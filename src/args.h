@@ -12,6 +12,7 @@ struct Args {
     int rotation_angle = 0;
     int sample_rate = 44100;
     bool hw_accel = false;
+    bool use_libcamera = false;
     uint32_t format = V4L2_PIX_FMT_MJPEG;
     std::string v4l2_format = "mjpeg";
     std::string device = "/dev/video0";

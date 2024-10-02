@@ -72,7 +72,11 @@
         "future": "cpp",
         "typeindex": "cpp",
         "strstream": "cpp",
-        "cfenv": "cpp"
+        "cfenv": "cpp",
+        "numbers": "cpp",
+        "semaphore": "cpp",
+        "span": "cpp",
+        "valarray": "cpp"
     },
     "clang-format.executable": "clang-format",
     "clang-format.style": "file",
