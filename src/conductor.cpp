@@ -51,7 +51,13 @@ void Conductor::InitializeTracks() {
     }
 
     if (video_track_ == nullptr && !args.device.empty()) {
-        video_capture_source_ = V4L2Capture::Create(args);
+        video_capture_source_ = ([this]() -> std::shared_ptr<V4L2Capture> {
+            if (args.use_libcamera) {
+                return nullptr;
+            } else {
+                return V4L2Capture::Create(args);
+            }
+        })();
 
         video_track_source_ = ([this]() -> rtc::scoped_refptr<ScaleTrackSource> {
             if (args.hw_accel) {

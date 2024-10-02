@@ -151,6 +151,19 @@ elseif(BUILD_TEST STREQUAL "v4l2_scaler")
         Threads::Threads
         ${WEBRTC_LIBRARY}
     )
+elseif(BUILD_TEST STREQUAL "libcamera")
+    add_subdirectory(src/capture)
+    add_subdirectory(src/common)
+    add_executable(test_libcamera test/test_libcamera.cpp)
+    target_link_libraries(test_libcamera
+        capture
+        common
+    )
+    target_link_libraries(test_libcamera
+        ${WEBRTC_LINK_LIBS}
+        Threads::Threads
+        ${WEBRTC_LIBRARY}
+    )
 else()
     add_subdirectory(src)
     add_executable(${PROJECT_NAME} src/main.cpp)
