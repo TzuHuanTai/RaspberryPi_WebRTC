@@ -124,7 +124,7 @@ MQTT is currently the only signaling mechanism used, so ensure that your MQTT se
     ```ini
     [Unit]
     Description= The p2p camera via webrtc.
-    After=systemd-networkd.service
+    After=network-online.target
 
     [Service]
     Type=simple
