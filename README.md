@@ -145,7 +145,7 @@ MQTT is currently the only signaling mechanism used, so ensure that your MQTT se
 
 ## Advance
 
-To enable two-way communication, a microphone and speaker need to be added to the Pi.
+To enable two-way communication, a microphone and speaker need to be added to the Pi. It's easier to plug in a USB mic/speaker. If you want to use GPIO, please follow the link below.
 
 ### Microphone
 
