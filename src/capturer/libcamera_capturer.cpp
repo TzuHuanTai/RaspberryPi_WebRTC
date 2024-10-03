@@ -1,11 +1,11 @@
-#include "libcamera_capture.h"
+#include "libcamera_capturer.h"
 
 #include <sys/mman.h>
 
 #include "common/logging.h"
 
-std::shared_ptr<LibcameraCapture> LibcameraCapture::Create(Args args) {
-    auto ptr = std::make_shared<LibcameraCapture>(args);
+std::shared_ptr<LibcameraCapturer> LibcameraCapturer::Create(Args args) {
+    auto ptr = std::make_shared<LibcameraCapturer>(args);
     ptr->Init(args.device);
     ptr->SetFps(args.fps)
         .SetRotation(args.rotation_angle)
@@ -14,18 +14,18 @@ std::shared_ptr<LibcameraCapture> LibcameraCapture::Create(Args args) {
     return ptr;
 }
 
-LibcameraCapture::LibcameraCapture(Args args)
-    : buffer_count_(4),
-      hw_accel_(args.hw_accel),
-      format_(V4L2_PIX_FMT_YUV420),
+LibcameraCapturer::LibcameraCapturer(Args args)
+    : buffer_count_(2),
+      format_(args.format),
       config_(args) {}
 
-void LibcameraCapture::Init(std::string device) {
+void LibcameraCapturer::Init(std::string device) {
     cm_ = std::make_unique<libcamera::CameraManager>();
     cm_->start();
 
     if (cm_->cameras().size() == 0) {
         ERROR_PRINT("No camera is available via libcamera.");
+        exit(0);
     }
 
     std::string cameraId = cm_->cameras()[0]->id();
@@ -35,7 +35,8 @@ void LibcameraCapture::Init(std::string device) {
     camera_config_ = camera_->generateConfiguration({libcamera::StreamRole::VideoRecording});
 }
 
-LibcameraCapture::~LibcameraCapture() {
+LibcameraCapturer::~LibcameraCapturer() {
+    std::lock_guard<std::mutex> lock(mtx);
     camera_->stop();
     allocator_->free(stream_);
     camera_->release();
@@ -43,19 +44,19 @@ LibcameraCapture::~LibcameraCapture() {
     cm_->stop();
 }
 
-int LibcameraCapture::fps() const { return fps_; }
+int LibcameraCapturer::fps() const { return fps_; }
 
-int LibcameraCapture::width() const { return width_; }
+int LibcameraCapturer::width() const { return width_; }
 
-int LibcameraCapture::height() const { return height_; }
+int LibcameraCapturer::height() const { return height_; }
 
-bool LibcameraCapture::is_dma_capture() const { return hw_accel_; }
+bool LibcameraCapturer::is_dma_capture() const { return false; }
 
-uint32_t LibcameraCapture::format() const { return format_; }
+uint32_t LibcameraCapturer::format() const { return format_; }
 
-Args LibcameraCapture::config() const { return config_; }
+Args LibcameraCapturer::config() const { return config_; }
 
-LibcameraCapture &LibcameraCapture::SetFormat(int width, int height) {
+LibcameraCapturer &LibcameraCapturer::SetFormat(int width, int height) {
     DEBUG_PRINT("camera original format: %s", camera_config_->at(0).toString().c_str());
 
     if (width && height) {
@@ -85,7 +86,7 @@ LibcameraCapture &LibcameraCapture::SetFormat(int width, int height) {
     return *this;
 }
 
-LibcameraCapture &LibcameraCapture::SetFps(int fps) {
+LibcameraCapturer &LibcameraCapturer::SetFps(int fps) {
     fps_ = fps;
     int64_t frame_time = 1000000 / fps;
     controls_.set(libcamera::controls::FrameDurationLimits,
@@ -95,7 +96,7 @@ LibcameraCapture &LibcameraCapture::SetFps(int fps) {
     return *this;
 }
 
-LibcameraCapture &LibcameraCapture::SetRotation(int angle) {
+LibcameraCapturer &LibcameraCapturer::SetRotation(int angle) {
     if (angle == 90) {
         camera_config_->orientation = libcamera::Orientation::Rotate90;
     } else if (angle == 180) {
@@ -109,7 +110,7 @@ LibcameraCapture &LibcameraCapture::SetRotation(int angle) {
     return *this;
 }
 
-void LibcameraCapture::AllocateBuffer() {
+void LibcameraCapturer::AllocateBuffer() {
     allocator_ = std::make_unique<libcamera::FrameBufferAllocator>(camera_);
 
     stream_ = camera_config_->at(0).stream();
@@ -133,7 +134,7 @@ void LibcameraCapture::AllocateBuffer() {
             buffer_length += plane.length;
         }
         void *memory = mmap(NULL, buffer_length, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-        mappedBuffers_[fd].push_back(std::make_pair(memory, buffer_length));
+        mappedBuffers_[fd] = std::make_pair(memory, buffer_length);
         DEBUG_PRINT("Allocated fd(%d) Buffer[%d] pointer: %p, length: %d", fd, i, memory,
                     buffer_length);
 
@@ -149,50 +150,41 @@ void LibcameraCapture::AllocateBuffer() {
     }
 }
 
-void LibcameraCapture::RequestComplete(libcamera::Request *request) {
+void LibcameraCapturer::RequestComplete(libcamera::Request *request) {
     if (request->status() == libcamera::Request::RequestCancelled) {
         return;
     }
 
     auto &buffers = request->buffers();
-    int fd = 0;
-    int length = 0;
-    timeval tv = {};
-
     auto *buffer = buffers.begin()->second;
-    for (unsigned int i = 0; i < buffer->planes().size(); ++i) {
-        auto &plane = buffer->planes()[i];
-        fd = plane.fd.get();
-        length += plane.length;
-        void *data = mappedBuffers_[fd][i].first;
-        tv.tv_sec = buffer->metadata().timestamp / 1000000000;
-        tv.tv_usec = (buffer->metadata().timestamp % 1000000000) / 1000;
-    }
 
-    V4l2Buffer v4l2_buffer((uint8_t *)mappedBuffers_[fd][0].first, length, V4L2_BUF_FLAG_KEYFRAME,
-                           tv);
+    auto &plane = buffer->planes()[0];
+    int fd = plane.fd.get();
+    void *data = mappedBuffers_[fd].first;
+    int length = mappedBuffers_[fd].second;
+    timeval tv = {};
+    tv.tv_sec = buffer->metadata().timestamp / 1000000000;
+    tv.tv_usec = (buffer->metadata().timestamp % 1000000000) / 1000;
+
+    V4l2Buffer v4l2_buffer((uint8_t *)data, length, V4L2_BUF_FLAG_KEYFRAME, tv);
     NextBuffer(v4l2_buffer);
 
+    std::lock_guard<std::mutex> lock(mtx);
     request->reuse(libcamera::Request::ReuseBuffers);
     camera_->queueRequest(request);
 }
 
-void LibcameraCapture::NextBuffer(V4l2Buffer &buffer) {
+rtc::scoped_refptr<webrtc::I420BufferInterface> LibcameraCapturer::GetI420Frame() {
+    return frame_buffer_->ToI420();
+}
+
+void LibcameraCapturer::NextBuffer(V4l2Buffer &buffer) {
     frame_buffer_ = V4l2FrameBuffer::Create(width_, height_, buffer, format_);
-    frame_buffer_subject_.Next(frame_buffer_);
-    raw_buffer_subject_.Next(buffer);
+    NextFrameBuffer(frame_buffer_);
+    NextRawBuffer(buffer);
 }
 
-std::shared_ptr<Observable<V4l2Buffer>> LibcameraCapture::AsRawBufferObservable() {
-    return raw_buffer_subject_.AsObservable();
-}
-
-std::shared_ptr<Observable<rtc::scoped_refptr<V4l2FrameBuffer>>>
-LibcameraCapture::AsFrameBufferObservable() {
-    return frame_buffer_subject_.AsObservable();
-}
-
-void LibcameraCapture::StartCapture() {
+void LibcameraCapturer::StartCapture() {
     int ret = camera_->configure(camera_config_.get());
     if (ret < 0) {
         ERROR_PRINT("Failed to configure camera");
@@ -201,11 +193,11 @@ void LibcameraCapture::StartCapture() {
 
     AllocateBuffer();
 
-    camera_->requestCompleted.connect(this, &LibcameraCapture::RequestComplete);
+    camera_->requestCompleted.connect(this, &LibcameraCapturer::RequestComplete);
 
     ret = camera_->start(&controls_);
     if (ret) {
-        ERROR_PRINT("Failed to start capture");
+        ERROR_PRINT("Failed to start capturing");
         exit(-1);
     }
 

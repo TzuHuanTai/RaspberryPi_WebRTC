@@ -11,7 +11,7 @@ extern "C" {
 }
 
 #include "common/logging.h"
-#include "capture/pa_capture.h"
+#include "capturer/pa_capturer.h"
 #include "recorder/recorder.h"
 
 class ThreadSafeAudioFifo {

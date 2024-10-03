@@ -13,23 +13,23 @@
 static const int kBufferAlignment = 64;
 
 rtc::scoped_refptr<ScaleTrackSource>
-ScaleTrackSource::Create(std::shared_ptr<V4L2Capture> capture) {
-    auto obj = rtc::make_ref_counted<ScaleTrackSource>(std::move(capture));
+ScaleTrackSource::Create(std::shared_ptr<VideoCapturer> capturer) {
+    auto obj = rtc::make_ref_counted<ScaleTrackSource>(std::move(capturer));
     obj->StartTrack();
     return obj;
 }
 
-ScaleTrackSource::ScaleTrackSource(std::shared_ptr<V4L2Capture> capture)
-    : capture(capture),
-      width(capture->width()),
-      height(capture->height()) {}
+ScaleTrackSource::ScaleTrackSource(std::shared_ptr<VideoCapturer> capturer)
+    : capturer(capturer),
+      width(capturer->width()),
+      height(capturer->height()) {}
 
 ScaleTrackSource::~ScaleTrackSource() {
     // todo: tell capture unsubscribe observer.
 }
 
 void ScaleTrackSource::StartTrack() {
-    auto observer = capture->AsFrameBufferObservable();
+    auto observer = capturer->AsFrameBufferObservable();
     observer->Subscribe([this](rtc::scoped_refptr<webrtc::VideoFrameBuffer> frame_buffer) {
         OnFrameCaptured(frame_buffer);
     });

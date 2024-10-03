@@ -1,5 +1,5 @@
-#ifndef PA_CAPTURE_H_
-#define PA_CAPTURE_H_
+#ifndef PA_CAPTURER_H_
+#define PA_CAPTURER_H_
 
 #include <pulse/error.h>
 #include <pulse/simple.h>
@@ -14,11 +14,11 @@ struct PaBuffer {
     unsigned int channels;
 };
 
-class PaCapture : public Subject<PaBuffer> {
+class PaCapturer : public Subject<PaBuffer> {
   public:
-    static std::shared_ptr<PaCapture> Create(Args args);
-    PaCapture(Args args);
-    ~PaCapture();
+    static std::shared_ptr<PaCapturer> Create(Args args);
+    PaCapturer(Args args);
+    ~PaCapturer();
     Args config() const;
     void StartCapture();
 

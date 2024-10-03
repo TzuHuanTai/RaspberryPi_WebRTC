@@ -1,30 +1,30 @@
-#include "capture/pa_capture.h"
+#include "capturer/pa_capturer.h"
 
 #include "common/logging.h"
 
 #define BUFSIZE 1024
 #define CHANNELS 2
 
-std::shared_ptr<PaCapture> PaCapture::Create(Args args) {
-    auto ptr = std::make_shared<PaCapture>(args);
+std::shared_ptr<PaCapturer> PaCapturer::Create(Args args) {
+    auto ptr = std::make_shared<PaCapturer>(args);
     ptr->CreateFloat32Source(args.sample_rate);
     ptr->StartCapture();
     return ptr;
 }
 
-PaCapture::PaCapture(Args args)
+PaCapturer::PaCapturer(Args args)
     : config_(args) {}
 
-PaCapture::~PaCapture() {
+PaCapturer::~PaCapturer() {
     worker_.reset();
     if (src) {
         pa_simple_free(src);
     }
 }
 
-Args PaCapture::config() const { return config_; }
+Args PaCapturer::config() const { return config_; }
 
-void PaCapture::CreateFloat32Source(int sample_rate) {
+void PaCapturer::CreateFloat32Source(int sample_rate) {
     int error;
     pa_sample_spec ss;
     ss.format = PA_SAMPLE_FLOAT32LE;
@@ -39,7 +39,7 @@ void PaCapture::CreateFloat32Source(int sample_rate) {
     }
 }
 
-void PaCapture::CaptureSamples() {
+void PaCapturer::CaptureSamples() {
     int error;
     uint8_t buf[BUFSIZE * sizeof(float)];
 
@@ -55,7 +55,7 @@ void PaCapture::CaptureSamples() {
     Next(shared_buffer_);
 }
 
-void PaCapture::StartCapture() {
+void PaCapturer::StartCapture() {
     worker_.reset(new Worker("PaCapture", [this]() {
         CaptureSamples();
     }));

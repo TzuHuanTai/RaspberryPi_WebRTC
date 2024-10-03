@@ -54,16 +54,15 @@ void RecUtil::CloseContext(AVFormatContext *fmt_ctx) {
     }
 }
 
-std::unique_ptr<RecorderManager> RecorderManager::Create(std::shared_ptr<Conductor> conductor,
+std::unique_ptr<RecorderManager> RecorderManager::Create(std::shared_ptr<VideoCapturer> video_src,
+                                                         std::shared_ptr<PaCapturer> audio_src,
                                                          std::string record_path) {
     auto instance = std::make_unique<RecorderManager>(record_path);
 
-    auto video_src = conductor->VideoSource();
     if (video_src) {
         instance->CreateVideoRecorder(video_src);
         instance->SubscribeVideoSource(video_src);
     }
-    auto audio_src = conductor->AudioSource();
     if (audio_src) {
         instance->CreateAudioRecorder(audio_src);
         instance->SubscribeAudioSource(audio_src);
@@ -74,23 +73,23 @@ std::unique_ptr<RecorderManager> RecorderManager::Create(std::shared_ptr<Conduct
     return instance;
 }
 
-void RecorderManager::CreateVideoRecorder(std::shared_ptr<V4L2Capture> capture) {
-    video_src_ = capture;
-    fps = capture->fps();
-    width = capture->width();
-    height = capture->height();
-    video_recorder = ([capture]() -> std::unique_ptr<VideoRecorder> {
-        if (capture->format() == V4L2_PIX_FMT_H264) {
-            return RawH264Recorder::Create(capture->config());
+void RecorderManager::CreateVideoRecorder(std::shared_ptr<VideoCapturer> capturer) {
+    video_src_ = capturer;
+    fps = capturer->fps();
+    width = capturer->width();
+    height = capturer->height();
+    video_recorder = ([capturer]() -> std::unique_ptr<VideoRecorder> {
+        if (capturer->format() == V4L2_PIX_FMT_H264) {
+            return RawH264Recorder::Create(capturer->config());
         } else {
-            return H264Recorder::Create(capture->config());
+            return H264Recorder::Create(capturer->config());
         }
     })();
 }
 
-void RecorderManager::CreateAudioRecorder(std::shared_ptr<PaCapture> capture) {
-    audio_recorder = ([capture]() -> std::unique_ptr<AudioRecorder> {
-        return AudioRecorder::Create(capture->config());
+void RecorderManager::CreateAudioRecorder(std::shared_ptr<PaCapturer> capturer) {
+    audio_recorder = ([capturer]() -> std::unique_ptr<AudioRecorder> {
+        return AudioRecorder::Create(capturer->config());
     })();
 }
 
@@ -110,7 +109,7 @@ void RecorderManager::StartRotationThread() {
     rotation_worker_->Run();
 }
 
-void RecorderManager::SubscribeVideoSource(std::shared_ptr<V4L2Capture> video_src) {
+void RecorderManager::SubscribeVideoSource(std::shared_ptr<VideoCapturer> video_src) {
     video_observer = video_src->AsRawBufferObservable();
     video_observer->Subscribe([this](V4l2Buffer buffer) {
         // waiting first keyframe to start recorders.
@@ -139,7 +138,7 @@ void RecorderManager::SubscribeVideoSource(std::shared_ptr<V4L2Capture> video_sr
     });
 }
 
-void RecorderManager::SubscribeAudioSource(std::shared_ptr<PaCapture> audio_src) {
+void RecorderManager::SubscribeAudioSource(std::shared_ptr<PaCapturer> audio_src) {
     audio_observer = audio_src->AsObservable();
     audio_observer->Subscribe([this](PaBuffer buffer) {
         if (has_first_keyframe && audio_recorder) {
@@ -206,6 +205,7 @@ void RecorderManager::Stop() {
 }
 
 RecorderManager::~RecorderManager() {
+    printf("~RecorderManager\n");
     Stop();
     video_recorder.reset();
     audio_recorder.reset();

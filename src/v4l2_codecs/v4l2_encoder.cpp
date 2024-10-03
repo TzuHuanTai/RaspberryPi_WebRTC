@@ -10,7 +10,7 @@ V4l2Encoder::V4l2Encoder()
       bitrate_bps_(10000000),
       h264_profile_(V4L2_MPEG_VIDEO_H264_PROFILE_BASELINE) {}
 
-bool V4l2Encoder::Configure(int width, int height, bool is_drm_src) {
+bool V4l2Encoder::Configure(int width, int height, bool is_dma_src) {
     if (!Open(ENCODER_FILE)) {
         DEBUG_PRINT("Failed to turn on encoder: %s", ENCODER_FILE);
         return false;
@@ -21,7 +21,7 @@ bool V4l2Encoder::Configure(int width, int height, bool is_drm_src) {
     V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_H264_LEVEL, V4L2_MPEG_VIDEO_H264_LEVEL_4_0);
     V4l2Util::SetExtCtrl(fd_, V4L2_CID_MPEG_VIDEO_H264_I_PERIOD, KEY_FRAME_INTERVAL);
 
-    auto src_memory = is_drm_src ? V4L2_MEMORY_DMABUF : V4L2_MEMORY_MMAP;
+    auto src_memory = is_dma_src ? V4L2_MEMORY_DMABUF : V4L2_MEMORY_MMAP;
     PrepareBuffer(&output_, width, height, V4L2_PIX_FMT_YUV420, V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE,
                   src_memory, BUFFER_NUM);
     PrepareBuffer(&capture_, width, height, V4L2_PIX_FMT_H264, V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE,

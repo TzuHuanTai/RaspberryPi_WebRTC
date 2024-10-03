@@ -78,6 +78,9 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
 
     if (vm.count("use_libcamera")) {
         args.use_libcamera = vm["use_libcamera"].as<bool>();
+        if (args.use_libcamera) {
+            args.format = V4L2_PIX_FMT_YUV420;
+        }
     }
 
     if (vm.count("uid")) {
@@ -141,7 +144,7 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
         args.hw_accel = vm["hw_accel"].as<bool>();
     }
 
-    if (vm.count("v4l2_format")) {
+    if (!args.use_libcamera && vm.count("v4l2_format")) {
         args.v4l2_format = vm["v4l2_format"].as<std::string>();
 
         if (args.v4l2_format == "mjpeg") {

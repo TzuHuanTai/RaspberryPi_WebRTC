@@ -11,18 +11,18 @@
 #include "common/v4l2_utils.h"
 
 rtc::scoped_refptr<V4l2DmaTrackSource>
-V4l2DmaTrackSource::Create(std::shared_ptr<V4L2Capture> capture) {
-    auto obj = rtc::make_ref_counted<V4l2DmaTrackSource>(std::move(capture));
+V4l2DmaTrackSource::Create(std::shared_ptr<VideoCapturer> capturer) {
+    auto obj = rtc::make_ref_counted<V4l2DmaTrackSource>(std::move(capturer));
     obj->Init();
     obj->StartTrack();
     return obj;
 }
 
-V4l2DmaTrackSource::V4l2DmaTrackSource(std::shared_ptr<V4L2Capture> capture)
-    : ScaleTrackSource(capture),
-      is_dma_src_(capture->is_dma_capture()),
-      config_width_(capture->width()),
-      config_height_(capture->height()) {}
+V4l2DmaTrackSource::V4l2DmaTrackSource(std::shared_ptr<VideoCapturer> capturer)
+    : ScaleTrackSource(capturer),
+      is_dma_src_(capturer->is_dma_capture()),
+      config_width_(capturer->width()),
+      config_height_(capturer->height()) {}
 
 V4l2DmaTrackSource::~V4l2DmaTrackSource() {
     scaler.reset();
@@ -35,7 +35,7 @@ void V4l2DmaTrackSource::Init() {
 }
 
 void V4l2DmaTrackSource::StartTrack() {
-    auto observer = capture->AsFrameBufferObservable();
+    auto observer = capturer->AsFrameBufferObservable();
     observer->Subscribe([this](rtc::scoped_refptr<V4l2FrameBuffer> frame_buffer) {
         OnFrameCaptured(frame_buffer->GetRawBuffer());
     });
