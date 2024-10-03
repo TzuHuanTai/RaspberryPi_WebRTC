@@ -1,5 +1,5 @@
 #include "args.h"
-#include "capture/libcamera_capture.h"
+#include "capturer/libcamera_capturer.h"
 
 #include <condition_variable>
 #include <fcntl.h>
@@ -30,9 +30,9 @@ int main(int argc, char *argv[]) {
     int images_nb = 10;
     Args args{.fps = 30, .width = 1280, .height = 960};
 
-    auto capture = LibcameraCapture::Create(args);
+    auto capturer = LibcameraCapturer::Create(args);
 
-    auto observer = capture->AsRawBufferObservable();
+    auto observer = capturer->AsRawBufferObservable();
     observer->Subscribe([&](V4l2Buffer buffer) {
         if (i < images_nb) {
             WriteImage(buffer.start, buffer.length, ++i);

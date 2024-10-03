@@ -1,5 +1,5 @@
-#ifndef PA2_CAPTURE_H_
-#define PA2_CAPTURE_H_
+#ifndef PA2_CAPTURER_H_
+#define PA2_CAPTURER_H_
 
 #include <cstring>
 #include <iostream>
@@ -7,17 +7,17 @@
 #include <pulse/pulseaudio.h>
 
 #include "args.h"
-#include "capture/pa_capture.h"
+#include "capturer/pa_capturer.h"
 #include "common/interface/subject.h"
 #include "common/worker.h"
 
-class Pa2Capture : public PaCapture {
+class Pa2Capturer : public PaCapturer {
   public:
-    static std::shared_ptr<Pa2Capture> Create(Args args);
+    static std::shared_ptr<Pa2Capturer> Create(Args args);
     static void ReadCallback(pa_stream *s, size_t length, void *userdata);
     static void StateCallback(pa_stream *s, void *user_data);
-    Pa2Capture(Args args);
-    ~Pa2Capture();
+    Pa2Capturer(Args args);
+    ~Pa2Capturer();
     Args config() const;
     void StartCapture();
 

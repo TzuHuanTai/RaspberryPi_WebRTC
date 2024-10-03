@@ -1,25 +1,19 @@
 #include "args.h"
+#include "capturer/v4l2_capturer.h"
 #include "v4l2_codecs/v4l2_decoder.h"
-#include "v4l2_codecs/v4l2_scaler.h"
-#include "capture/v4l2_capture.h"
-#include "common/utils.h"
 
-#include <third_party/libyuv/include/libyuv.h>
-#include <jpeglib.h>
-
-#include <fcntl.h>
-#include <unistd.h>
-#include <string>
-#include <mutex>
 #include <condition_variable>
+#include <fcntl.h>
+#include <mutex>
+#include <string>
+#include <unistd.h>
 
-void WriteJpegImage(Buffer buffer, int index) {
-    std::string filename = "img" + std::to_string(index) + ".jpg";
-    FILE* file = fopen(filename.c_str(), "wb");
+void WriteYuvImage(void *start, int length, int index) {
+    std::string filename = "img" + std::to_string(index) + ".yuv";
+    FILE *file = fopen(filename.c_str(), "wb");
     if (file) {
-        fwrite((uint8_t*)buffer.start, 1, buffer.length, file);
+        fwrite((uint8_t *)start, 1, length, file);
         fclose(file);
-        printf("JPEG data successfully written to %s\n", filename.c_str());
     } else {
         fprintf(stderr, "Failed to open file for writing: %s\n", filename.c_str());
     }
@@ -34,40 +28,41 @@ int main(int argc, char *argv[]) {
     Args args{.fps = 15,
               .width = 640,
               .height = 480,
-              .v4l2_format = "h264",
+              .hw_accel = false,
+              .format = V4L2_PIX_FMT_MJPEG,
               .device = "/dev/video0"};
 
-    int scaled_width = 640;
-    int scaled_height = 480;
-
+    auto capturer = V4l2Capturer::Create(args);
     auto decoder = std::make_unique<V4l2Decoder>();
-    decoder->Configure(args.width, args.height, V4L2_PIX_FMT_H264, true);
-    // auto scaler = std::make_unique<V4l2Scaler>();
-    // scaler->Configure(args.width, args.height, scaled_width, scaled_height, true, false);
+    decoder->Configure(args.width, args.height, capturer->format(), false);
+    decoder->Start();
 
-    auto capture = V4L2Capture::Create(args);
-    auto observer = capture->AsRawBufferObservable();
+    auto observer = capturer->AsRawBufferObservable();
     observer->Subscribe([&](V4l2Buffer buffer) {
+        printf("Camera buffer: %u\n", buffer.length);
         decoder->EmplaceBuffer(buffer, [&](V4l2Buffer decoded_buffer) {
-            // scaler->EmplaceBuffer(decoded_buffer, [&](V4l2Buffer scaled_buffer) {
-                if (is_finished) {
-                    return;
-                }
+            if (is_finished) {
+                return;
+            }
 
-                if (images_nb++ < args.fps * record_sec) {
-                    auto jpg_buffer = Utils::ConvertYuvToJpeg((uint8_t *)decoded_buffer.start, scaled_width, scaled_height);
-                    printf("Buffer index: %d\n  bytesused: %d\n",images_nb, jpg_buffer.length);
-                    WriteJpegImage(jpg_buffer, images_nb);
-                } else {
-                    is_finished = true;
-                    cond_var.notify_all();
-                }
-            // });
+            if (images_nb++ < args.fps * record_sec) {
+                printf("Buffer index: %d\n  bytesused: %u\n", images_nb, decoded_buffer.length);
+                WriteYuvImage(decoded_buffer.start, decoded_buffer.length, images_nb);
+            } else {
+                is_finished = true;
+                cond_var.notify_all();
+            }
         });
     });
 
     std::unique_lock<std::mutex> lock(mtx);
-    cond_var.wait(lock, [&] { return is_finished; });
+    cond_var.wait(lock, [&] {
+        return is_finished;
+    });
+
+    decoder->Stop();
+    decoder->ReleaseCodec();
+    observer->UnSubscribe();
 
     return 0;
 }

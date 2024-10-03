@@ -1,4 +1,4 @@
-project(capture)
+project(capturer)
 
 find_package(PkgConfig)
 pkg_check_modules(LIBCAMERA REQUIRED IMPORTED_TARGET libcamera)

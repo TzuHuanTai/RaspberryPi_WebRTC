@@ -1,5 +1,5 @@
-#include "capture/v4l2_capture.h"
 #include "args.h"
+#include "capturer/v4l2_capturer.h"
 
 #include <condition_variable>
 #include <fcntl.h>
@@ -28,14 +28,14 @@ int main(int argc, char *argv[]) {
     bool is_finished = false;
     int i = 0;
     int images_nb = 10;
-    Args args{.device = "/dev/video0",
-              .fps = 15,
+    Args args{.fps = 15,
               .width = 1280,
               .height = 720,
-              .v4l2_format = "mjpeg"};
+              .format = V4L2_PIX_FMT_MJPEG,
+              .device = "/dev/video0"};
 
-    auto capture = V4L2Capture::Create(args);
-    auto observer = capture->AsRawBufferObservable();
+    auto capturer = V4l2Capturer::Create(args);
+    auto observer = capturer->AsRawBufferObservable();
     observer->Subscribe([&](V4l2Buffer buffer) {
         if (i < images_nb) {
             WriteImage(buffer, ++i);
@@ -46,5 +46,7 @@ int main(int argc, char *argv[]) {
     });
 
     std::unique_lock<std::mutex> lock(mtx);
-    cond_var.wait(lock, [&] { return is_finished; });
+    cond_var.wait(lock, [&] {
+        return is_finished;
+    });
 }

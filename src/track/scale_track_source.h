@@ -4,13 +4,13 @@
 #include <media/base/adapted_video_track_source.h>
 #include <rtc_base/timestamp_aligner.h>
 
-#include "capture/v4l2_capture.h"
+#include "capturer/video_capturer.h"
 #include "common/v4l2_utils.h"
 
 class ScaleTrackSource : public rtc::AdaptedVideoTrackSource {
   public:
-    static rtc::scoped_refptr<ScaleTrackSource> Create(std::shared_ptr<V4L2Capture> capture);
-    ScaleTrackSource(std::shared_ptr<V4L2Capture> capture);
+    static rtc::scoped_refptr<ScaleTrackSource> Create(std::shared_ptr<VideoCapturer> capturer);
+    ScaleTrackSource(std::shared_ptr<VideoCapturer> capturer);
     ~ScaleTrackSource();
 
     SourceState state() const override;
@@ -22,7 +22,7 @@ class ScaleTrackSource : public rtc::AdaptedVideoTrackSource {
   protected:
     int width;
     int height;
-    std::shared_ptr<V4L2Capture> capture;
+    std::shared_ptr<VideoCapturer> capturer;
     rtc::TimestampAligner timestamp_aligner;
 
   private:

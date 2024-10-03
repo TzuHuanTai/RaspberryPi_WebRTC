@@ -22,6 +22,8 @@
 
 #include "common/logging.h"
 #include "common/utils.h"
+#include "capturer/v4l2_capturer.h"
+#include "capturer/libcamera_capturer.h"
 #include "customized_video_encoder_factory.h"
 #include "track/v4l2dma_track_source.h"
 
@@ -39,23 +41,23 @@ Conductor::Conductor(Args args)
 
 Args Conductor::config() const { return args; }
 
-std::shared_ptr<PaCapture> Conductor::AudioSource() const { return audio_capture_source_; }
+std::shared_ptr<PaCapturer> Conductor::AudioSource() const { return audio_capture_source_; }
 
-std::shared_ptr<V4L2Capture> Conductor::VideoSource() const { return video_capture_source_; }
+std::shared_ptr<VideoCapturer> Conductor::VideoSource() const { return video_capture_source_; }
 
 void Conductor::InitializeTracks() {
     if (audio_track_ == nullptr) {
-        audio_capture_source_ = PaCapture::Create(args);
+        audio_capture_source_ = PaCapturer::Create(args);
         auto options = peer_connection_factory_->CreateAudioSource(cricket::AudioOptions());
         audio_track_ = peer_connection_factory_->CreateAudioTrack("audio_track", options.get());
     }
 
     if (video_track_ == nullptr && !args.device.empty()) {
-        video_capture_source_ = ([this]() -> std::shared_ptr<V4L2Capture> {
+        video_capture_source_ = ([this]() -> std::shared_ptr<VideoCapturer> {
             if (args.use_libcamera) {
-                return nullptr;
+                return LibcameraCapturer::Create(args);
             } else {
-                return V4L2Capture::Create(args);
+                return V4l2Capturer::Create(args);
             }
         })();
 

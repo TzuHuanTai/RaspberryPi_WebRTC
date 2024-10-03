@@ -7,7 +7,7 @@ class V4l2Decoder : public V4l2Codec {
   public:
     V4l2Decoder() = default;
     ~V4l2Decoder() = default;
-    bool Configure(int width, int height, uint32_t src_pix_fmt, bool is_drm_dst);
+    bool Configure(int width, int height, uint32_t src_pix_fmt, bool is_dma_dst);
 
   protected:
     void HandleEvent() override;

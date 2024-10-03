@@ -2,7 +2,7 @@ project(src)
 
 add_subdirectory(common)
 add_subdirectory(track)
-add_subdirectory(capture)
+add_subdirectory(capturer)
 add_subdirectory(v4l2_codecs)
 add_subdirectory(signaling)
 add_subdirectory(recorder)
@@ -15,4 +15,4 @@ add_library(${PROJECT_NAME}
     rtc_peer.cpp
 )
 
-target_link_libraries(${PROJECT_NAME} PUBLIC track capture v4l2_codecs signaling recorder common)
+target_link_libraries(${PROJECT_NAME} PUBLIC track capturer v4l2_codecs signaling recorder common)

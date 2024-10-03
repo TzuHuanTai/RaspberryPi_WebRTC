@@ -12,8 +12,8 @@
 #include <rtc_base/thread.h>
 
 #include "args.h"
-#include "capture/pa_capture.h"
-#include "capture/v4l2_capture.h"
+#include "capturer/pa_capturer.h"
+#include "capturer/video_capturer.h"
 #include "rtc_peer.h"
 #include "track/scale_track_source.h"
 
@@ -27,8 +27,8 @@ class Conductor {
     Args config() const;
     bool CreatePeerConnection();
     rtc::scoped_refptr<webrtc::PeerConnectionInterface> GetPeer() const;
-    std::shared_ptr<PaCapture> AudioSource() const;
-    std::shared_ptr<V4L2Capture> VideoSource() const;
+    std::shared_ptr<PaCapturer> AudioSource() const;
+    std::shared_ptr<VideoCapturer> VideoSource() const;
     void SetSink(rtc::VideoSinkInterface<webrtc::VideoFrame> *video_sink_obj);
     void AwaitCompletion();
 
@@ -52,8 +52,8 @@ class Conductor {
     std::unique_ptr<rtc::Thread> worker_thread_;
     std::unique_ptr<rtc::Thread> signaling_thread_;
     rtc::scoped_refptr<RtcPeer> peer_;
-    std::shared_ptr<PaCapture> audio_capture_source_;
-    std::shared_ptr<V4L2Capture> video_capture_source_;
+    std::shared_ptr<PaCapturer> audio_capture_source_;
+    std::shared_ptr<VideoCapturer> video_capture_source_;
     rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> peer_connection_factory_;
     rtc::scoped_refptr<webrtc::AudioTrackInterface> audio_track_;
     rtc::scoped_refptr<webrtc::VideoTrackInterface> video_track_;

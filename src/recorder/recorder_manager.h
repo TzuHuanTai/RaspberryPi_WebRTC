@@ -10,10 +10,9 @@ extern "C" {
 #include <libswscale/swscale.h>
 }
 
-#include "capture/pa_capture.h"
-#include "capture/v4l2_capture.h"
+#include "capturer/pa_capturer.h"
+#include "capturer/video_capturer.h"
 #include "common/worker.h"
-#include "conductor.h"
 #include "recorder/audio_recorder.h"
 #include "recorder/video_recorder.h"
 
@@ -26,7 +25,8 @@ class RecUtil {
 
 class RecorderManager {
   public:
-    static std::unique_ptr<RecorderManager> Create(std::shared_ptr<Conductor> conductor,
+    static std::unique_ptr<RecorderManager> Create(std::shared_ptr<VideoCapturer> video_src,
+                                                   std::shared_ptr<PaCapturer> audio_src,
                                                    std::string record_path);
     RecorderManager(std::string record_path);
     ~RecorderManager();
@@ -47,16 +47,16 @@ class RecorderManager {
     std::unique_ptr<VideoRecorder> video_recorder;
     std::unique_ptr<AudioRecorder> audio_recorder;
 
-    void CreateVideoRecorder(std::shared_ptr<V4L2Capture> video_src);
-    void CreateAudioRecorder(std::shared_ptr<PaCapture> aduio_src);
-    void SubscribeVideoSource(std::shared_ptr<V4L2Capture> video_src);
-    void SubscribeAudioSource(std::shared_ptr<PaCapture> aduio_src);
+    void CreateVideoRecorder(std::shared_ptr<VideoCapturer> video_src);
+    void CreateAudioRecorder(std::shared_ptr<PaCapturer> aduio_src);
+    void SubscribeVideoSource(std::shared_ptr<VideoCapturer> video_src);
+    void SubscribeAudioSource(std::shared_ptr<PaCapturer> aduio_src);
 
   private:
     double elapsed_time_;
     struct timeval last_created_time_;
     std::unique_ptr<Worker> rotation_worker_;
-    std::shared_ptr<V4L2Capture> video_src_;
+    std::shared_ptr<VideoCapturer> video_src_;
 
     void StartRotationThread();
     void MakePreviewImage();

@@ -1,21 +1,21 @@
-#include "capture/pa2_capture.h"
+#include "capturer/pa2_capturer.h"
 
 #include "common/logging.h"
 
 #define CHANNELS 2
 
-std::shared_ptr<Pa2Capture> Pa2Capture::Create(Args args) {
-    auto ptr = std::make_shared<Pa2Capture>(args);
+std::shared_ptr<Pa2Capturer> Pa2Capturer::Create(Args args) {
+    auto ptr = std::make_shared<Pa2Capturer>(args);
     ptr->CreateFloat32Source(args.sample_rate);
     ptr->StartCapture();
     return ptr;
 }
 
-Pa2Capture::Pa2Capture(Args args)
-    : PaCapture(args),
+Pa2Capturer::Pa2Capturer(Args args)
+    : PaCapturer(args),
       config_(args) {}
 
-Pa2Capture::~Pa2Capture() {
+Pa2Capturer::~Pa2Capturer() {
     worker_.reset();
     pa_stream_disconnect(stream);
     pa_stream_unref(stream);
@@ -24,9 +24,9 @@ Pa2Capture::~Pa2Capture() {
     pa_mainloop_free(m);
 }
 
-Args Pa2Capture::config() const { return config_; }
+Args Pa2Capturer::config() const { return config_; }
 
-void Pa2Capture::CreateFloat32Source(int sample_rate) {
+void Pa2Capturer::CreateFloat32Source(int sample_rate) {
     m = pa_mainloop_new();
     mainloop_api = pa_mainloop_get_api(m);
     ctx = pa_context_new(mainloop_api, "Microphone");
@@ -56,12 +56,12 @@ void Pa2Capture::CreateFloat32Source(int sample_rate) {
     pa_stream_connect_record(stream, nullptr, nullptr, PA_STREAM_NOFLAGS);
 }
 
-void Pa2Capture::ReadCallback(pa_stream *s, size_t length, void *user_data) {
-    Pa2Capture *capture = reinterpret_cast<Pa2Capture *>(user_data);
-    capture->CaptureSamples();
+void Pa2Capturer::ReadCallback(pa_stream *s, size_t length, void *user_data) {
+    Pa2Capturer *capturer = reinterpret_cast<Pa2Capturer *>(user_data);
+    capturer->CaptureSamples();
 }
 
-void Pa2Capture::StateCallback(pa_stream *s, void *user_data) {
+void Pa2Capturer::StateCallback(pa_stream *s, void *user_data) {
     switch (pa_stream_get_state(s)) {
         case PA_STREAM_READY:
             DEBUG_PRINT("Stream is ready.");
@@ -77,7 +77,7 @@ void Pa2Capture::StateCallback(pa_stream *s, void *user_data) {
     }
 }
 
-void Pa2Capture::CaptureSamples() {
+void Pa2Capturer::CaptureSamples() {
     const void *data = nullptr;
     size_t length = 0;
 
@@ -97,7 +97,7 @@ void Pa2Capture::CaptureSamples() {
     pa_stream_drop(stream);
 }
 
-void Pa2Capture::StartCapture() {
+void Pa2Capturer::StartCapture() {
     worker_.reset(new Worker("PaCapture2", [&]() {
         pa_mainloop_iterate(m, 1, nullptr);
     }));
