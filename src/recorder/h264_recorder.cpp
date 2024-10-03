@@ -33,8 +33,7 @@ void H264Recorder::Encode(rtc::scoped_refptr<V4l2FrameBuffer> frame_buffer) {
             OnEncoded(encoded_buffer);
         });
     } else {
-        sw_encoder_->Encode(i420_buffer, [this, frame_buffer](uint8_t *encoded_buffer,
-                                                              int size) {
+        sw_encoder_->Encode(i420_buffer, [this, frame_buffer](uint8_t *encoded_buffer, int size) {
             V4l2Buffer buffer((void *)encoded_buffer, size, frame_buffer->flags(),
                               frame_buffer->timestamp());
             OnEncoded(buffer);
@@ -56,7 +55,8 @@ void H264Recorder::ResetCodecs() {
                              V4L2_MPEG_VIDEO_H264_LEVEL_4_0);
         V4l2Util::SetExtCtrl(encoder_->GetFd(), V4L2_CID_MPEG_VIDEO_FORCE_KEY_FRAME, 1);
         V4l2Util::SetExtCtrl(encoder_->GetFd(), V4L2_CID_MPEG_VIDEO_H264_I_PERIOD, 60);
-        V4l2Util::SetExtCtrl(encoder_->GetFd(), V4L2_CID_MPEG_VIDEO_BITRATE, 2500 * 1000);
+        V4l2Util::SetExtCtrl(encoder_->GetFd(), V4L2_CID_MPEG_VIDEO_BITRATE,
+                             config.width * config.height * config.fps * 0.1);
         encoder_->Start();
     } else {
         sw_encoder_ = H264Encoder::Create(config);
