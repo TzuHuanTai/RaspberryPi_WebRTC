@@ -8,7 +8,7 @@ std::unique_ptr<H264Recorder> H264Recorder::Create(Args config) {
 
 H264Recorder::H264Recorder(Args config, std::string encoder_name)
     : VideoRecorder(config, encoder_name),
-      is_ready_(false){};
+      abort_(true){};
 
 H264Recorder::~H264Recorder() {
     encoder_.reset();
@@ -16,7 +16,7 @@ H264Recorder::~H264Recorder() {
 }
 
 void H264Recorder::Encode(rtc::scoped_refptr<V4l2FrameBuffer> frame_buffer) {
-    if (!is_ready_) {
+    if (abort_.load()) {
         return;
     }
 
@@ -44,7 +44,7 @@ void H264Recorder::Encode(rtc::scoped_refptr<V4l2FrameBuffer> frame_buffer) {
 void H264Recorder::PreStart() { ResetCodecs(); }
 
 void H264Recorder::ResetCodecs() {
-    is_ready_ = false;
+    abort_.store(true);
 
     if (config.hw_accel) {
         encoder_ = std::make_unique<V4l2Encoder>();
@@ -62,5 +62,5 @@ void H264Recorder::ResetCodecs() {
         sw_encoder_ = H264Encoder::Create(config);
     }
 
-    is_ready_ = true;
+    abort_.store(false);
 }

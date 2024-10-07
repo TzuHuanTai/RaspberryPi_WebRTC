@@ -20,13 +20,12 @@ class V4l2Codec {
                        bool has_dmafd = false);
     void Start();
     void Stop();
-    bool IsCapturing();
     void EmplaceBuffer(V4l2Buffer &buffer, std::function<void(V4l2Buffer &)> on_capture);
     void ReleaseCodec();
 
   protected:
     int fd_;
-    std::atomic<bool> is_capturing;
+    std::atomic<bool> abort_;
     V4l2BufferGroup output_;
     V4l2BufferGroup capture_;
     std::queue<int> output_buffer_index_;

@@ -29,7 +29,7 @@ RtcPeer::~RtcPeer() {
 
 int RtcPeer::GetId() const { return id_; }
 
-bool RtcPeer::IsConnected() const { return is_connected_; }
+bool RtcPeer::IsConnected() const { return is_connected_.load(); }
 
 void RtcPeer::SetSink(rtc::VideoSinkInterface<webrtc::VideoFrame> *video_sink_obj) {
     custom_video_sink_ = std::move(video_sink_obj);
@@ -98,7 +98,7 @@ void RtcPeer::OnPaired(std::function<void(PeerState)> func) {
 
 void RtcPeer::OnPaired(bool is_paired) {
     PeerState state = {
-        .id = id_, .is_connected = is_connected_, .is_paired = is_paired};
+        .id = id_, .is_connected = is_connected_.load(), .is_paired = is_paired};
     Next(state);
 }
 
@@ -109,7 +109,7 @@ void RtcPeer::OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState 
         OnPaired(true);
         timeout_thread_ = std::thread([this]() {
             std::this_thread::sleep_for(std::chrono::seconds(10));
-            if (!is_complete_ && !is_connected_) {
+            if (!is_complete_.load() && !is_connected_.load()) {
                 DEBUG_PRINT("Connection timeout after kConnecting. Closing connection.");
                 peer_connection_->Close();
             }
@@ -133,15 +133,15 @@ void RtcPeer::OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnection
     DEBUG_PRINT("OnConnectionChange => %s", std::string(state).c_str());
     if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kConnected) {
         signaling_client_.reset();
-        is_connected_ = true;
+        is_connected_.store(true);
         UnSubscribe();
     } else if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kFailed) {
-        is_connected_ = false;
+        is_connected_.store(false);
         peer_connection_->Close();
     } else if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kClosed) {
         signaling_client_.reset();
-        is_connected_ = false;
-        is_complete_ = true;
+        is_connected_.store(false);
+        is_complete_.store(true);
         data_channel_subject_.reset();
     }
 }
@@ -182,7 +182,7 @@ void RtcPeer::OnFailure(webrtc::RTCError error) {
 }
 
 void RtcPeer::OnRemoteSdp(std::string sdp, std::string sdp_type) {
-    if (is_connected_) {
+    if (is_connected_.load()) {
         return;
     }
 
@@ -212,7 +212,7 @@ void RtcPeer::OnRemoteSdp(std::string sdp, std::string sdp_type) {
 }
 
 void RtcPeer::OnRemoteIce(std::string sdp_mid, int sdp_mline_index, std::string sdp) {
-    if (is_connected_) {
+    if (is_connected_.load()) {
         return;
     }
 
