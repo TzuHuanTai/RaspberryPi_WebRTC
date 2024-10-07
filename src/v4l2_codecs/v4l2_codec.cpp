@@ -44,16 +44,14 @@ void V4l2Codec::Start() {
     worker_.reset(new Worker(file_name_, [this]() {
         CaptureBuffer();
     }));
+    abort_.store(false);
     worker_->Run();
-    is_capturing = true;
 }
 
 void V4l2Codec::Stop() {
+    abort_.store(true);
     worker_.reset();
-    is_capturing = false;
 }
-
-bool V4l2Codec::IsCapturing() { return is_capturing; }
 
 void V4l2Codec::EmplaceBuffer(V4l2Buffer &buffer, std::function<void(V4l2Buffer &)> on_capture) {
     if (output_buffer_index_.empty()) {
@@ -98,7 +96,9 @@ bool V4l2Codec::CaptureBuffer() {
 
     int r = select(fd_ + 1, rd_fds, NULL, ex_fds, &tv);
 
-    if (r <= 0) { // failed or timeout
+    if (abort_.load()) {
+        return false;
+    } else if (r <= 0) { // failed or timeout
         return false;
     }
 
@@ -133,6 +133,8 @@ bool V4l2Codec::CaptureBuffer() {
             auto task = capturing_tasks_.front();
             capturing_tasks_.pop();
             task(buffer);
+        } else {
+            return false;
         }
 
         if (!V4l2Util::QueueBuffer(fd_, &capture_.buffers[buf.index].inner)) {
@@ -151,9 +153,10 @@ void V4l2Codec::ReleaseCodec() {
     if (fd_ <= 0) {
         return;
     }
+
+    Stop();
     capturing_tasks_ = {};
     output_buffer_index_ = {};
-    Stop();
 
     V4l2Util::StreamOff(fd_, output_.type);
     V4l2Util::StreamOff(fd_, capture_.type);

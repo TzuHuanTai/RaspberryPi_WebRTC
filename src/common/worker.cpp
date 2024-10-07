@@ -9,7 +9,7 @@ Worker::Worker(std::string name, std::function<void()> executing_function)
 Worker::~Worker() { Release(); }
 
 void Worker::Release() {
-    abort_ = true;
+    abort_.store(true);
     thread_.Finalize();
     DEBUG_PRINT("'%s' was released!", name_.c_str());
 }
@@ -23,7 +23,7 @@ void Worker::Run() {
 }
 
 void Worker::Thread() {
-    while (!abort_) {
+    while (!abort_.load()) {
         executing_function_();
     }
 }

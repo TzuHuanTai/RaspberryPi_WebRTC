@@ -47,7 +47,7 @@ template <typename T> class Recorder {
     void Stop() {
         {
             std::lock_guard<std::mutex> lock(mtx_);
-            abort_ = true;
+            abort_.store(true);
         }
         cond_var_.notify_all();
         worker.reset();
@@ -57,7 +57,7 @@ template <typename T> class Recorder {
     void Start() {
         Initialize();
         PreStart();
-        abort_ = false;
+        abort_.store(false);
         worker->Run();
     }
 
