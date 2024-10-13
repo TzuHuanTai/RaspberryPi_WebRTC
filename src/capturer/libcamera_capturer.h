@@ -53,6 +53,7 @@ class LibcameraCapturer : public VideoCapturer {
 
     LibcameraCapturer &SetFormat(int width, int height);
     LibcameraCapturer &SetFps(int fps);
+    LibcameraCapturer &SetAutofocus();
     LibcameraCapturer &SetRotation(int angle);
 
     void Init(std::string device);

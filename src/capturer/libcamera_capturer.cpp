@@ -8,6 +8,7 @@ std::shared_ptr<LibcameraCapturer> LibcameraCapturer::Create(Args args) {
     auto ptr = std::make_shared<LibcameraCapturer>(args);
     ptr->Init(args.device);
     ptr->SetFps(args.fps)
+        .SetAutofocus()
         .SetRotation(args.rotation_angle)
         .SetFormat(args.width, args.height)
         .StartCapture();
@@ -92,6 +93,14 @@ LibcameraCapturer &LibcameraCapturer::SetFps(int fps) {
     controls_.set(libcamera::controls::FrameDurationLimits,
                   libcamera::Span<const int64_t, 2>({frame_time, frame_time}));
     DEBUG_PRINT("  Fps: %d", fps);
+
+    return *this;
+}
+
+LibcameraCapturer &LibcameraCapturer::SetAutofocus() {
+    controls_.set(libcamera::controls::AfMode, libcamera::controls::AfModeEnum::AfModeContinuous);
+
+    DEBUG_PRINT("  AutoFocus: %d", libcamera::controls::AfModeEnum::AfModeContinuous);
 
     return *this;
 }
