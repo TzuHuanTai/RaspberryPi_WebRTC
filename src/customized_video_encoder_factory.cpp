@@ -15,20 +15,8 @@ std::unique_ptr<webrtc::VideoEncoderFactory> CreateCustomizedVideoEncoderFactory
 std::vector<webrtc::SdpVideoFormat> CustomizedVideoEncoderFactory::GetSupportedFormats() const {
     std::vector<webrtc::SdpVideoFormat> supported_codecs;
 
-    if (args_.v4l2_format != "h264") {
-        supported_codecs.push_back(webrtc::SdpVideoFormat(cricket::kVp8CodecName));
-
-        auto supported_vp9_formats = webrtc::SupportedVP9Codecs(true);
-        supported_codecs.insert(supported_codecs.end(), std::begin(supported_vp9_formats),
-                                std::end(supported_vp9_formats));
-
-        supported_codecs.push_back(
-            webrtc::SdpVideoFormat(cricket::kAv1CodecName, webrtc::SdpVideoFormat::Parameters(),
-                                   webrtc::LibaomAv1EncoderSupportedScalabilityModes()));
-    }
-
-    // h264
     if (args_.hw_accel) {
+        // hw h264
         supported_codecs.push_back(CreateH264Format(webrtc::H264Profile::kProfileConstrainedBaseline,
                                                 webrtc::H264Level::kLevel4, "1"));
         supported_codecs.push_back(CreateH264Format(webrtc::H264Profile::kProfileConstrainedBaseline,
@@ -38,10 +26,22 @@ std::vector<webrtc::SdpVideoFormat> CustomizedVideoEncoderFactory::GetSupportedF
         supported_codecs.push_back(
             CreateH264Format(webrtc::H264Profile::kProfileBaseline, webrtc::H264Level::kLevel4, "0"));
     } else {
+        // vp8
+        supported_codecs.push_back(webrtc::SdpVideoFormat(cricket::kVp8CodecName));
+        // vp9
+        auto supported_vp9_formats = webrtc::SupportedVP9Codecs(true);
+        supported_codecs.insert(supported_codecs.end(), std::begin(supported_vp9_formats),
+                                std::end(supported_vp9_formats));
+        // av1
+        supported_codecs.push_back(
+            webrtc::SdpVideoFormat(cricket::kAv1CodecName, webrtc::SdpVideoFormat::Parameters(),
+                                   webrtc::LibaomAv1EncoderSupportedScalabilityModes()));
+        // sw h264
         auto supported_h264_formats = webrtc::SupportedH264Codecs(true);
         supported_codecs.insert(supported_codecs.end(), std::begin(supported_h264_formats),
                                 std::end(supported_h264_formats));
     }
+
     return supported_codecs;
 }
 
