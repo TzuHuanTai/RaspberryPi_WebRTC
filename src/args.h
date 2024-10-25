@@ -11,6 +11,7 @@ struct Args {
     int height = 480;
     int rotation_angle = 0;
     int sample_rate = 44100;
+    bool no_audio = false;
     bool hw_accel = false;
     bool use_libcamera = false;
     uint32_t format = V4L2_PIX_FMT_MJPEG;

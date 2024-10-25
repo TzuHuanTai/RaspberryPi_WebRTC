@@ -20,10 +20,10 @@
 #include <pc/video_track_source_proxy.h>
 #include <rtc_base/ssl_adapter.h>
 
+#include "capturer/libcamera_capturer.h"
+#include "capturer/v4l2_capturer.h"
 #include "common/logging.h"
 #include "common/utils.h"
-#include "capturer/v4l2_capturer.h"
-#include "capturer/libcamera_capturer.h"
 #include "customized_video_encoder_factory.h"
 #include "track/v4l2dma_track_source.h"
 
@@ -46,7 +46,7 @@ std::shared_ptr<PaCapturer> Conductor::AudioSource() const { return audio_captur
 std::shared_ptr<VideoCapturer> Conductor::VideoSource() const { return video_capture_source_; }
 
 void Conductor::InitializeTracks() {
-    if (audio_track_ == nullptr) {
+    if (audio_track_ == nullptr && !args.no_audio) {
         audio_capture_source_ = PaCapturer::Create(args);
         auto options = peer_connection_factory_->CreateAudioSource(cricket::AudioOptions());
         audio_track_ = peer_connection_factory_->CreateAudioTrack("audio_track", options.get());
@@ -280,8 +280,12 @@ void Conductor::InitializePeerConnectionFactory() {
     cricket::MediaEngineDependencies media_dependencies;
     media_dependencies.task_queue_factory = dependencies.task_queue_factory.get();
 
-    media_dependencies.adm = webrtc::AudioDeviceModule::Create(
-        webrtc::AudioDeviceModule::kLinuxPulseAudio, dependencies.task_queue_factory.get());
+    webrtc::AudioDeviceModule::AudioLayer audio_layer = webrtc::AudioDeviceModule::kLinuxPulseAudio;
+    if (args.no_audio) {
+        audio_layer = webrtc::AudioDeviceModule::kDummyAudio;
+    }
+    media_dependencies.adm =
+        webrtc::AudioDeviceModule::Create(audio_layer, dependencies.task_queue_factory.get());
     media_dependencies.audio_encoder_factory = webrtc::CreateBuiltinAudioEncoderFactory();
     media_dependencies.audio_decoder_factory = webrtc::CreateBuiltinAudioDecoderFactory();
     media_dependencies.audio_processing = webrtc::AudioProcessingBuilder().Create();
