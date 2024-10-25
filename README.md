@@ -23,17 +23,19 @@ Turn your Raspberry Pi into a low-latency home security camera using the v4l2 DM
 
 # How to use
 
-For the complete user manual, please refer to the [wiki page](https://github.com/TzuHuanTai/RaspberryPi_WebRTC/wiki). For setting up the environment, please refer to the [tutorial video](https://youtu.be/t9aiqFlzkm4).
+For the complete user manual, please refer to the [wiki page](https://github.com/TzuHuanTai/RaspberryPi_WebRTC/wiki). To set up the environment, please refer to the [tutorial video](https://youtu.be/t9aiqFlzkm4).
 
-* Download the latest binary file from [Releases](https://github.com/TzuHuanTai/RaspberryPi_WebRTC/releases).
-* Install the [Pi Camera](https://github.com/TzuHuanTai/Pi-Camera) app and follow the instructions.
+* Download and run the binary file from [Releases](https://github.com/TzuHuanTai/RaspberryPi_WebRTC/releases).
+* Set up network configuration and the `uid` in client side UI.
+    * [Pi Camera](https://github.com/TzuHuanTai/Pi-Camera) app (Android).
+    * [Pi Camera Web](https://picamera.live)
 
 ## Hardware Requirements
 
 <img src="https://assets.raspberrypi.com/static/51035ec4c2f8f630b3d26c32e90c93f1/2b8d7/zero2-hero.webp" height="96">
 
-* Raspberry Pi ([Zero 2W](https://www.raspberrypi.com/products/raspberry-pi-zero-2-w/) or better).
-* CSI/USB Camera Module.
+* Raspberry Pi (Zero 2W/3/3B+/4B/5).
+* CSI or USB Camera Module.
 * At least 4GB micro sd card.
 * A USB disk and a Micro-USB Male to USB-A Female adaptor.
 
@@ -45,17 +47,23 @@ For the complete user manual, please refer to the [wiki page](https://github.com
     sudo apt install libmosquitto1 pulseaudio libavformat59 libswscale6
     ```
 
-3. Enable Raspberry Pi Hardware by adding below in `/boot/firmware/config.txt`
-    ```text
-    camera_auto_detect=0
-    start_x=1
-    gpu_mem=16
-    ```
-    Set `camera_auto_detect=0` in order to read camera by v4l2.
+3. Enable Camera on Raspberry Pi
 
-    **Hint**: For Raspberry Pi 4B the `gpu_mem` need to be `256` for the camera device loading to work properly. ([#182](https://github.com/TzuHuanTai/RaspberryPi_WebRTC/issues/182))
+    * If you are using a camera that requires libcamera (e.g., Camera Module 3), you can skip this step.
 
-4. Mount USB disk [[ref]](https://wiki.gentoo.org/wiki/AutoFS)
+        By default, the system uses libcamera, and the official Camera Module 3 is only supported by libcamera. Please add `--use_libcamera` to the execution command.
+
+    * To use legacy V4L2 on Pi, modify the camera settings in `/boot/firmware/config.txt`:
+        ```ini
+        # camera_auto_detect=1  # Default setting
+        camera_auto_detect=0    # Read camera by v4l2
+        start_x=1               # Enable hardware-accelerated
+        gpu_mem=16              # It's depends on resolutions
+        ```
+
+    **Note**: For Raspberry Pi 4B, set gpu_mem=256 to ensure the camera device loads correctly. The required memory size may vary depending on the resolution you're capturing—higher resolutions will need more GPU memory. ([#182](https://github.com/TzuHuanTai/RaspberryPi_WebRTC/issues/182))
+
+4. **[Optional]** Mount USB disk [[ref]](https://wiki.gentoo.org/wiki/AutoFS)
 
     * Skip this step if you don't want to record videos. Don't set the `record_path` flag while running.
     * When the disk drive is detected, it will automatically mount to `/mnt/ext_disk`.
@@ -124,7 +132,7 @@ MQTT is currently the only signaling mechanism used, so ensure that your MQTT se
     ```ini
     [Unit]
     Description= The p2p camera via webrtc.
-    After=network-online.target
+    After=network-online.target pulseaudio.service
 
     [Service]
     Type=simple
