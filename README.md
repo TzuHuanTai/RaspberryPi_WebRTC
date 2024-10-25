@@ -79,24 +79,22 @@ For the complete user manual, please refer to the [wiki page](https://github.com
 MQTT is currently the only signaling mechanism used, so ensure that your MQTT server is ready before starting the application. If the application is only intended for use within a local area network (LAN), the MQTT server (such as [Mosquitto](doc/SETUP_MOSQUITTO.md)) can be installed on the same Pi. However, if remote access is required, it is recommended to use a cloud-based MQTT server. Free plans include, but are not limited to, [HiveMQ](https://www.hivemq.com) and [EXMQ](https://www.emqx.com/en). Because If you choose to self-host and need to access the signaling server remotely via mobile data, you may need to set up DDNS and port forwarding if your ISP provides a dynamic IP.
 
 ### Run
-- Running the binary file `pi_webrtc` with the `-h` flag will display all available options. 
+To start the application, use your network settings and apply them to the following example command. The SDP/ICE data will be transferred under the MQTT topic specified by your `uid` setting.
+```bash
+# For v4l2
+/path/to/pi_webrtc --device=/dev/video0 --fps=30 --width=1280 --height=960 --v4l2_format=h264 --hw_accel --mqtt_host=your.mqtt.cloud --mqtt_port=8883 --mqtt_username=hakunamatata --mqtt_password=Wonderful --uid=your-custom-uid --record_path=/mnt/ext_disk/video/
 
-- To start the application, use your settings and apply them to the following example command below. The SDP/ICE data will be transferred under the MQTT topic specified by your `uid` setting.
-    ```bash
-    # run the PulseAudio service if it is not started.
-    pulseaudio --start
+# For libcamera
+/path/to/pi_webrtc --use_libcamera --fps=30 --width=1280 --height=960 --hw_accel --mqtt_host=your.mqtt.cloud --mqtt_port=8883 --mqtt_username=hakunamatata --mqtt_password=Wonderful --uid=your-custom-uid --record_path=/mnt/ext_disk/video/
+```
 
-    # run main program with your settings
-    /path/to/pi_webrtc --device=/dev/video0 --fps=30 --width=1280 --height=960 --v4l2_format=h264 --hw_accel --mqtt_host=example.s1.eu.hivemq.cloud --mqtt_port=8883 --mqtt_username=hakunamatata --mqtt_password=Wonderful --uid=home-pi-zero2w --record_path=/mnt/ext_disk/video/
-    ```
+**Hint 1:** Since the Pi 5 does not support hardware encoding, please remove the `--hw_accel` flag and set `--v4l2_format` to `mjpeg`. Video encoding will be handled by built-in software codes.
 
-    **Hint 1:** Since the Pi 5 does not support hardware encoding, please remove the `--hw_accel` flag and set `--v4l2_format` to `mjpeg`. Video encoding will be handled by [OpenH264](https://github.com/cisco/openh264).
-    
-    **Hint 2:** I noticed that when I set `1920x1080`, the hardware decoder firmware changes it to `1920x1088`, but the isp/encoder does not adjust in the 6.6.31 kernel. This leads to memory being out of range. However, if I set `1920x1088`, all works fine.
+**Hint 2:** I noticed that when I set `1920x1080` while using lagacy v4l2, the hardware decoder firmware changes it to `1920x1088`, but the isp/encoder does not adjust in the 6.6.31 kernel. This leads to memory being out of range. However, if I set `1920x1088`, all works fine.
 
 ### Run as Linux Service
 
-#### 1. Run `pulseaudio` as system-wide daemon [[ref]](https://www.freedesktop.org/wiki/Software/PulseAudio/Documentation/User/SystemWide/):
+#### 1. **[Optional]** Run `pulseaudio` as system-wide daemon [[ref]](https://www.freedesktop.org/wiki/Software/PulseAudio/Documentation/User/SystemWide/):
 * create a file `/etc/systemd/system/pulseaudio.service`
     ```ini
     [Unit]
@@ -140,7 +138,7 @@ MQTT is currently the only signaling mechanism used, so ensure that your MQTT se
     ExecStart=/path/to/pi_webrtc --device=/dev/video0 --fps=30 --width=1280 --height=960 --v4l2_format=h264 --hw_accel --mqtt_host=example.s1.eu.hivemq.cloud --mqtt_port=8883 --mqtt_username=hakunamatata --mqtt_password=wonderful --record_path=/mnt/ext_disk/video/
     Restart=always
     RestartSec=10
-      
+
     [Install]
     WantedBy=multi-user.target
     ```
