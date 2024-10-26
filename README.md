@@ -53,7 +53,7 @@ For the complete user manual, please refer to the [wiki page](https://github.com
 
         By default, the system uses libcamera, and the official Camera Module 3 is only supported by libcamera. Please add `--use_libcamera` to the execution command.
 
-    * To use legacy V4L2 on Pi, modify the camera settings in `/boot/firmware/config.txt`:
+    * If using the legacy v4l2 driver on the Raspberry Pi, please modify the camera settings in `/boot/firmware/config.txt`:
         ```ini
         # camera_auto_detect=1  # Default setting
         camera_auto_detect=0    # Read camera by v4l2
@@ -66,13 +66,13 @@ For the complete user manual, please refer to the [wiki page](https://github.com
 4. **[Optional]** Mount USB disk [[ref]](https://wiki.gentoo.org/wiki/AutoFS)
 
     * Skip this step if you don't want to record videos. Don't set the `record_path` flag while running.
-    * When the disk drive is detected, it will automatically mount to `/mnt/ext_disk`.
-    ```bash
-    sudo apt-get install autofs
-    echo '/- /etc/auto.usb --timeout=5' | sudo tee -a /etc/auto.master > /dev/null
-    echo '/mnt/ext_disk -fstype=auto,nofail,nodev,nosuid,noatime,umask=000 :/dev/sda1' | sudo tee -a /etc/auto.usb > /dev/null
-    sudo systemctl restart autofs
-    ```
+    * The following commands will automatically mount to `/mnt/ext_disk` when the disk drive is detected.
+        ```bash
+        sudo apt-get install autofs
+        echo '/- /etc/auto.usb --timeout=5' | sudo tee -a /etc/auto.master > /dev/null
+        echo '/mnt/ext_disk -fstype=auto,nofail,nodev,nosuid,noatime,umask=000 :/dev/sda1' | sudo tee -a /etc/auto.usb > /dev/null
+        sudo systemctl restart autofs
+        ```
 
 ## Running the Application
 
@@ -80,12 +80,13 @@ MQTT is currently the only signaling mechanism used, so ensure that your MQTT se
 
 ### Run
 To start the application, use your network settings and apply them to the following example command. The SDP/ICE data will be transferred under the MQTT topic specified by your `uid` setting.
+  * For legacy v4l2 driver
 ```bash
-# For v4l2
-/path/to/pi_webrtc --device=/dev/video0 --fps=30 --width=1280 --height=960 --v4l2_format=h264 --hw_accel --mqtt_host=your.mqtt.cloud --mqtt_port=8883 --mqtt_username=hakunamatata --mqtt_password=Wonderful --uid=your-custom-uid --record_path=/mnt/ext_disk/video/
-
-# For libcamera
-/path/to/pi_webrtc --use_libcamera --fps=30 --width=1280 --height=960 --hw_accel --mqtt_host=your.mqtt.cloud --mqtt_port=8883 --mqtt_username=hakunamatata --mqtt_password=Wonderful --uid=your-custom-uid --record_path=/mnt/ext_disk/video/
+/path/to/pi_webrtc --device=/dev/video0 --v4l2_format=h264 --fps=30 --width=1280 --height=960 --hw_accel --no_audio --mqtt_host=your.mqtt.cloud --mqtt_port=8883 --mqtt_username=hakunamatata --mqtt_password=Wonderful --uid=your-custom-uid --record_path=/mnt/ext_disk/video/
+```
+  * For libcamera
+```bash
+/path/to/pi_webrtc --use_libcamera --fps=30 --width=1280 --height=960 --hw_accel --no_audio --mqtt_host=your.mqtt.cloud --mqtt_port=8883 --mqtt_username=hakunamatata --mqtt_password=Wonderful --uid=your-custom-uid --record_path=/mnt/ext_disk/video/
 ```
 
 **Hint 1:** Since the Pi 5 does not support hardware encoding, please remove the `--hw_accel` flag and set `--v4l2_format` to `mjpeg`. Video encoding will be handled by built-in software codes.
