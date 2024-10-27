@@ -14,21 +14,19 @@
     <img src="doc/pi_4b_latency_demo.gif" alt="Pi 4b latency demo">
 </p>
 
-Turn your Raspberry Pi into a low-latency home security camera using the v4l2 DMA hardware encoder and WebRTC. [[demo video](https://www.youtube.com/watch?v=JZ5bcSAsXog)]
+Turn your Raspberry Pi into a low-latency home security camera using the V4L2 DMA hardware encoder and WebRTC. [[demo video](https://www.youtube.com/watch?v=JZ5bcSAsXog)]
 
-- It's designed as a pure P2P-based camera that allows video playback and download without needing a media server.
-- Support [multiple users](doc/pi_4b_users_demo.gif) to watch the live stream simultaneously. 
-
-- Raspberry Pi 5 or other SBCs do not support v4l2 hardware encoding, please run this project in software encoding mode.
+- Pure P2P-based camera allows video playback and download without a media server.
+- Support [multiple users](doc/pi_4b_users_demo.gif) for simultaneous live streaming.
 
 # How to use
 
-For the complete user manual, please refer to the [wiki page](https://github.com/TzuHuanTai/RaspberryPi_WebRTC/wiki). To set up the environment, please refer to the [tutorial video](https://youtu.be/t9aiqFlzkm4).
+To set up the environment, please check out the [tutorial video](https://youtu.be/g5Npb6DsO-0) or the steps below.
 
 * Download and run the binary file from [Releases](https://github.com/TzuHuanTai/RaspberryPi_WebRTC/releases).
-* Set up network configuration and the `uid` in client side UI.
+* Set up the network configuration and create a new client using one of the following options:
     * [Pi Camera](https://github.com/TzuHuanTai/Pi-Camera) app (Android).
-    * [Pi Camera Web](https://picamera.live)
+    * [Pi Camera Web](https://picamera.live).
 
 ## Hardware Requirements
 
@@ -36,67 +34,89 @@ For the complete user manual, please refer to the [wiki page](https://github.com
 
 * Raspberry Pi (Zero 2W/3/3B+/4B/5).
 * CSI or USB Camera Module.
-* At least 4GB micro sd card.
-* A USB disk and a Micro-USB Male to USB-A Female adaptor.
 
 ## Environment Setup
 
-1. Use the [Raspberry Pi Imager](https://www.raspberrypi.com/software/) to write the Lite OS (Bookworm 64-bit) to the micro SD card.
-2. Install essential libs
+1. Install Raspberry Pi OS
+
+    Use the [Raspberry Pi Imager](https://www.raspberrypi.com/software/) to install Raspberry Pi Lite OS on your microSD card.
+> [!TIP]
+> **Can I use a regular Raspberry Pi OS, or does it have to be Lite?**<br/>
+> You can use either the Lite or full Raspberry Pi OS (the official recommended versions), but Lite OS is generally more efficient.
+
+2. Install essential libraries
     ```bash
     sudo apt install libmosquitto1 pulseaudio libavformat59 libswscale6
     ```
-
-3. Enable Camera on Raspberry Pi
-
-    * If you are using a camera that requires libcamera (e.g., Camera Module 3), you can skip this step.
-
-        By default, the system uses libcamera, and the official Camera Module 3 is only supported by libcamera. Please add `--use_libcamera` to the execution command.
-
-    * If using the legacy v4l2 driver on the Raspberry Pi, please modify the camera settings in `/boot/firmware/config.txt`:
-        ```ini
-        # camera_auto_detect=1  # Default setting
-        camera_auto_detect=0    # Read camera by v4l2
-        start_x=1               # Enable hardware-accelerated
-        gpu_mem=16              # It's depends on resolutions
-        ```
-
-    **Note**: For Raspberry Pi 4B, set gpu_mem=256 to ensure the camera device loads correctly. The required memory size may vary depending on the resolution you're capturing—higher resolutions will need more GPU memory. ([#182](https://github.com/TzuHuanTai/RaspberryPi_WebRTC/issues/182))
-
-4. **[Optional]** Mount USB disk [[ref]](https://wiki.gentoo.org/wiki/AutoFS)
-
-    * Skip this step if you don't want to record videos. Don't set the `record_path` flag while running.
-    * The following commands will automatically mount to `/mnt/ext_disk` when the disk drive is detected.
-        ```bash
-        sudo apt-get install autofs
-        echo '/- /etc/auto.usb --timeout=5' | sudo tee -a /etc/auto.master > /dev/null
-        echo '/mnt/ext_disk -fstype=auto,nofail,nodev,nosuid,noatime,umask=000 :/dev/sda1' | sudo tee -a /etc/auto.usb > /dev/null
-        sudo systemctl restart autofs
-        ```
+3. Download and unzip the binary file
+    ```bash
+    wget https://github.com/TzuHuanTai/RaspberryPi_WebRTC/releases/download/v1.0.2/pi_webrtc-1.0.2_pi-os-bookworm.tar.gz
+    tar -xzf pi_webrtc-1.0.2_pi-os-bookworm.tar.gz
+    ```
 
 ## Running the Application
 
-MQTT is currently the only signaling mechanism used, so ensure that your MQTT server is ready before starting the application. If the application is only intended for use within a local area network (LAN), the MQTT server (such as [Mosquitto](doc/SETUP_MOSQUITTO.md)) can be installed on the same Pi. However, if remote access is required, it is recommended to use a cloud-based MQTT server. Free plans include, but are not limited to, [HiveMQ](https://www.hivemq.com) and [EXMQ](https://www.emqx.com/en). Because If you choose to self-host and need to access the signaling server remotely via mobile data, you may need to set up DDNS and port forwarding if your ISP provides a dynamic IP.
+### MQTT Setup
 
-### Run
-To start the application, use your network settings and apply them to the following example command. The SDP/ICE data will be transferred under the MQTT topic specified by your `uid` setting.
-  * For legacy v4l2 driver
+An MQTT server is required for communication between devices. For remote access, free cloud options include [HiveMQ](https://www.hivemq.com) and [EMQX](https://www.emqx.com/en).
+
+> [!TIP]
+> **Is MQTT registration necessary, and why is MQTT needed?**<br/>
+> Yes, MQTT is required for signaling P2P connection info between your camera and the client UI.
+If you choose to self-host an MQTT server (e.g., [Mosquitto](doc/SETUP_MOSQUITTO.md)) and need to access the signaling server remotely via mobile data, you may need to set up DDNS, port forwarding, and SSL/TLS.
+
+### Start the Application
+
+* Set up the MQTT settings on your [Pi Camera App](https://github.com/TzuHuanTai/Pi-Camera) or [Pi Camera Web](https://picamera.live), and create a new device in the settings to get a `UID`. 
+* Run the command based on your network settings and `UID`:
+    ```bash
+    ./pi_webrtc --use_libcamera --fps=30 --width=1280 --height=960 --hw_accel --no_audio --mqtt_host=your.mqtt.cloud --mqtt_port=8883 --mqtt_username=hakunamatata --mqtt_password=Wonderful --uid=your-custom-uid
+    ```
+
+> [!IMPORTANT]
+> For Raspberry Pi 5 or other SBCs without hardware encoding support, run this command in software encoding mode by removing the `--hw_accel` flag.
+* Go to the Live page to enjoy real-time streaming!
+
+<p align=center>
+    <img src="doc/web_live_demo.jpg" alt="Pi 5 live demo on web">
+</p>
+
+# Advance
+
+For the complete user manual, please refer to the [wiki page](https://github.com/TzuHuanTai/RaspberryPi_WebRTC/wiki).
+
+## Using the Legacy V4L2 Driver
+
+* For Libcamera users (e.g., Camera Module 3), skip this step and add `--use_libcamera` to your command.
+* For V4L2 users, modify `/boot/firmware/config.txt` to enable the legacy driver:
+    ```ini
+    # camera_auto_detect=1  # Default setting
+    camera_auto_detect=0    # Read camera by v4l2
+    start_x=1               # Enable hardware-accelerated
+    gpu_mem=128             # Adjust based on resolution; use 256MB for 1080p and higher.
+    ```
+
+> [!TIP]
+> **How do I know if I should choose V4L2 or Libcamera for my camera?**<br/>
+> V4L2 is typically used with older cameras that don’t require specific drivers. Libcamera supports newer official Raspberry Pi Camera Modules, like Camera Module 3. If you are unsure, start with **Libcamera**.
+
+Here is a example command for V4L2 camera:
 ```bash
-/path/to/pi_webrtc --device=/dev/video0 --v4l2_format=h264 --fps=30 --width=1280 --height=960 --hw_accel --no_audio --mqtt_host=your.mqtt.cloud --mqtt_port=8883 --mqtt_username=hakunamatata --mqtt_password=Wonderful --uid=your-custom-uid --record_path=/mnt/ext_disk/video/
-```
-  * For libcamera
-```bash
-/path/to/pi_webrtc --use_libcamera --fps=30 --width=1280 --height=960 --hw_accel --no_audio --mqtt_host=your.mqtt.cloud --mqtt_port=8883 --mqtt_username=hakunamatata --mqtt_password=Wonderful --uid=your-custom-uid --record_path=/mnt/ext_disk/video/
+./pi_webrtc --device=/dev/video0 --v4l2_format=h264 --fps=30 --width=1280 --height=960 --hw_accel --no_audio --mqtt_host=your.mqtt.cloud --mqtt_port=8883 --mqtt_username=hakunamatata --mqtt_password=Wonderful --uid=your-custom-uid
 ```
 
-**Hint 1:** Since the Pi 5 does not support hardware encoding, please remove the `--hw_accel` flag and set `--v4l2_format` to `mjpeg`. Video encoding will be handled by built-in software codes.
+> [!CAUTION]
+> When setting 1920x1080 with the legacy V4L2 driver, the hardware decoder firmware may adjust it to 1920x1088, while the ISP/encoder remains at 1920x1080 on the 6.6.31 kernel. This may cause memory out-of-range issues. Setting 1920x1088 resolves this issue.
 
-**Hint 2:** I noticed that when I set `1920x1080` while using lagacy v4l2, the hardware decoder firmware changes it to `1920x1088`, but the isp/encoder does not adjust in the 6.6.31 kernel. This leads to memory being out of range. However, if I set `1920x1088`, all works fine.
+## Run as Linux Service
 
-### Run as Linux Service
+### 1. Run `pulseaudio` as system-wide daemon [[ref]](https://www.freedesktop.org/wiki/Software/PulseAudio/Documentation/User/SystemWide/):
 
-#### 1. **[Optional]** Run `pulseaudio` as system-wide daemon [[ref]](https://www.freedesktop.org/wiki/Software/PulseAudio/Documentation/User/SystemWide/):
-* create a file `/etc/systemd/system/pulseaudio.service`
+* Create a service file `/etc/systemd/system/pulseaudio.service`
+    ```bash
+    sudo nano /etc/systemd/system/pulseaudio.service
+    ```
+* Copy the following content:
     ```ini
     [Unit]
     Description= Pulseaudio Daemon
@@ -111,23 +131,28 @@ To start the application, use your network settings and apply them to the follow
     [Install]
     WantedBy=multi-user.target
     ```
-* Run the cmd to add a `autospawn = no` in the client conf
+* Run the command to add a `autospawn = no` in the client config
     ```bash
     echo 'autospawn = no' | sudo tee -a /etc/pulse/client.conf > /dev/null
     ```
-* Add root to pulse group
+* Add root to the pulse group
     ```bash
     sudo adduser root pulse-access
     ```
-* Enable and Start the Service
+* Enable and start the Service
     ```bash
     sudo systemctl daemon-reload
     sudo systemctl enable pulseaudio.service
     sudo systemctl start pulseaudio.service
     ```
 
-#### 2. In order to run `pi_webrtc` and ensure it starts automatically on reboot:
-* Create a service file `/etc/systemd/system/pi-webrtc.service` with the following content:
+### 2. In order to run `pi_webrtc` and ensure it starts automatically on reboot:
+
+* Create a service file `/etc/systemd/system/pi-webrtc.service`
+    ```bash
+    sudo nano /etc/systemd/system/pi-webrtc.service
+    ```
+* Modify `WorkingDirectory` and `ExecStart` to your settings:
     ```ini
     [Unit]
     Description= The p2p camera via webrtc.
@@ -136,23 +161,37 @@ To start the application, use your network settings and apply them to the follow
     [Service]
     Type=simple
     WorkingDirectory=/path/to
-    ExecStart=/path/to/pi_webrtc --device=/dev/video0 --fps=30 --width=1280 --height=960 --v4l2_format=h264 --hw_accel --mqtt_host=example.s1.eu.hivemq.cloud --mqtt_port=8883 --mqtt_username=hakunamatata --mqtt_password=wonderful --record_path=/mnt/ext_disk/video/
+    ExecStart=/path/to/pi_webrtc --use_libcamera --fps=30 --width=1280 --height=960 --hw_accel --mqtt_host=example.s1.eu.hivemq.cloud --mqtt_port=8883 --mqtt_username=hakunamatata --mqtt_password=wonderful
     Restart=always
     RestartSec=10
 
     [Install]
     WantedBy=multi-user.target
     ```
-* Enable and Start the Service
+* Enable and start the Service
     ```bash
     sudo systemctl daemon-reload
     sudo systemctl enable pi-webrtc.service
     sudo systemctl start pi-webrtc.service
     ```
 
-## Advance
+## Recording
 
-To enable two-way communication, a microphone and speaker need to be added to the Pi. It's easier to plug in a USB mic/speaker. If you want to use GPIO, please follow the link below.
+* To mount a USB disk at `/mnt/ext_disk` when detected [[ref]](https://wiki.gentoo.org/wiki/AutoFS):
+    ```bash
+    sudo apt-get install autofs
+    echo '/- /etc/auto.usb --timeout=5' | sudo tee -a /etc/auto.master > /dev/null
+    echo '/mnt/ext_disk -fstype=auto,nofail,nodev,nosuid,noatime,umask=000 :/dev/sda1' | sudo tee -a /etc/auto.usb > /dev/null
+    sudo systemctl restart autofs
+    ```
+* Add `--record_path` with the path under the disk behind the command.
+    ```bash
+    /path/to/pi_webrtc ... --record_path=/mnt/ext_disk/video
+    ```
+
+## Two-way communication
+
+a microphone and speaker need to be added to the Pi. It's easier to plug in a USB mic/speaker. If you want to use GPIO, please follow the link below.
 
 ### Microphone
 
