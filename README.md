@@ -1,4 +1,4 @@
-﻿<h1 align="center">
+<h1 align="center">
     Raspberry Pi WebRTC
 </h1>
 
@@ -37,44 +37,56 @@ To set up the environment, please check out the [tutorial video](https://youtu.b
 
 ## Environment Setup
 
-1. Install Raspberry Pi OS
+### 1. Install Raspberry Pi OS
 
-    Use the [Raspberry Pi Imager](https://www.raspberrypi.com/software/) to install Raspberry Pi Lite OS on your microSD card.
+Use the [Raspberry Pi Imager](https://www.raspberrypi.com/software/) to install Raspberry Pi Lite OS on your microSD card.
+
 > [!TIP]
 > **Can I use a regular Raspberry Pi OS, or does it have to be Lite?**<br/>
 > You can use either the Lite or full Raspberry Pi OS (the official recommended versions), but Lite OS is generally more efficient.
 
-2. Install essential libraries
-    ```bash
-    sudo apt install libmosquitto1 pulseaudio libavformat59 libswscale6
-    ```
-3. Download and unzip the binary file
-    ```bash
-    wget https://github.com/TzuHuanTai/RaspberryPi_WebRTC/releases/download/v1.0.2/pi_webrtc-1.0.2_pi-os-bookworm.tar.gz
-    tar -xzf pi_webrtc-1.0.2_pi-os-bookworm.tar.gz
-    ```
+### 2. Install essential libraries
 
-## Running the Application
+```bash
+sudo apt install libmosquitto1 pulseaudio libavformat59 libswscale6
+```
 
-### MQTT Setup
+### 3. Download and unzip the binary file
+
+```bash
+wget https://github.com/TzuHuanTai/RaspberryPi_WebRTC/releases/download/v1.0.2/pi_webrtc-1.0.2_pi-os-bookworm.tar.gz
+tar -xzf pi_webrtc-1.0.2_pi-os-bookworm.tar.gz
+```
+
+### 4. Setup MQTT
 
 An MQTT server is required for communication between devices. For remote access, free cloud options include [HiveMQ](https://www.hivemq.com) and [EMQX](https://www.emqx.com/en).
-
 > [!TIP]
 > **Is MQTT registration necessary, and why is MQTT needed?**<br/>
 > Yes, MQTT is required for signaling P2P connection info between your camera and the client UI.
 If you choose to self-host an MQTT server (e.g., [Mosquitto](doc/SETUP_MOSQUITTO.md)) and need to access the signaling server remotely via mobile data, you may need to set up DDNS, port forwarding, and SSL/TLS.
 
-### Start the Application
+## Running the Application
 
 * Set up the MQTT settings on your [Pi Camera App](https://github.com/TzuHuanTai/Pi-Camera) or [Pi Camera Web](https://picamera.live), and create a new device in the settings to get a `UID`. 
-* Run the command based on your network settings and `UID`:
+* Run the command based on your network settings and `UID` on the Raspberry Pi:
     ```bash
-    ./pi_webrtc --use_libcamera --fps=30 --width=1280 --height=960 --hw_accel --no_audio --mqtt_host=your.mqtt.cloud --mqtt_port=8883 --mqtt_username=hakunamatata --mqtt_password=Wonderful --uid=your-custom-uid
+    ./pi_webrtc \
+        --use_libcamera \
+        --fps=30 \
+        --width=1280 \
+        --height=960 \
+        --hw_accel \
+        --no_audio \
+        --mqtt_host=your.mqtt.cloud \
+        --mqtt_port=8883 \
+        --mqtt_username=hakunamatata \
+        --mqtt_password=Wonderful \
+        --uid=your-custom-uid
     ```
 
 > [!IMPORTANT]
-> For Raspberry Pi 5 or other SBCs without hardware encoding support, run this command in software encoding mode by removing the `--hw_accel` flag.
+> The `--hw_accel` flag is used for Pi Zero 2W, 3, 3B+, and 4B. For Pi 5 or other SBCs without a hardware encoder, run this command in software encoding mode by removing the `--hw_accel` flag.
 * Go to the Live page to enjoy real-time streaming!
 
 <p align=center>
@@ -83,7 +95,7 @@ If you choose to self-host an MQTT server (e.g., [Mosquitto](doc/SETUP_MOSQUITTO
 
 # Advance
 
-For recording video, two-way communication, or running as a background service, please refer to the [wiki page](https://github.com/TzuHuanTai/RaspberryPi_WebRTC/wiki/Advanced-Settings).
+For recording video, two-way communication, legacy V4L2 driver, or running as a background service, please refer to the [wiki page](https://github.com/TzuHuanTai/RaspberryPi_WebRTC/wiki/Advanced-Settings).
 
 # License
 
