@@ -97,6 +97,10 @@ If you choose to self-host an MQTT server (e.g., [Mosquitto](doc/SETUP_MOSQUITTO
 
 For recording video, two-way communication, legacy V4L2 driver, or running as a background service, please refer to the [wiki page](https://github.com/TzuHuanTai/RaspberryPi_WebRTC/wiki/Advanced-Settings).
 
+## Frontend Development with PiCamera.js
+
+If you are building a frontend application that needs to connect to and stream video, check out the JavaScript package [picamera.js](https://www.npmjs.com/package/picamera.js). 
+
 # License
 
 This project is licensed under the Apache License, Version 2.0. See the [LICENSE](LICENSE) file for details.
