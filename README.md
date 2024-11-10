@@ -27,6 +27,7 @@ To set up the environment, please check out the [tutorial video](https://youtu.b
 * Set up the network configuration and create a new client using one of the following options:
     * [Pi Camera](https://github.com/TzuHuanTai/Pi-Camera) app (Android).
     * [Pi Camera Web](https://picamera.live).
+    * Use [PiCamera.js](https://github.com/TzuHuanTai/PiCamera.js) to create your own.
 
 ## Hardware Requirements
 
