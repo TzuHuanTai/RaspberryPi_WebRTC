@@ -1,10 +1,10 @@
 # Build the project
 
 ## Preparation
-1. Follow [SETUP_ARM64_ENV](doc/SETUP_ARM64_ENV.md) to prepare an arm64 env for compilation. (Optional)
-2. Follow [BUILD_WEBRTC](doc/BUILD_WEBRTC.md) to compile a `libwebrtc.a`.
+1. Follow [SETUP_ARM64_ENV](SETUP_ARM64_ENV.md) to prepare an arm64 env for compilation. (Optional)
+2. Follow [BUILD_WEBRTC](BUILD_WEBRTC.md) to compile a `libwebrtc.a`.
 3. Prepare the MQTT development library.
-    * Follow [BUILD_MOSQUITTO](doc/BUILD_MOSQUITTO.md) to compile `mosquitto`.
+    * Follow [BUILD_MOSQUITTO](BUILD_MOSQUITTO.md) to compile `mosquitto`.
     * Install the lib from official repo [[tutorial](https://repo.mosquitto.org/debian/README.txt)]. (recommand)
 4. Install essential packages
     ```bash
