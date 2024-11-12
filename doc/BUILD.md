@@ -5,7 +5,7 @@
 2. Follow [BUILD_WEBRTC](BUILD_WEBRTC.md) to compile a `libwebrtc.a`.
 3. Prepare the MQTT development library.
     * Follow [BUILD_MOSQUITTO](BUILD_MOSQUITTO.md) to compile `mosquitto`.
-    * Install the lib from official repo [[tutorial](https://repo.mosquitto.org/debian/README.txt)]. (recommand)
+    * Install the lib from official repo [[tutorial](https://repo.mosquitto.org/debian/README.txt)]. (recommended)
 4. Install essential packages
     ```bash
     sudo apt install cmake clang clang-format mosquitto-dev libboost-program-options-dev libavformat-dev libavcodec-dev libavutil-dev libswscale-dev libpulse-dev libasound2-dev libjpeg-dev
