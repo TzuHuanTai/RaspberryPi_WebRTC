@@ -1,14 +1,14 @@
 # Build the project
 
 ## Preparation
-1. Follow [SETUP_ARM64_ENV](doc/SETUP_ARM64_ENV.md) to prepare an arm64 env for compilation. (Optional)
-2. Follow [BUILD_WEBRTC](doc/BUILD_WEBRTC.md) to compile a `libwebrtc.a`.
+1. Follow [SETUP_ARM64_ENV](SETUP_ARM64_ENV.md) to prepare an arm64 env for compilation. (Optional)
+2. Follow [BUILD_WEBRTC](BUILD_WEBRTC.md) to compile a `libwebrtc.a`.
 3. Prepare the MQTT development library.
-    * Follow [BUILD_MOSQUITTO](doc/BUILD_MOSQUITTO.md) to compile `mosquitto`.
-    * Install the lib from official repo [[tutorial](https://repo.mosquitto.org/debian/README.txt)]. (recommand)
+    * Follow [BUILD_MOSQUITTO](BUILD_MOSQUITTO.md) to compile `mosquitto`.
+    * Install the lib from official repo [[tutorial](https://repo.mosquitto.org/debian/README.txt)]. (recommended)
 4. Install essential packages
     ```bash
-    sudo apt install cmake clang clang-format mosquitto-dev libboost-program-options-dev libavformat-dev libavcodec-dev libavutil-dev libswscale-dev libpulse-dev libasound2-dev libjpeg-dev
+    sudo apt install cmake clang clang-format mosquitto-dev libboost-program-options-dev libavformat-dev libavcodec-dev libavutil-dev libswscale-dev libpulse-dev libasound2-dev libjpeg-dev libcamera-dev libmosquitto-dev
     ```
 5. Copy the [nlohmann/json.hpp](https://github.com/nlohmann/json/blob/develop/single_include/nlohmann/json.hpp) to `/usr/local/include`
     ```bash
