@@ -56,7 +56,9 @@ include_directories(
     ${WEBRTC_INCLUDE_DIR}/tools/json_schema_compiler
 )
 
-if(BUILD_TEST STREQUAL "pulseaudio")
+if(BUILD_TEST STREQUAL "http_server")
+    add_executable(test_http_server test/test_http_server.cpp)
+elseif(BUILD_TEST STREQUAL "pulseaudio")
     add_executable(test_pulseaudio test/test_pulseaudio.cpp)
 
     target_link_libraries(test_pulseaudio
