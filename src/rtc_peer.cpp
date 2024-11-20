@@ -4,13 +4,8 @@
 #include <thread>
 
 #include "common/logging.h"
-#if USE_MQTT_SIGNALING
-#include "signaling/mqtt_service.h"
-#endif
 
-rtc::scoped_refptr<RtcPeer> RtcPeer::Create() {
-    return rtc::make_ref_counted<RtcPeer>();
-}
+rtc::scoped_refptr<RtcPeer> RtcPeer::Create() { return rtc::make_ref_counted<RtcPeer>(); }
 
 RtcPeer::RtcPeer()
     : id_(Utils::GenerateUuid()),
@@ -18,7 +13,6 @@ RtcPeer::RtcPeer()
       is_complete_(false) {}
 
 RtcPeer::~RtcPeer() {
-    signaling_service_->RemoveCallback(id_);
     peer_connection_ = nullptr;
     data_channel_subject_.reset();
     timeout_thread_.join();
@@ -38,11 +32,6 @@ void RtcPeer::SetPeer(rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer) 
 }
 
 rtc::scoped_refptr<webrtc::PeerConnectionInterface> RtcPeer::GetPeer() { return peer_connection_; }
-
-void RtcPeer::SetSignaling(std::shared_ptr<SignalingService> signaling_service) {
-    signaling_service_ = signaling_service;
-    signaling_service_->SetCallback(id_, this);
-}
 
 void RtcPeer::CreateDataChannel() {
     struct webrtc::DataChannelInit init;
@@ -125,9 +114,8 @@ void RtcPeer::OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnection
 void RtcPeer::OnIceCandidate(const webrtc::IceCandidateInterface *candidate) {
     std::string ice;
     candidate->ToString(&ice);
-    if (signaling_service_) {
-        signaling_service_->AnswerLocalIce(id_, candidate->sdp_mid(), candidate->sdp_mline_index(),
-                                           ice);
+    if (on_local_ice_fn_) {
+        on_local_ice_fn_(id_, candidate->sdp_mid(), candidate->sdp_mline_index(), ice);
     }
 }
 
@@ -148,8 +136,8 @@ void RtcPeer::OnSuccess(webrtc::SessionDescriptionInterface *desc) {
     std::string sdp;
     desc->ToString(&sdp);
     std::string type = webrtc::SdpTypeToString(desc->GetType());
-    if (signaling_service_) {
-        signaling_service_->AnswerLocalSdp(id_, sdp, type);
+    if (on_local_sdp_fn_) {
+        on_local_sdp_fn_(id_, sdp, type);
     }
 }
 
@@ -158,7 +146,7 @@ void RtcPeer::OnFailure(webrtc::RTCError error) {
     ERROR_PRINT("%s; %s", std::string(type).c_str(), error.message());
 }
 
-void RtcPeer::OnRemoteSdp(std::string sdp, std::string sdp_type) {
+void RtcPeer::SetRemoteSdp(const std::string &sdp, const std::string &sdp_type) {
     if (is_connected_.load()) {
         return;
     }
@@ -188,20 +176,21 @@ void RtcPeer::OnRemoteSdp(std::string sdp, std::string sdp_type) {
     }
 }
 
-void RtcPeer::OnRemoteIce(std::string sdp_mid, int sdp_mline_index, std::string sdp) {
+void RtcPeer::SetRemoteIce(const std::string &sdp_mid, int sdp_mline_index,
+                           const std::string &candidate) {
     if (is_connected_.load()) {
         return;
     }
 
     webrtc::SdpParseError error;
-    std::unique_ptr<webrtc::IceCandidateInterface> candidate(
-        webrtc::CreateIceCandidate(sdp_mid, sdp_mline_index, sdp, &error));
-    if (!candidate.get()) {
+    std::unique_ptr<webrtc::IceCandidateInterface> ice(
+        webrtc::CreateIceCandidate(sdp_mid, sdp_mline_index, candidate, &error));
+    if (!ice.get()) {
         ERROR_PRINT("Can't parse received candidate message. %s", error.description.c_str());
         return;
     }
 
-    if (!peer_connection_->AddIceCandidate(candidate.get())) {
+    if (!peer_connection_->AddIceCandidate(ice.get())) {
         ERROR_PRINT("Failed to apply the received candidate!");
         return;
     }

@@ -1,8 +1,8 @@
 #ifndef RTC_PEER_H_
 #define RTC_PEER_H_
 
-#include <iostream>
 #include <atomic>
+#include <iostream>
 
 #include <api/data_channel_interface.h>
 #include <api/peer_connection_interface.h>
@@ -62,7 +62,6 @@ class RtcPeer : public webrtc::PeerConnectionObserver,
     void SetSink(rtc::VideoSinkInterface<webrtc::VideoFrame> *video_sink_obj);
     void SetPeer(rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer);
     rtc::scoped_refptr<webrtc::PeerConnectionInterface> GetPeer();
-    void SetSignaling(std::shared_ptr<SignalingService> signaling_service);
     void CreateDataChannel();
     void OnSnapshot(OnCommand func);
     void OnMetadata(OnCommand func);
@@ -86,14 +85,14 @@ class RtcPeer : public webrtc::PeerConnectionObserver,
     void OnFailure(webrtc::RTCError error) override;
 
     // SignalingMessageObserver implementation.
-    void OnRemoteSdp(std::string sdp, std::string type) override;
-    void OnRemoteIce(std::string sdp_mid, int sdp_mline_index, std::string candidate) override;
+    void SetRemoteSdp(const std::string &sdp, const std::string &type) override;
+    void SetRemoteIce(const std::string &sdp_mid, int sdp_mline_index,
+                      const std::string &candidate) override;
 
     std::string id_;
     std::atomic<bool> is_connected_;
     std::atomic<bool> is_complete_;
     std::thread timeout_thread_;
-    std::shared_ptr<SignalingService> signaling_service_;
     std::shared_ptr<DataChannelSubject> data_channel_subject_;
     rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer_connection_;
     rtc::VideoSinkInterface<webrtc::VideoFrame> *custom_video_sink_;

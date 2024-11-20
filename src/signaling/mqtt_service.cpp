@@ -42,7 +42,7 @@ std::string MqttService::GetTopic(const std::string &topic, const std::string &c
 
 MqttService::~MqttService() { Disconnect(); }
 
-void MqttService::OnRemoteSdp(std::string peer_id, std::string message) {
+void MqttService::OnRemoteSdp(const std::string &peer_id, const std::string &message) {
     nlohmann::json jsonObj = nlohmann::json::parse(message);
     std::string sdp = jsonObj["sdp"];
     std::string type = jsonObj["type"];
@@ -50,11 +50,11 @@ void MqttService::OnRemoteSdp(std::string peer_id, std::string message) {
 
     auto callback = peer_callback_map[peer_id];
     if (callback) {
-        callback->OnRemoteSdp(sdp, type);
+        callback->SetRemoteSdp(sdp, type);
     }
 }
 
-void MqttService::OnRemoteIce(std::string peer_id, std::string message) {
+void MqttService::OnRemoteIce(const std::string &peer_id, const std::string &message) {
     nlohmann::json jsonObj = nlohmann::json::parse(message);
     std::string sdp_mid = jsonObj["sdpMid"];
     int sdp_mline_index = jsonObj["sdpMLineIndex"];
@@ -64,11 +64,12 @@ void MqttService::OnRemoteIce(std::string peer_id, std::string message) {
 
     auto callback = peer_callback_map[peer_id];
     if (callback) {
-        callback->OnRemoteIce(sdp_mid, sdp_mline_index, candidate);
+        callback->SetRemoteIce(sdp_mid, sdp_mline_index, candidate);
     }
 }
 
-void MqttService::AnswerLocalSdp(std::string peer_id, std::string sdp, std::string type) {
+void MqttService::AnswerLocalSdp(const std::string &peer_id, const std::string &sdp,
+                                 const std::string &type) {
     DEBUG_PRINT("Answer local [%s] SDP: %s", type.c_str(), sdp.c_str());
     nlohmann::json jsonData;
     jsonData["type"] = type;
@@ -78,8 +79,8 @@ void MqttService::AnswerLocalSdp(std::string peer_id, std::string sdp, std::stri
     Publish(GetTopic("sdp", peer_id_to_client_id_[peer_id]), jsonString);
 }
 
-void MqttService::AnswerLocalIce(std::string peer_id, std::string sdp_mid, int sdp_mline_index,
-                                 std::string candidate) {
+void MqttService::AnswerLocalIce(const std::string &peer_id, const std::string &sdp_mid,
+                                 const int sdp_mline_index, const std::string &candidate) {
     DEBUG_PRINT("Sent local ICE:  %s, %d, %s", sdp_mid.c_str(), sdp_mline_index, candidate.c_str());
     nlohmann::json jsonData;
     jsonData["sdpMid"] = sdp_mid;
@@ -153,7 +154,15 @@ void MqttService::OnMessage(struct mosquitto *mosq, void *obj,
         RefreshPeerMap();
 
         auto peer = conductor_->CreatePeerConnection();
-        peer->SetSignaling(shared_from_this());
+        SetPeerToMap(peer->GetId(), peer.get());
+        peer->OnLocalSdp(
+            [this](const std::string &peer_id, const std::string &sdp, const std::string &type) {
+                AnswerLocalSdp(peer_id, sdp, type);
+            });
+        peer->OnLocalIce([this](const std::string &peer_id, const std::string &sdp_mid,
+                                int sdp_mline_index, const std::string &candidate) {
+            AnswerLocalIce(peer_id, sdp_mid, sdp_mline_index, candidate);
+        });
 
         client_id_to_peer_[client_id] = peer;
         peer_id_to_client_id_[peer->GetId()] = client_id;
@@ -195,6 +204,7 @@ void MqttService::RefreshPeerMap() {
         if (pm_it->second && !pm_it->second->IsConnected()) {
             auto id = pm_it->second->GetId();
             peer_id_to_client_id_.erase(id);
+            RemovePeerFromMap(id);
             pm_it->second->Release();
             pm_it->second.release();
             pm_it->second = nullptr;
