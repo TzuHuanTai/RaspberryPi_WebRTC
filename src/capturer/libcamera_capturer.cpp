@@ -37,9 +37,10 @@ void LibcameraCapturer::Init(std::string device) {
 }
 
 LibcameraCapturer::~LibcameraCapturer() {
-    std::lock_guard<std::mutex> lock(mtx);
     camera_->stop();
     allocator_->free(stream_);
+    allocator_.reset();
+    camera_config_.reset();
     camera_->release();
     camera_.reset();
     cm_->stop();
@@ -178,7 +179,6 @@ void LibcameraCapturer::RequestComplete(libcamera::Request *request) {
     V4l2Buffer v4l2_buffer((uint8_t *)data, length, V4L2_BUF_FLAG_KEYFRAME, tv);
     NextBuffer(v4l2_buffer);
 
-    std::lock_guard<std::mutex> lock(mtx);
     request->reuse(libcamera::Request::ReuseBuffers);
     camera_->queueRequest(request);
 }
