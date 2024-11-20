@@ -37,7 +37,6 @@ class LibcameraCapturer : public VideoCapturer {
     int buffer_count_;
     uint32_t format_;
     Args config_;
-    std::mutex mtx;
 
     std::unique_ptr<libcamera::CameraManager> cm_;
     std::shared_ptr<libcamera::Camera> camera_;
