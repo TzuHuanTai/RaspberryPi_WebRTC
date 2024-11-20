@@ -487,3 +487,11 @@ int Utils::GetVideoDuration(const std::string &filePath) {
 
     return durationInSeconds;
 }
+
+std::string Utils::GenerateUuid() {
+    uuid_t uuid;
+    char uuid_str[37];
+    uuid_generate(uuid);
+    uuid_unparse(uuid, uuid_str);
+    return std::string(uuid_str);
+}

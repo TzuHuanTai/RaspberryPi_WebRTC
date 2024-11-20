@@ -12,23 +12,21 @@
 #include "args.h"
 #include "common/logging.h"
 
-std::shared_ptr<MqttService> MqttService::Create(Args args) {
-    auto ptr = std::make_shared<MqttService>(args);
-    ptr->Connect();
-    return ptr;
+std::shared_ptr<MqttService> MqttService::Create(Args args, std::shared_ptr<Conductor> conductor) {
+    return std::make_shared<MqttService>(args, conductor);
 }
 
-MqttService::MqttService(Args args)
+MqttService::MqttService(Args args, std::shared_ptr<Conductor> conductor)
     : SignalingService(),
       port_(args.mqtt_port),
-      sdp_received_(false),
       uid_(args.uid),
       hostname_(args.mqtt_host),
       username_(args.mqtt_username),
       password_(args.mqtt_password),
       sdp_base_topic_(GetTopic("sdp")),
       ice_base_topic_(GetTopic("ice")),
-      connection_(nullptr) {}
+      connection_(nullptr),
+      conductor_(conductor) {}
 
 std::string MqttService::GetTopic(const std::string &topic, const std::string &client_id) const {
     std::string result;
@@ -44,39 +42,44 @@ std::string MqttService::GetTopic(const std::string &topic, const std::string &c
 
 MqttService::~MqttService() { Disconnect(); }
 
-void MqttService::OnRemoteSdp(std::string message) {
+void MqttService::OnRemoteSdp(std::string peer_id, std::string message) {
     nlohmann::json jsonObj = nlohmann::json::parse(message);
     std::string sdp = jsonObj["sdp"];
     std::string type = jsonObj["type"];
     DEBUG_PRINT("Received remote [%s] SDP: %s", type.c_str(), sdp.c_str());
-    if (callback_) {
-        callback_->OnRemoteSdp(sdp, type);
+
+    auto callback = peer_callback_map[peer_id];
+    if (callback) {
+        callback->OnRemoteSdp(sdp, type);
     }
 }
 
-void MqttService::OnRemoteIce(std::string message) {
+void MqttService::OnRemoteIce(std::string peer_id, std::string message) {
     nlohmann::json jsonObj = nlohmann::json::parse(message);
     std::string sdp_mid = jsonObj["sdpMid"];
     int sdp_mline_index = jsonObj["sdpMLineIndex"];
     std::string candidate = jsonObj["candidate"];
     DEBUG_PRINT("Received remote ICE: %s, %d, %s", sdp_mid.c_str(), sdp_mline_index,
                 candidate.c_str());
-    if (callback_) {
-        callback_->OnRemoteIce(sdp_mid, sdp_mline_index, candidate);
+
+    auto callback = peer_callback_map[peer_id];
+    if (callback) {
+        callback->OnRemoteIce(sdp_mid, sdp_mline_index, candidate);
     }
 }
 
-void MqttService::AnswerLocalSdp(std::string sdp, std::string type) {
+void MqttService::AnswerLocalSdp(std::string peer_id, std::string sdp, std::string type) {
     DEBUG_PRINT("Answer local [%s] SDP: %s", type.c_str(), sdp.c_str());
     nlohmann::json jsonData;
     jsonData["type"] = type;
     jsonData["sdp"] = sdp;
     std::string jsonString = jsonData.dump();
 
-    Publish(GetTopic("sdp", remote_client_id_), jsonString);
+    Publish(GetTopic("sdp", peer_id_to_client_id_[peer_id]), jsonString);
 }
 
-void MqttService::AnswerLocalIce(std::string sdp_mid, int sdp_mline_index, std::string candidate) {
+void MqttService::AnswerLocalIce(std::string peer_id, std::string sdp_mid, int sdp_mline_index,
+                                 std::string candidate) {
     DEBUG_PRINT("Sent local ICE:  %s, %d, %s", sdp_mid.c_str(), sdp_mline_index, candidate.c_str());
     nlohmann::json jsonData;
     jsonData["sdpMid"] = sdp_mid;
@@ -84,7 +87,7 @@ void MqttService::AnswerLocalIce(std::string sdp_mid, int sdp_mline_index, std::
     jsonData["candidate"] = candidate;
     std::string jsonString = jsonData.dump();
 
-    Publish(GetTopic("ice", remote_client_id_), jsonString);
+    Publish(GetTopic("ice", peer_id_to_client_id_[peer_id]), jsonString);
 }
 
 void MqttService::Disconnect() {
@@ -144,13 +147,22 @@ void MqttService::OnMessage(struct mosquitto *mosq, void *obj,
     std::string topic(message->topic);
     std::string payload(static_cast<char *>(message->payload));
 
-    if (!sdp_received_ && topic.substr(0, sdp_base_topic_.length()) == sdp_base_topic_) {
-        remote_client_id_ = GetClientId(topic);
-        sdp_received_ = true;
-        OnRemoteSdp(payload);
-        Unsubscribe(sdp_base_topic_ + "/+/offer");
-    } else if (sdp_received_ && topic.substr(0, ice_base_topic_.length()) == ice_base_topic_) {
-        OnRemoteIce(payload);
+    auto client_id = GetClientId(topic);
+
+    if (!client_id_to_peer_.contains(client_id)) {
+        RefreshPeerMap();
+
+        auto peer = conductor_->CreatePeerConnection();
+        peer->SetSignaling(shared_from_this());
+
+        client_id_to_peer_[client_id] = peer;
+        peer_id_to_client_id_[peer->GetId()] = client_id;
+    }
+
+    if (topic.substr(0, sdp_base_topic_.length()) == sdp_base_topic_) {
+        OnRemoteSdp(client_id_to_peer_[client_id]->GetId(), payload);
+    } else if (topic.substr(0, ice_base_topic_.length()) == ice_base_topic_) {
+        OnRemoteIce(client_id_to_peer_[client_id]->GetId(), payload);
     }
 }
 
@@ -172,6 +184,26 @@ std::string MqttService::GetClientId(std::string &topic) {
     }
 
     return "";
+}
+
+void MqttService::RefreshPeerMap() {
+    auto pm_it = client_id_to_peer_.begin();
+    while (pm_it != client_id_to_peer_.end()) {
+        DEBUG_PRINT("Found peers_map key: %s, value: %d", pm_it->second->GetId().c_str(),
+                    pm_it->second->IsConnected());
+
+        if (pm_it->second && !pm_it->second->IsConnected()) {
+            auto id = pm_it->second->GetId();
+            peer_id_to_client_id_.erase(id);
+            pm_it->second->Release();
+            pm_it->second.release();
+            pm_it->second = nullptr;
+            pm_it = client_id_to_peer_.erase(pm_it);
+            DEBUG_PRINT("peers_map(%s) was erased.", id.c_str());
+        } else {
+            ++pm_it;
+        }
+    }
 }
 
 void MqttService::Connect() {
@@ -205,13 +237,11 @@ void MqttService::Connect() {
 
     int rc = mosquitto_connect_async(connection_, hostname_.c_str(), port_, 60);
     if (rc != MOSQ_ERR_SUCCESS) {
-        mosquitto_destroy(connection_);
         ERROR_PRINT("%s", mosquitto_strerror(rc));
     }
 
-    rc = mosquitto_loop_start(connection_); // already handle reconnections
+    rc = mosquitto_loop_forever(connection_, -1, 1); // already handle reconnections
     if (rc != MOSQ_ERR_SUCCESS) {
-        mosquitto_destroy(connection_);
         ERROR_PRINT("%s", mosquitto_strerror(rc));
     }
 }

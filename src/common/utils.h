@@ -9,6 +9,7 @@
 #include <sstream>
 #include <sys/statvfs.h>
 #include <vector>
+#include <uuid/uuid.h>
 
 namespace fs = std::filesystem;
 
@@ -57,6 +58,8 @@ class Utils {
                                 const std::string &url);
     static void WriteJpegImage(Buffer buffer, const std::string &url);
     static int GetVideoDuration(const std::string &filePath);
+
+    static std::string GenerateUuid();
 };
 
 #endif // UTILS_

@@ -25,33 +25,22 @@ class Conductor {
     ~Conductor();
 
     Args config() const;
-    bool CreatePeerConnection();
-    rtc::scoped_refptr<webrtc::PeerConnectionInterface> GetPeer() const;
+    rtc::scoped_refptr<RtcPeer> CreatePeerConnection();
     std::shared_ptr<PaCapturer> AudioSource() const;
     std::shared_ptr<VideoCapturer> VideoSource() const;
-    void SetSink(rtc::VideoSinkInterface<webrtc::VideoFrame> *video_sink_obj);
-    void AwaitCompletion();
 
   private:
     Args args;
-    int peers_idx;
-    bool is_paired;
-    std::mutex state_mtx;
-    std::condition_variable peer_state;
-    std::unordered_map<int, rtc::scoped_refptr<RtcPeer>> peers_map;
 
     void InitializePeerConnectionFactory();
     void InitializeTracks();
-    bool InitializeRecorder();
     void AddTracks(rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer_connection);
-    void RefreshPeerList();
-    void SetPeerOnPaired(bool state);
     void OnRecord(std::shared_ptr<DataChannelSubject> datachannel, std::string path);
 
     std::unique_ptr<rtc::Thread> network_thread_;
     std::unique_ptr<rtc::Thread> worker_thread_;
     std::unique_ptr<rtc::Thread> signaling_thread_;
-    rtc::scoped_refptr<RtcPeer> peer_;
+
     std::shared_ptr<PaCapturer> audio_capture_source_;
     std::shared_ptr<VideoCapturer> video_capture_source_;
     rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> peer_connection_factory_;

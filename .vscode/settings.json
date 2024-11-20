@@ -76,8 +76,11 @@
         "numbers": "cpp",
         "semaphore": "cpp",
         "span": "cpp",
-        "valarray": "cpp"
+        "valarray": "cpp",
+        "coroutine": "cpp",
+        "source_location": "cpp"
     },
     "clang-format.executable": "clang-format",
     "clang-format.style": "file",
+    "C_Cpp.dimInactiveRegions": false
 }

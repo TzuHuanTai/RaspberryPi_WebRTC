@@ -12,21 +12,26 @@ class SignalingMessageObserver {
 
 class SignalingService {
   public:
-    SignalingService()
-        : callback_(nullptr){};
+    SignalingService(){};
     virtual ~SignalingService(){};
 
-    void ResetCallback(SignalingMessageObserver *callback) { callback_ = callback; };
-    void ResetCallback() { callback_ = nullptr; };
+    void SetCallback(std::string peer_id, SignalingMessageObserver *callback) {
+        peer_callback_map[peer_id] = callback;
+    };
+    void RemoveCallback(std::string peer_id) {
+        printf("%s callback is removed!\n", peer_id.c_str());
+        peer_callback_map.erase(peer_id);
+    }
+    void ResetCallback() { peer_callback_map.clear(); };
 
-    virtual void AnswerLocalSdp(std::string sdp, std::string type) = 0;
-    virtual void AnswerLocalIce(std::string sdp_mid, int sdp_mline_index,
+    virtual void AnswerLocalSdp(std::string peer_id, std::string sdp, std::string type) = 0;
+    virtual void AnswerLocalIce(std::string peer_id, std::string sdp_mid, int sdp_mline_index,
                                 std::string candidate) = 0;
     virtual void Connect() = 0;
     virtual void Disconnect() = 0;
 
   protected:
-    SignalingMessageObserver *callback_;
+    std::unordered_map<std::string, SignalingMessageObserver *> peer_callback_map;
 };
 
 #endif
