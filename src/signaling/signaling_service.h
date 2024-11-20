@@ -6,8 +6,22 @@
 
 class SignalingMessageObserver {
   public:
-    virtual void OnRemoteSdp(std::string sdp, std::string type) = 0;
-    virtual void OnRemoteIce(std::string sdp_mid, int sdp_mline_index, std::string candidate) = 0;
+    using OnLocalSdpFunc = std::function<void(const std::string &peer_id, const std::string &sdp,
+                                              const std::string &type)>;
+    using OnLocalIceFunc =
+        std::function<void(const std::string &peer_id, const std::string &sdp_mid,
+                           int sdp_mline_index, const std::string &candidate)>;
+
+    virtual void SetRemoteSdp(const std::string &sdp, const std::string &type) = 0;
+    virtual void SetRemoteIce(const std::string &sdp_mid, int sdp_mline_index,
+                              const std::string &candidate) = 0;
+
+    void OnLocalSdp(OnLocalSdpFunc func) { on_local_sdp_fn_ = std::move(func); };
+    void OnLocalIce(OnLocalIceFunc func) { on_local_ice_fn_ = std::move(func); };
+
+  protected:
+    OnLocalSdpFunc on_local_sdp_fn_ = nullptr;
+    OnLocalIceFunc on_local_ice_fn_ = nullptr;
 };
 
 class SignalingService {
@@ -15,18 +29,14 @@ class SignalingService {
     SignalingService(){};
     virtual ~SignalingService(){};
 
-    void SetCallback(std::string peer_id, SignalingMessageObserver *callback) {
+    void SetPeerToMap(const std::string &peer_id, SignalingMessageObserver *callback) {
         peer_callback_map[peer_id] = callback;
     };
-    void RemoveCallback(std::string peer_id) {
-        printf("%s callback is removed!\n", peer_id.c_str());
+    void RemovePeerFromMap(const std::string &peer_id) {
         peer_callback_map.erase(peer_id);
     }
-    void ResetCallback() { peer_callback_map.clear(); };
+    void ResetPeerMap() { peer_callback_map.clear(); };
 
-    virtual void AnswerLocalSdp(std::string peer_id, std::string sdp, std::string type) = 0;
-    virtual void AnswerLocalIce(std::string peer_id, std::string sdp_mid, int sdp_mline_index,
-                                std::string candidate) = 0;
     virtual void Connect() = 0;
     virtual void Disconnect() = 0;
 

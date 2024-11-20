@@ -7,10 +7,9 @@
 #include <mosquitto.h>
 
 #include "args.h"
-#include <conductor.h>
+#include "conductor.h"
 
-class MqttService : public std::enable_shared_from_this<MqttService>,
-                    public SignalingService {
+class MqttService : public SignalingService {
   public:
     static std::shared_ptr<MqttService> Create(Args args, std::shared_ptr<Conductor> conductor);
 
@@ -19,9 +18,6 @@ class MqttService : public std::enable_shared_from_this<MqttService>,
 
     void Connect() override;
     void Disconnect() override;
-    void AnswerLocalSdp(std::string peer_id, std::string sdp, std::string type) override;
-    void AnswerLocalIce(std::string peer_id, std::string sdp_mid, int sdp_mline_index,
-                        std::string candidate) override;
 
   private:
     int port_;
@@ -38,8 +34,13 @@ class MqttService : public std::enable_shared_from_this<MqttService>,
     std::unordered_map<std::string, rtc::scoped_refptr<RtcPeer>> client_id_to_peer_;
     void RefreshPeerMap();
 
-    void OnRemoteSdp(std::string peer_id, std::string message);
-    void OnRemoteIce(std::string peer_id, std::string message);
+    void OnRemoteSdp(const std::string &peer_id, const std::string &message);
+    void OnRemoteIce(const std::string &peer_id, const std::string &message);
+    void AnswerLocalSdp(const std::string &peer_id, const std::string &sdp,
+                        const std::string &type);
+    void AnswerLocalIce(const std::string &peer_id, const std::string &sdp_mid,
+                        const int sdp_mline_index, const std::string &candidate);
+
     void Subscribe(const std::string &topic);
     void Unsubscribe(const std::string &topic);
     void Publish(const std::string &topic, const std::string &msg);
