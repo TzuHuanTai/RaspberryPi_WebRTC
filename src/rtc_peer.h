@@ -47,37 +47,28 @@ class SetSessionDescription : public webrtc::SetSessionDescriptionObserver {
     OnFailureFunc on_failure_;
 };
 
-struct PeerState {
-    int id;
-    bool is_connected;
-    bool is_paired;
-};
-
 class RtcPeer : public webrtc::PeerConnectionObserver,
                 public webrtc::CreateSessionDescriptionObserver,
-                public SignalingMessageObserver,
-                public Subject<PeerState> {
+                public SignalingMessageObserver {
   public:
     using OnCommand = std::function<void(std::shared_ptr<DataChannelSubject>, std::string)>;
 
-    static rtc::scoped_refptr<RtcPeer> Create(Args args, int id);
+    static rtc::scoped_refptr<RtcPeer> Create();
 
-    RtcPeer(int id);
+    RtcPeer();
     ~RtcPeer();
     bool IsConnected() const;
-    int GetId() const;
+    std::string GetId() const;
     void SetSink(rtc::VideoSinkInterface<webrtc::VideoFrame> *video_sink_obj);
     void SetPeer(rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer);
     rtc::scoped_refptr<webrtc::PeerConnectionInterface> GetPeer();
-    void InitSignalingClient(Args args);
+    void SetSignaling(std::shared_ptr<SignalingService> signaling_service);
     void CreateDataChannel();
     void OnSnapshot(OnCommand func);
     void OnMetadata(OnCommand func);
     void OnRecord(OnCommand func);
-    void OnPaired(std::function<void(PeerState)> func);
 
   private:
-    void OnPaired(bool is_ready);
     void SubscribeCommandChannel(CommandType type, OnCommand func);
 
     // PeerConnectionObserver implementation.
@@ -98,11 +89,11 @@ class RtcPeer : public webrtc::PeerConnectionObserver,
     void OnRemoteSdp(std::string sdp, std::string type) override;
     void OnRemoteIce(std::string sdp_mid, int sdp_mline_index, std::string candidate) override;
 
-    int id_;
+    std::string id_;
     std::atomic<bool> is_connected_;
     std::atomic<bool> is_complete_;
     std::thread timeout_thread_;
-    std::shared_ptr<SignalingService> signaling_client_;
+    std::shared_ptr<SignalingService> signaling_service_;
     std::shared_ptr<DataChannelSubject> data_channel_subject_;
     rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer_connection_;
     rtc::VideoSinkInterface<webrtc::VideoFrame> *custom_video_sink_;

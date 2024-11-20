@@ -4,6 +4,7 @@
             "name": "Linux",
             "includePath": [
                 "${workspaceFolder}/**",
+                "/usr/include/*",
                 "/usr/local/include/**",
                 "/usr/include/libcamera/**",
                 "/usr/local/include/webrtc/*",

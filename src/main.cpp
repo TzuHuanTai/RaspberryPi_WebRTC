@@ -6,6 +6,7 @@
 #include "conductor.h"
 #include "parser.h"
 #include "recorder/recorder_manager.h"
+#include "signaling/mqtt_service.h"
 
 int main(int argc, char *argv[]) {
     Args args;
@@ -22,15 +23,18 @@ int main(int argc, char *argv[]) {
         DEBUG_PRINT("Recorder is not started!");
     }
 
-    try {
-        while (true) {
-            conductor->CreatePeerConnection();
+    auto signaling_service = ([args, conductor]() -> std::shared_ptr<SignalingService> {
+#if USE_MQTT_SIGNALING
+        return MqttService::Create(args, conductor);
+#else
+        return nullptr;
+#endif
+    })();
 
-            DEBUG_PRINT("Wait for signaling!");
-            conductor->AwaitCompletion();
-        }
-    } catch (const std::exception &e) {
-        ERROR_PRINT("%s", e.what());
+    if (signaling_service) {
+        signaling_service->Connect();
+    } else {
+        INFO_PRINT("There is no any signaling service found!");
     }
 
     return 0;

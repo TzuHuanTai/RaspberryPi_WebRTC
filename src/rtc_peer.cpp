@@ -1,33 +1,31 @@
 #include "rtc_peer.h"
 
-#include <thread>
 #include <chrono>
+#include <thread>
 
 #include "common/logging.h"
 #if USE_MQTT_SIGNALING
 #include "signaling/mqtt_service.h"
 #endif
 
-rtc::scoped_refptr<RtcPeer> RtcPeer::Create(Args args, int id) {
-    auto ptr = rtc::make_ref_counted<RtcPeer>(id);
-    ptr->InitSignalingClient(args);
-    return ptr;
+rtc::scoped_refptr<RtcPeer> RtcPeer::Create() {
+    return rtc::make_ref_counted<RtcPeer>();
 }
 
-RtcPeer::RtcPeer(int id)
-    : id_(id),
+RtcPeer::RtcPeer()
+    : id_(Utils::GenerateUuid()),
       is_connected_(false),
       is_complete_(false) {}
 
 RtcPeer::~RtcPeer() {
+    signaling_service_->RemoveCallback(id_);
     peer_connection_ = nullptr;
-    signaling_client_.reset();
     data_channel_subject_.reset();
     timeout_thread_.join();
-    DEBUG_PRINT("peer connection (%d) was destroyed!", id_);
+    DEBUG_PRINT("peer connection (%s) was destroyed!", id_.c_str());
 }
 
-int RtcPeer::GetId() const { return id_; }
+std::string RtcPeer::GetId() const { return id_; }
 
 bool RtcPeer::IsConnected() const { return is_connected_.load(); }
 
@@ -41,15 +39,9 @@ void RtcPeer::SetPeer(rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer) 
 
 rtc::scoped_refptr<webrtc::PeerConnectionInterface> RtcPeer::GetPeer() { return peer_connection_; }
 
-void RtcPeer::InitSignalingClient(Args args) {
-    signaling_client_ = ([args]() -> std::shared_ptr<SignalingService> {
-#if USE_MQTT_SIGNALING
-        return MqttService::Create(args);
-#else
-        return nullptr;
-#endif
-    })();
-    signaling_client_->ResetCallback(this);
+void RtcPeer::SetSignaling(std::shared_ptr<SignalingService> signaling_service) {
+    signaling_service_ = signaling_service;
+    signaling_service_->SetCallback(id_, this);
 }
 
 void RtcPeer::CreateDataChannel() {
@@ -91,22 +83,10 @@ void RtcPeer::SubscribeCommandChannel(CommandType type, OnCommand func) {
     });
 }
 
-void RtcPeer::OnPaired(std::function<void(PeerState)> func) {
-    auto observer = AsObservable();
-    observer->Subscribe(func);
-}
-
-void RtcPeer::OnPaired(bool is_paired) {
-    PeerState state = {
-        .id = id_, .is_connected = is_connected_.load(), .is_paired = is_paired};
-    Next(state);
-}
-
 void RtcPeer::OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState new_state) {
     auto state = webrtc::PeerConnectionInterface::AsString(new_state);
     DEBUG_PRINT("OnSignalingChange => %s", std::string(state).c_str());
     if (new_state == webrtc::PeerConnectionInterface::SignalingState::kHaveRemoteOffer) {
-        OnPaired(true);
         timeout_thread_ = std::thread([this]() {
             std::this_thread::sleep_for(std::chrono::seconds(10));
             if (!is_complete_.load() && !is_connected_.load()) {
@@ -115,7 +95,6 @@ void RtcPeer::OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState 
             }
         });
     } else if (new_state == webrtc::PeerConnectionInterface::SignalingState::kClosed) {
-        signaling_client_.reset();
     }
 }
 
@@ -132,14 +111,11 @@ void RtcPeer::OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnection
     auto state = webrtc::PeerConnectionInterface::AsString(new_state);
     DEBUG_PRINT("OnConnectionChange => %s", std::string(state).c_str());
     if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kConnected) {
-        signaling_client_.reset();
         is_connected_.store(true);
-        UnSubscribe();
     } else if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kFailed) {
         is_connected_.store(false);
         peer_connection_->Close();
     } else if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kClosed) {
-        signaling_client_.reset();
         is_connected_.store(false);
         is_complete_.store(true);
         data_channel_subject_.reset();
@@ -149,8 +125,9 @@ void RtcPeer::OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnection
 void RtcPeer::OnIceCandidate(const webrtc::IceCandidateInterface *candidate) {
     std::string ice;
     candidate->ToString(&ice);
-    if (signaling_client_) {
-        signaling_client_->AnswerLocalIce(candidate->sdp_mid(), candidate->sdp_mline_index(), ice);
+    if (signaling_service_) {
+        signaling_service_->AnswerLocalIce(id_, candidate->sdp_mid(), candidate->sdp_mline_index(),
+                                           ice);
     }
 }
 
@@ -171,8 +148,8 @@ void RtcPeer::OnSuccess(webrtc::SessionDescriptionInterface *desc) {
     std::string sdp;
     desc->ToString(&sdp);
     std::string type = webrtc::SdpTypeToString(desc->GetType());
-    if (signaling_client_) {
-        signaling_client_->AnswerLocalSdp(sdp, type);
+    if (signaling_service_) {
+        signaling_service_->AnswerLocalSdp(id_, sdp, type);
     }
 }
 

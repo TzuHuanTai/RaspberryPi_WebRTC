@@ -35,9 +35,7 @@ std::shared_ptr<Conductor> Conductor::Create(Args args) {
 }
 
 Conductor::Conductor(Args args)
-    : args(args),
-      peers_idx(0),
-      is_paired(false) {}
+    : args(args) {}
 
 Args Conductor::config() const { return args; }
 
@@ -103,7 +101,7 @@ void Conductor::AddTracks(rtc::scoped_refptr<webrtc::PeerConnectionInterface> pe
     }
 }
 
-bool Conductor::CreatePeerConnection() {
+rtc::scoped_refptr<RtcPeer> Conductor::CreatePeerConnection() {
     webrtc::PeerConnectionInterface::RTCConfiguration config;
     config.sdp_semantics = webrtc::SdpSemantics::kUnifiedPlan;
     webrtc::PeerConnectionInterface::IceServer server;
@@ -118,18 +116,18 @@ bool Conductor::CreatePeerConnection() {
         config.servers.push_back(turn_server);
     }
 
-    peer_ = RtcPeer::Create(args, ++peers_idx);
+    auto peer = RtcPeer::Create();
     auto result = peer_connection_factory_->CreatePeerConnectionOrError(
-        config, webrtc::PeerConnectionDependencies(peer_.get()));
+        config, webrtc::PeerConnectionDependencies(peer.get()));
 
     if (!result.ok()) {
         DEBUG_PRINT("Peer connection is failed to create!");
-        return false;
+        return nullptr;
     }
 
-    peer_->SetPeer(result.MoveValue());
-    peer_->CreateDataChannel();
-    peer_->OnSnapshot([this](std::shared_ptr<DataChannelSubject> datachannel, std::string msg) {
+    peer->SetPeer(result.MoveValue());
+    peer->CreateDataChannel();
+    peer->OnSnapshot([this](std::shared_ptr<DataChannelSubject> datachannel, std::string msg) {
         try {
             std::stringstream ss(msg);
             int num;
@@ -145,7 +143,7 @@ bool Conductor::CreatePeerConnection() {
         }
     });
 
-    peer_->OnMetadata([this](std::shared_ptr<DataChannelSubject> datachannel, std::string msg) {
+    peer->OnMetadata([this](std::shared_ptr<DataChannelSubject> datachannel, std::string msg) {
         std::cout << "======> OnMetadata msg:" << msg << std::endl;
         json jsonObj = json::parse(msg.c_str());
 
@@ -206,22 +204,14 @@ bool Conductor::CreatePeerConnection() {
         }
     });
 
-    peer_->OnRecord([this](std::shared_ptr<DataChannelSubject> datachannel, std::string msg) {
+    peer->OnRecord([this](std::shared_ptr<DataChannelSubject> datachannel, std::string msg) {
         OnRecord(datachannel, msg);
     });
 
-    is_paired = false;
-    peer_->OnPaired([this](PeerState state) {
-        std::unique_lock<std::mutex> lock(state_mtx);
-        is_paired = state.is_paired;
-        peer_state.notify_all();
-    });
+    AddTracks(peer->GetPeer());
 
-    AddTracks(peer_->GetPeer());
-    peers_map[peers_idx] = peer_;
-
-    DEBUG_PRINT("Peer connection(%d) is created!", peers_idx);
-    return true;
+    DEBUG_PRINT("Peer connection(%s) is created! ", peer->GetId().c_str());
+    return peer;
 }
 
 void Conductor::OnRecord(std::shared_ptr<DataChannelSubject> datachannel, std::string path) {
@@ -239,14 +229,6 @@ void Conductor::OnRecord(std::shared_ptr<DataChannelSubject> datachannel, std::s
     } catch (const std::exception &e) {
         ERROR_PRINT("%s", e.what());
     }
-}
-
-rtc::scoped_refptr<webrtc::PeerConnectionInterface> Conductor::GetPeer() const {
-    return peer_->GetPeer();
-}
-
-void Conductor::SetSink(rtc::VideoSinkInterface<webrtc::VideoFrame> *video_sink_obj) {
-    peer_->SetSink(std::move(video_sink_obj));
 }
 
 void Conductor::InitializePeerConnectionFactory() {
@@ -298,33 +280,6 @@ void Conductor::InitializePeerConnectionFactory() {
     dependencies.media_engine = cricket::CreateMediaEngine(std::move(media_dependencies));
 
     peer_connection_factory_ = CreateModularPeerConnectionFactory(std::move(dependencies));
-}
-
-void Conductor::AwaitCompletion() {
-    std::unique_lock<std::mutex> lock(state_mtx);
-    peer_state.wait(lock, [this] {
-        return is_paired;
-    });
-
-    RefreshPeerList();
-}
-
-void Conductor::RefreshPeerList() {
-    auto pm_it = peers_map.begin();
-    while (pm_it != peers_map.end()) {
-        DEBUG_PRINT("Found peers_map key: %d, value: %d", pm_it->second->GetId(),
-                    pm_it->second->IsConnected());
-
-        if (pm_it->second && !pm_it->second->IsConnected()) {
-            int id = pm_it->second->GetId();
-            pm_it->second.release();
-            pm_it->second = nullptr;
-            pm_it = peers_map.erase(pm_it);
-            DEBUG_PRINT("peers_map(%d) was erased.", id);
-        } else {
-            ++pm_it;
-        }
-    }
 }
 
 Conductor::~Conductor() {
