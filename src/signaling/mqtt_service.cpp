@@ -9,7 +9,6 @@
 #include <sstream>
 #include <unistd.h>
 
-#include "args.h"
 #include "common/logging.h"
 
 std::shared_ptr<MqttService> MqttService::Create(Args args, std::shared_ptr<Conductor> conductor) {
@@ -17,7 +16,7 @@ std::shared_ptr<MqttService> MqttService::Create(Args args, std::shared_ptr<Cond
 }
 
 MqttService::MqttService(Args args, std::shared_ptr<Conductor> conductor)
-    : SignalingService(),
+    : SignalingService(conductor),
       port_(args.mqtt_port),
       uid_(args.uid),
       hostname_(args.mqtt_host),
@@ -25,8 +24,7 @@ MqttService::MqttService(Args args, std::shared_ptr<Conductor> conductor)
       password_(args.mqtt_password),
       sdp_base_topic_(GetTopic("sdp")),
       ice_base_topic_(GetTopic("ice")),
-      connection_(nullptr),
-      conductor_(conductor) {}
+      connection_(nullptr) {}
 
 std::string MqttService::GetTopic(const std::string &topic, const std::string &client_id) const {
     std::string result;
@@ -48,9 +46,9 @@ void MqttService::OnRemoteSdp(const std::string &peer_id, const std::string &mes
     std::string type = jsonObj["type"];
     DEBUG_PRINT("Received remote [%s] SDP: %s", type.c_str(), sdp.c_str());
 
-    auto callback = peer_callback_map[peer_id];
-    if (callback) {
-        callback->SetRemoteSdp(sdp, type);
+    auto peer = GetPeer(peer_id);
+    if (peer) {
+        peer->SetRemoteSdp(sdp, type);
     }
 }
 
@@ -62,9 +60,9 @@ void MqttService::OnRemoteIce(const std::string &peer_id, const std::string &mes
     DEBUG_PRINT("Received remote ICE: %s, %d, %s", sdp_mid.c_str(), sdp_mline_index,
                 candidate.c_str());
 
-    auto callback = peer_callback_map[peer_id];
-    if (callback) {
-        callback->SetRemoteIce(sdp_mid, sdp_mline_index, candidate);
+    auto peer = GetPeer(peer_id);
+    if (peer) {
+        peer->SetRemoteIce(sdp_mid, sdp_mline_index, candidate);
     }
 }
 
@@ -150,11 +148,11 @@ void MqttService::OnMessage(struct mosquitto *mosq, void *obj,
 
     auto client_id = GetClientId(topic);
 
-    if (!client_id_to_peer_.contains(client_id)) {
+    if (!client_id_to_peer_id_.contains(client_id)) {
+        UpdateIdMaps();
         RefreshPeerMap();
 
-        auto peer = conductor_->CreatePeerConnection();
-        SetPeerToMap(peer->GetId(), peer.get());
+        auto peer = CreatePeer();
         peer->OnLocalSdp(
             [this](const std::string &peer_id, const std::string &sdp, const std::string &type) {
                 AnswerLocalSdp(peer_id, sdp, type);
@@ -164,14 +162,14 @@ void MqttService::OnMessage(struct mosquitto *mosq, void *obj,
             AnswerLocalIce(peer_id, sdp_mid, sdp_mline_index, candidate);
         });
 
-        client_id_to_peer_[client_id] = peer;
+        client_id_to_peer_id_[client_id] = peer->GetId();
         peer_id_to_client_id_[peer->GetId()] = client_id;
     }
 
     if (topic.substr(0, sdp_base_topic_.length()) == sdp_base_topic_) {
-        OnRemoteSdp(client_id_to_peer_[client_id]->GetId(), payload);
+        OnRemoteSdp(client_id_to_peer_id_[client_id], payload);
     } else if (topic.substr(0, ice_base_topic_.length()) == ice_base_topic_) {
-        OnRemoteIce(client_id_to_peer_[client_id]->GetId(), payload);
+        OnRemoteIce(client_id_to_peer_id_[client_id], payload);
     }
 }
 
@@ -195,21 +193,20 @@ std::string MqttService::GetClientId(std::string &topic) {
     return "";
 }
 
-void MqttService::RefreshPeerMap() {
-    auto pm_it = client_id_to_peer_.begin();
-    while (pm_it != client_id_to_peer_.end()) {
-        DEBUG_PRINT("Found peers_map key: %s, value: %d", pm_it->second->GetId().c_str(),
-                    pm_it->second->IsConnected());
+void MqttService::UpdateIdMaps() {
+    auto pm_it = client_id_to_peer_id_.begin();
+    while (pm_it != client_id_to_peer_id_.end()) {
+        auto peer_id = pm_it->second;
+        auto peer = GetPeer(peer_id);
 
-        if (pm_it->second && !pm_it->second->IsConnected()) {
-            auto id = pm_it->second->GetId();
-            peer_id_to_client_id_.erase(id);
-            RemovePeerFromMap(id);
-            pm_it->second->Release();
-            pm_it->second.release();
-            pm_it->second = nullptr;
-            pm_it = client_id_to_peer_.erase(pm_it);
-            DEBUG_PRINT("peers_map(%s) was erased.", id.c_str());
+        DEBUG_PRINT("Found peer_id key: %s, connected value: %d", peer_id.c_str(),
+                    peer->IsConnected());
+
+        if (!peer->IsConnected()) {
+            peer_id_to_client_id_.erase(peer_id);
+            RemovePeerFromMap(peer_id);
+            pm_it = client_id_to_peer_id_.erase(pm_it);
+            DEBUG_PRINT("(%s) was erased.", peer_id.c_str());
         } else {
             ++pm_it;
         }

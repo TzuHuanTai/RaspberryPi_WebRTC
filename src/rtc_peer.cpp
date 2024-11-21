@@ -101,6 +101,7 @@ void RtcPeer::OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnection
     DEBUG_PRINT("OnConnectionChange => %s", std::string(state).c_str());
     if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kConnected) {
         is_connected_.store(true);
+        on_local_ice_fn_ = nullptr;
     } else if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kFailed) {
         is_connected_.store(false);
         peer_connection_->Close();
@@ -138,6 +139,7 @@ void RtcPeer::OnSuccess(webrtc::SessionDescriptionInterface *desc) {
     std::string type = webrtc::SdpTypeToString(desc->GetType());
     if (on_local_sdp_fn_) {
         on_local_sdp_fn_(id_, sdp, type);
+        on_local_sdp_fn_ = nullptr;
     }
 }
 

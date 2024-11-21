@@ -4,44 +4,56 @@
 #include <functional>
 #include <string>
 
-class SignalingMessageObserver {
-  public:
-    using OnLocalSdpFunc = std::function<void(const std::string &peer_id, const std::string &sdp,
-                                              const std::string &type)>;
-    using OnLocalIceFunc =
-        std::function<void(const std::string &peer_id, const std::string &sdp_mid,
-                           int sdp_mline_index, const std::string &candidate)>;
-
-    virtual void SetRemoteSdp(const std::string &sdp, const std::string &type) = 0;
-    virtual void SetRemoteIce(const std::string &sdp_mid, int sdp_mline_index,
-                              const std::string &candidate) = 0;
-
-    void OnLocalSdp(OnLocalSdpFunc func) { on_local_sdp_fn_ = std::move(func); };
-    void OnLocalIce(OnLocalIceFunc func) { on_local_ice_fn_ = std::move(func); };
-
-  protected:
-    OnLocalSdpFunc on_local_sdp_fn_ = nullptr;
-    OnLocalIceFunc on_local_ice_fn_ = nullptr;
-};
+#include "common/logging.h"
+#include "conductor.h"
 
 class SignalingService {
   public:
-    SignalingService(){};
+    SignalingService(std::shared_ptr<Conductor> conductor)
+        : conductor_(conductor){};
     virtual ~SignalingService(){};
 
-    void SetPeerToMap(const std::string &peer_id, SignalingMessageObserver *callback) {
-        peer_callback_map[peer_id] = callback;
+    rtc::scoped_refptr<RtcPeer> CreatePeer() {
+        auto peer = conductor_->CreatePeerConnection();
+        peer_map_[peer->GetId()] = peer;
+        return peer;
     };
-    void RemovePeerFromMap(const std::string &peer_id) {
-        peer_callback_map.erase(peer_id);
-    }
-    void ResetPeerMap() { peer_callback_map.clear(); };
+
+    rtc::scoped_refptr<RtcPeer> GetPeer(const std::string &peer_id) {
+        auto it = peer_map_.find(peer_id);
+        if (it != peer_map_.end()) {
+            return it->second;
+        }
+        return nullptr;
+    };
+    bool ContainsInPeerMap(const std::string &peer_id) { return peer_map_.contains(peer_id); };
+    void RemovePeerFromMap(const std::string &peer_id) { peer_map_.erase(peer_id); };
+    void RefreshPeerMap() {
+        auto pm_it = peer_map_.begin();
+        while (pm_it != peer_map_.end()) {
+            auto peer_id = pm_it->second->GetId();
+            DEBUG_PRINT("Refresh peer_map key: %s, value: %d", peer_id.c_str(),
+                        pm_it->second->IsConnected());
+
+            if (pm_it->second && !pm_it->second->IsConnected()) {
+                pm_it->second->Release();
+                pm_it->second.release();
+                pm_it->second = nullptr;
+                pm_it = peer_map_.erase(pm_it);
+                DEBUG_PRINT("peer_map (%s) was erased.", peer_id.c_str());
+            } else {
+                ++pm_it;
+            }
+        }
+    };
+    void ResetPeerMap() { peer_map_.clear(); };
 
     virtual void Connect() = 0;
     virtual void Disconnect() = 0;
 
-  protected:
-    std::unordered_map<std::string, SignalingMessageObserver *> peer_callback_map;
+  private:
+    std::shared_ptr<Conductor> conductor_;
+    std::unordered_map<std::string, rtc::scoped_refptr<RtcPeer>> peer_map_;
 };
 
 #endif
