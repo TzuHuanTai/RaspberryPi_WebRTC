@@ -7,7 +7,6 @@
 #include <mosquitto.h>
 
 #include "args.h"
-#include "conductor.h"
 
 class MqttService : public SignalingService {
   public:
@@ -28,11 +27,11 @@ class MqttService : public SignalingService {
     std::string sdp_base_topic_;
     std::string ice_base_topic_;
     struct mosquitto *connection_;
-    std::shared_ptr<Conductor> conductor_;
 
+    std::unordered_map<std::string, std::string> client_id_to_peer_id_;
     std::unordered_map<std::string, std::string> peer_id_to_client_id_;
-    std::unordered_map<std::string, rtc::scoped_refptr<RtcPeer>> client_id_to_peer_;
-    void RefreshPeerMap();
+
+    void UpdateIdMaps();
 
     void OnRemoteSdp(const std::string &peer_id, const std::string &message);
     void OnRemoteIce(const std::string &peer_id, const std::string &message);

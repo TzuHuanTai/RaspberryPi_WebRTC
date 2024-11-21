@@ -10,7 +10,6 @@
 
 #include "args.h"
 #include "data_channel_subject.h"
-#include "signaling/signaling_service.h"
 
 class SetSessionDescription : public webrtc::SetSessionDescriptionObserver {
   public:
@@ -47,6 +46,26 @@ class SetSessionDescription : public webrtc::SetSessionDescriptionObserver {
     OnFailureFunc on_failure_;
 };
 
+class SignalingMessageObserver {
+  public:
+    using OnLocalSdpFunc = std::function<void(const std::string &peer_id, const std::string &sdp,
+                                              const std::string &type)>;
+    using OnLocalIceFunc =
+        std::function<void(const std::string &peer_id, const std::string &sdp_mid,
+                           int sdp_mline_index, const std::string &candidate)>;
+
+    virtual void SetRemoteSdp(const std::string &sdp, const std::string &type) = 0;
+    virtual void SetRemoteIce(const std::string &sdp_mid, int sdp_mline_index,
+                              const std::string &candidate) = 0;
+
+    void OnLocalSdp(OnLocalSdpFunc func) { on_local_sdp_fn_ = std::move(func); };
+    void OnLocalIce(OnLocalIceFunc func) { on_local_ice_fn_ = std::move(func); };
+
+  protected:
+    OnLocalSdpFunc on_local_sdp_fn_ = nullptr;
+    OnLocalIceFunc on_local_ice_fn_ = nullptr;
+};
+
 class RtcPeer : public webrtc::PeerConnectionObserver,
                 public webrtc::CreateSessionDescriptionObserver,
                 public SignalingMessageObserver {
@@ -67,6 +86,11 @@ class RtcPeer : public webrtc::PeerConnectionObserver,
     void OnMetadata(OnCommand func);
     void OnRecord(OnCommand func);
 
+    // SignalingMessageObserver implementation.
+    void SetRemoteSdp(const std::string &sdp, const std::string &type) override;
+    void SetRemoteIce(const std::string &sdp_mid, int sdp_mline_index,
+                      const std::string &candidate) override;
+
   private:
     void SubscribeCommandChannel(CommandType type, OnCommand func);
 
@@ -83,11 +107,6 @@ class RtcPeer : public webrtc::PeerConnectionObserver,
     // CreateSessionDescriptionObserver implementation.
     void OnSuccess(webrtc::SessionDescriptionInterface *desc) override;
     void OnFailure(webrtc::RTCError error) override;
-
-    // SignalingMessageObserver implementation.
-    void SetRemoteSdp(const std::string &sdp, const std::string &type) override;
-    void SetRemoteIce(const std::string &sdp_mid, int sdp_mline_index,
-                      const std::string &candidate) override;
 
     std::string id_;
     std::atomic<bool> is_connected_;
