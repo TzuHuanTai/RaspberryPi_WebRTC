@@ -5,17 +5,28 @@
 
 #include "common/logging.h"
 
-rtc::scoped_refptr<RtcPeer> RtcPeer::Create() { return rtc::make_ref_counted<RtcPeer>(); }
+rtc::scoped_refptr<RtcPeer> RtcPeer::Create(bool is_candidates_in_sdp) {
+    return rtc::make_ref_counted<RtcPeer>(is_candidates_in_sdp);
+}
 
-RtcPeer::RtcPeer()
+RtcPeer::RtcPeer(bool is_candidates_in_sdp)
     : id_(Utils::GenerateUuid()),
+      is_candidates_in_sdp_(is_candidates_in_sdp),
       is_connected_(false),
       is_complete_(false) {}
 
 RtcPeer::~RtcPeer() {
+    if (timeout_thread_.joinable()) {
+        timeout_thread_.join();
+    }
+    if (sent_sdp_timeout_.joinable()) {
+        sent_sdp_timeout_.join();
+    }
+    on_local_sdp_fn_ = nullptr;
+    on_local_ice_fn_ = nullptr;
     peer_connection_ = nullptr;
+    modified_desc_.release();
     data_channel_subject_.reset();
-    timeout_thread_.join();
     DEBUG_PRINT("peer connection (%s) was destroyed!", id_.c_str());
 }
 
@@ -28,7 +39,7 @@ void RtcPeer::SetSink(rtc::VideoSinkInterface<webrtc::VideoFrame> *video_sink_ob
 }
 
 void RtcPeer::SetPeer(rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer) {
-    peer_connection_ = peer;
+    peer_connection_ = std::move(peer);
 }
 
 rtc::scoped_refptr<webrtc::PeerConnectionInterface> RtcPeer::GetPeer() { return peer_connection_; }
@@ -78,7 +89,7 @@ void RtcPeer::OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState 
     if (new_state == webrtc::PeerConnectionInterface::SignalingState::kHaveRemoteOffer) {
         timeout_thread_ = std::thread([this]() {
             std::this_thread::sleep_for(std::chrono::seconds(10));
-            if (!is_complete_.load() && !is_connected_.load()) {
+            if (peer_connection_ && !is_complete_.load() && !is_connected_.load()) {
                 DEBUG_PRINT("Connection timeout after kConnecting. Closing connection.");
                 peer_connection_->Close();
             }
@@ -102,6 +113,7 @@ void RtcPeer::OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnection
     if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kConnected) {
         is_connected_.store(true);
         on_local_ice_fn_ = nullptr;
+        on_local_sdp_fn_ = nullptr;
     } else if (new_state == webrtc::PeerConnectionInterface::PeerConnectionState::kFailed) {
         is_connected_.store(false);
         peer_connection_->Close();
@@ -113,10 +125,12 @@ void RtcPeer::OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnection
 }
 
 void RtcPeer::OnIceCandidate(const webrtc::IceCandidateInterface *candidate) {
-    std::string ice;
-    candidate->ToString(&ice);
-    if (on_local_ice_fn_) {
-        on_local_ice_fn_(id_, candidate->sdp_mid(), candidate->sdp_mline_index(), ice);
+    if (is_candidates_in_sdp_ && modified_desc_) {
+        modified_desc_->AddCandidate(candidate);
+    } else if (on_local_ice_fn_) {
+        std::string candidate_str;
+        candidate->ToString(&candidate_str);
+        on_local_ice_fn_(id_, candidate->sdp_mid(), candidate->sdp_mline_index(), candidate_str);
     }
 }
 
@@ -131,15 +145,53 @@ void RtcPeer::OnTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transc
 }
 
 void RtcPeer::OnSuccess(webrtc::SessionDescriptionInterface *desc) {
-    peer_connection_->SetLocalDescription(SetSessionDescription::Create(nullptr, nullptr).get(),
-                                          desc);
-
     std::string sdp;
     desc->ToString(&sdp);
-    std::string type = webrtc::SdpTypeToString(desc->GetType());
-    if (on_local_sdp_fn_) {
-        on_local_sdp_fn_(id_, sdp, type);
+
+    // modified_sdp_ = ModifySetupAttribute(sdp, "passive"); // datachannel not connect.
+    modified_sdp_ = sdp;
+
+    modified_desc_ =
+        webrtc::CreateSessionDescription(desc->GetType(), modified_sdp_, modified_desc_error_);
+    if (!modified_desc_) {
+        ERROR_PRINT("Failed to create session description: %s",
+                    modified_desc_error_->description.c_str());
+        return;
+    }
+
+    peer_connection_->SetLocalDescription(SetSessionDescription::Create(nullptr, nullptr).get(),
+                                          modified_desc_.get());
+
+    if (is_candidates_in_sdp_) {
+        EmitLocalSdp(1);
+    } else {
+        EmitLocalSdp();
+    }
+}
+
+void RtcPeer::EmitLocalSdp(int delay_sec) {
+    if (!on_local_sdp_fn_) {
+        return;
+    }
+
+    if (sent_sdp_timeout_.joinable()) {
+        sent_sdp_timeout_.join();
+    }
+
+    auto send_sdp = [this]() {
+        std::string type = webrtc::SdpTypeToString(modified_desc_->GetType());
+        modified_desc_->ToString(&modified_sdp_);
+        on_local_sdp_fn_(id_, modified_sdp_, type);
         on_local_sdp_fn_ = nullptr;
+    };
+
+    if (delay_sec > 0) {
+        sent_sdp_timeout_ = std::thread([this, send_sdp, delay_sec]() {
+            std::this_thread::sleep_for(std::chrono::seconds(delay_sec));
+            send_sdp();
+        });
+    } else {
+        send_sdp();
     }
 }
 
@@ -196,4 +248,22 @@ void RtcPeer::SetRemoteIce(const std::string &sdp_mid, int sdp_mline_index,
         ERROR_PRINT("Failed to apply the received candidate!");
         return;
     }
+}
+
+std::string RtcPeer::ModifySetupAttribute(const std::string &sdp, const std::string &new_setup) {
+    std::string modified_sdp = sdp;
+    const std::string target = "a=setup:";
+    size_t pos = 0;
+
+    while ((pos = modified_sdp.find(target, pos)) != std::string::npos) {
+        size_t end_pos = modified_sdp.find("\r\n", pos);
+        if (end_pos != std::string::npos) {
+            modified_sdp.replace(pos, end_pos - pos, target + new_setup);
+            pos = end_pos;
+        } else {
+            break;
+        }
+    }
+
+    return modified_sdp;
 }

@@ -25,7 +25,7 @@ class Conductor {
     ~Conductor();
 
     Args config() const;
-    rtc::scoped_refptr<RtcPeer> CreatePeerConnection();
+    rtc::scoped_refptr<RtcPeer> CreatePeerConnection(bool is_candidates_in_sdp);
     std::shared_ptr<PaCapturer> AudioSource() const;
     std::shared_ptr<VideoCapturer> VideoSource() const;
 

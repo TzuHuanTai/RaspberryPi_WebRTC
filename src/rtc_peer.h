@@ -72,9 +72,9 @@ class RtcPeer : public webrtc::PeerConnectionObserver,
   public:
     using OnCommand = std::function<void(std::shared_ptr<DataChannelSubject>, std::string)>;
 
-    static rtc::scoped_refptr<RtcPeer> Create();
+    static rtc::scoped_refptr<RtcPeer> Create(bool is_candidates_in_sdp);
 
-    RtcPeer();
+    RtcPeer(bool is_candidates_in_sdp);
     ~RtcPeer();
     bool IsConnected() const;
     std::string GetId() const;
@@ -108,10 +108,20 @@ class RtcPeer : public webrtc::PeerConnectionObserver,
     void OnSuccess(webrtc::SessionDescriptionInterface *desc) override;
     void OnFailure(webrtc::RTCError error) override;
 
+    std::string ModifySetupAttribute(const std::string &sdp, const std::string &new_setup);
+    void EmitLocalSdp(int delay_sec = 0);
+
     std::string id_;
+    bool is_candidates_in_sdp_;
     std::atomic<bool> is_connected_;
     std::atomic<bool> is_complete_;
     std::thread timeout_thread_;
+    std::thread sent_sdp_timeout_;
+
+    std::string modified_sdp_;
+    webrtc::SdpParseError *modified_desc_error_;
+    std::unique_ptr<webrtc::SessionDescriptionInterface> modified_desc_;
+
     std::shared_ptr<DataChannelSubject> data_channel_subject_;
     rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer_connection_;
     rtc::VideoSinkInterface<webrtc::VideoFrame> *custom_video_sink_;
