@@ -9,12 +9,13 @@
 
 class SignalingService {
   public:
-    SignalingService(std::shared_ptr<Conductor> conductor)
-        : conductor_(conductor){};
+    SignalingService(std::shared_ptr<Conductor> conductor, bool is_candidates_in_sdp = false)
+        : conductor_(conductor),
+          is_candidates_in_sdp_(is_candidates_in_sdp){};
     virtual ~SignalingService(){};
 
     rtc::scoped_refptr<RtcPeer> CreatePeer() {
-        auto peer = conductor_->CreatePeerConnection();
+        auto peer = conductor_->CreatePeerConnection(is_candidates_in_sdp_);
         peer_map_[peer->GetId()] = peer;
         return peer;
     };
@@ -36,9 +37,6 @@ class SignalingService {
                         pm_it->second->IsConnected());
 
             if (pm_it->second && !pm_it->second->IsConnected()) {
-                pm_it->second->Release();
-                pm_it->second.release();
-                pm_it->second = nullptr;
                 pm_it = peer_map_.erase(pm_it);
                 DEBUG_PRINT("peer_map (%s) was erased.", peer_id.c_str());
             } else {
@@ -52,6 +50,7 @@ class SignalingService {
     virtual void Disconnect() = 0;
 
   private:
+    bool is_candidates_in_sdp_;
     std::shared_ptr<Conductor> conductor_;
     std::unordered_map<std::string, rtc::scoped_refptr<RtcPeer>> peer_map_;
 };
