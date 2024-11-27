@@ -15,6 +15,8 @@ class SignalingService {
     virtual ~SignalingService(){};
 
     rtc::scoped_refptr<RtcPeer> CreatePeer() {
+        RefreshPeerMap();
+
         auto peer = conductor_->CreatePeerConnection(is_candidates_in_sdp_);
         peer_map_[peer->GetId()] = peer;
         return peer;
@@ -27,9 +29,9 @@ class SignalingService {
         }
         return nullptr;
     };
-    bool ContainsInPeerMap(const std::string &peer_id) { return peer_map_.contains(peer_id); };
+
     void RemovePeerFromMap(const std::string &peer_id) { peer_map_.erase(peer_id); };
-    void RefreshPeerMap() {
+    virtual void RefreshPeerMap() {
         auto pm_it = peer_map_.begin();
         while (pm_it != peer_map_.end()) {
             auto peer_id = pm_it->second->GetId();

@@ -76,12 +76,14 @@ class RtcPeer : public webrtc::PeerConnectionObserver,
 
     RtcPeer(bool is_candidates_in_sdp);
     ~RtcPeer();
+    void Terminate();
     bool IsConnected() const;
     std::string GetId() const;
     void SetSink(rtc::VideoSinkInterface<webrtc::VideoFrame> *video_sink_obj);
     void SetPeer(rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer);
     rtc::scoped_refptr<webrtc::PeerConnectionInterface> GetPeer();
     void CreateDataChannel();
+    std::string RestartIce(std::string ice_ufrag, std::string ice_pwd);
     void OnSnapshot(OnCommand func);
     void OnMetadata(OnCommand func);
     void OnRecord(OnCommand func);

@@ -149,9 +149,6 @@ void MqttService::OnMessage(struct mosquitto *mosq, void *obj,
     auto client_id = GetClientId(topic);
 
     if (!client_id_to_peer_id_.contains(client_id)) {
-        UpdateIdMaps();
-        RefreshPeerMap();
-
         auto peer = CreatePeer();
         peer->OnLocalSdp(
             [this](const std::string &peer_id, const std::string &sdp, const std::string &type) {
@@ -193,7 +190,7 @@ std::string MqttService::GetClientId(std::string &topic) {
     return "";
 }
 
-void MqttService::UpdateIdMaps() {
+void MqttService::RefreshPeerMap() {
     auto pm_it = client_id_to_peer_id_.begin();
     while (pm_it != client_id_to_peer_id_.end()) {
         auto peer_id = pm_it->second;

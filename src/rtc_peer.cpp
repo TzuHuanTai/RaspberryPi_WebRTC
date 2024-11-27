@@ -1,7 +1,10 @@
 #include "rtc_peer.h"
 
 #include <chrono>
+#include <iostream>
+#include <regex>
 #include <thread>
+#include <vector>
 
 #include "common/logging.h"
 
@@ -16,18 +19,29 @@ RtcPeer::RtcPeer(bool is_candidates_in_sdp)
       is_complete_(false) {}
 
 RtcPeer::~RtcPeer() {
+    Terminate();
+    DEBUG_PRINT("peer connection (%s) was destroyed!", id_.c_str());
+}
+
+void RtcPeer::Terminate() {
+    is_connected_.store(false);
+    is_complete_.store(true);
+
     if (timeout_thread_.joinable()) {
         timeout_thread_.join();
     }
     if (sent_sdp_timeout_.joinable()) {
         sent_sdp_timeout_.join();
     }
+
     on_local_sdp_fn_ = nullptr;
     on_local_ice_fn_ = nullptr;
-    peer_connection_ = nullptr;
+    if (peer_connection_) {
+        peer_connection_->Close();
+        peer_connection_ = nullptr;
+    }
     modified_desc_.release();
     data_channel_subject_.reset();
-    DEBUG_PRINT("peer connection (%s) was destroyed!", id_.c_str());
 }
 
 std::string RtcPeer::GetId() const { return id_; }
@@ -66,6 +80,23 @@ void RtcPeer::CreateDataChannel() {
             peer_connection_->Close();
         }
     });
+}
+
+std::string RtcPeer::RestartIce(std::string ice_ufrag, std::string ice_pwd) {
+    std::string remote_sdp;
+    peer_connection_->remote_description()->ToString(&remote_sdp);
+
+    // replace all ice_ufrag and ice_pwd in sdp.
+    std::regex ufrag_regex(R"(a=ice-ufrag:([^\r\n]+))");
+    std::regex pwd_regex(R"(a=ice-pwd:([^\r\n]+))");
+    remote_sdp = std::regex_replace(remote_sdp, ufrag_regex, "a=ice-ufrag:" + ice_ufrag);
+    remote_sdp = std::regex_replace(remote_sdp, pwd_regex, "a=ice-pwd:" + ice_pwd);
+    SetRemoteSdp(remote_sdp, "offer");
+
+    std::string local_sdp;
+    peer_connection_->local_description()->ToString(&local_sdp);
+
+    return local_sdp;
 }
 
 void RtcPeer::OnSnapshot(OnCommand func) { SubscribeCommandChannel(CommandType::SNAPSHOT, func); }
@@ -148,7 +179,9 @@ void RtcPeer::OnSuccess(webrtc::SessionDescriptionInterface *desc) {
     std::string sdp;
     desc->ToString(&sdp);
 
-    // modified_sdp_ = ModifySetupAttribute(sdp, "passive"); // datachannel not connect.
+    /* An in-bound DataChannel created by the server side will not connect if the SDP is set to
+     * passive. */
+    // modified_sdp_ = ModifySetupAttribute(sdp, "passive");
     modified_sdp_ = sdp;
 
     modified_desc_ =

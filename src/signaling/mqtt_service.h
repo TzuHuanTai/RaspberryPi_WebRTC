@@ -17,6 +17,7 @@ class MqttService : public SignalingService {
 
     void Connect() override;
     void Disconnect() override;
+    void RefreshPeerMap() override;
 
   private:
     int port_;
@@ -31,7 +32,6 @@ class MqttService : public SignalingService {
     std::unordered_map<std::string, std::string> client_id_to_peer_id_;
     std::unordered_map<std::string, std::string> peer_id_to_client_id_;
 
-    void UpdateIdMaps();
 
     void OnRemoteSdp(const std::string &peer_id, const std::string &message);
     void OnRemoteIce(const std::string &peer_id, const std::string &message);

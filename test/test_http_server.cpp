@@ -1,64 +1,110 @@
 #include <boost/asio.hpp>
-#include <boost/beast/core.hpp>
-#include <boost/beast/http.hpp>
-#include <boost/beast/version.hpp>
+#include <boost/beast.hpp>
 #include <iostream>
+#include <memory>
+#include <string>
 
+namespace asio = boost::asio;
 namespace beast = boost::beast;
 namespace http = beast::http;
-namespace asio = boost::asio;
 using tcp = asio::ip::tcp;
 
-void handle_request(beast::tcp_stream &stream) {
-    try {
-        beast::flat_buffer buffer;
+class HttpSession : public std::enable_shared_from_this<HttpSession> {
+public:
+    explicit HttpSession(tcp::socket socket)
+        : stream_(std::move(socket)) {}
 
-        // read the request packet
-        http::request<http::string_body> req;
-        http::read(stream, buffer, req);
+    void Start() { ReadRequest(); }
 
-        std::cout << "Request received:\n" << req << std::endl;
+private:
+    beast::tcp_stream stream_;
+    beast::flat_buffer buffer_;
+    http::request<http::string_body> req_;
+    std::shared_ptr<http::response<http::string_body>> res_;
 
-        // responsed content
-        http::response<http::string_body> res{http::status::ok, req.version()};
-        res.set(http::field::server, "Boost.Beast");
-        res.set(http::field::content_type, "text/plain");
-        res.body() = "Hello, World!";
-        res.prepare_payload();
+    void ReadRequest() {
+        auto self = shared_from_this();
+        http::async_read(stream_, buffer_, req_,
+                         [self](beast::error_code ec, std::size_t bytes_transferred) {
+                             if (!ec) {
+                                 self->HandleRequest();
+                             } else {
+                                 std::cerr << "Read error: " << ec.message() << "\n";
+                             }
+                         });
+    }
 
-        // response
-        http::write(stream, res);
-    } catch (const beast::system_error &e) {
-        if (e.code() != beast::errc::not_connected) {
-            std::cerr << "Error: " << e.what() << std::endl;
+    void HandleRequest() {
+        // Prepare the response
+        res_ = std::make_shared<http::response<http::string_body>>(
+            http::status::ok, req_.version());
+        res_->set(http::field::server, "Boost.Beast/HTTP");
+        res_->set(http::field::content_type, "text/plain");
+        res_->body() = "Hello, world!";
+        res_->prepare_payload();
+
+        WriteResponse();
+    }
+
+    void WriteResponse() {
+        auto self = shared_from_this();
+        http::async_write(stream_, *res_,
+                          [self](beast::error_code ec, std::size_t bytes_transferred) {
+                              if (!ec) {
+                                  std::cout << "Response sent successfully\n";
+                                  self->CloseConnection();
+                              } else {
+                                  std::cerr << "Write error: " << ec.message() << "\n";
+                              }
+                          });
+    }
+
+    void CloseConnection() {
+        beast::error_code ec;
+        stream_.socket().shutdown(tcp::socket::shutdown_send, ec);
+        if (ec) {
+            std::cerr << "Shutdown error: " << ec.message() << "\n";
         }
     }
-}
+};
+
+class HttpServer {
+public:
+    HttpServer(asio::io_context& ioc, const tcp::endpoint& endpoint)
+        : acceptor_(ioc, endpoint) {}
+
+    void Start() { AcceptConnection(); }
+
+private:
+    tcp::acceptor acceptor_;
+
+    void AcceptConnection() {
+        acceptor_.async_accept([this](beast::error_code ec, tcp::socket socket) {
+            if (!ec) {
+                std::make_shared<HttpSession>(std::move(socket))->Start();
+            } else {
+                std::cerr << "Accept error: " << ec.message() << "\n";
+            }
+            AcceptConnection();
+        });
+    }
+};
 
 int main() {
     try {
         asio::io_context ioc;
 
-        tcp::acceptor acceptor{ioc, {asio::ip::address_v6::any(), 8080}};
-        std::cout << "Server is running on http://*:8080\n";
+        // Server listens on port 8080
+        tcp::endpoint endpoint(tcp::v4(), 8080);
+        HttpServer server(ioc, endpoint);
 
-        while (true) {
-            tcp::socket socket{ioc};
-            acceptor.accept(socket);
+        std::cout << "Server is running on port 8080...\n";
 
-            beast::tcp_stream stream{std::move(socket)};
-            handle_request(stream);
-
-            beast::error_code ec;
-            stream.socket().shutdown(tcp::socket::shutdown_send, ec);
-
-            if (ec && ec != beast::errc::not_connected) {
-                throw beast::system_error{ec};
-            }
-        }
-    } catch (const std::exception &e) {
-        std::cerr << "Error: " << e.what() << std::endl;
-        return EXIT_FAILURE;
+        server.Start();
+        ioc.run();
+    } catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << "\n";
     }
-    return EXIT_SUCCESS;
+
+    return 0;
 }
