@@ -17,11 +17,11 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
         "device", bpo::value<std::string>()->default_value(args.device),
         "Read the specific camera file via V4L2, default is /dev/video0")(
         "use_libcamera", bpo::bool_switch()->default_value(args.use_libcamera),
-        "Read YUV420 from the camera via libcamera, the `device` and `v4l2_format` flags will be suspended")(
-        "no_audio", bpo::bool_switch()->default_value(args.no_audio),
-        "Run without audio source")(
-        "uid", bpo::value<std::string>()->default_value(args.uid),
-        "Set the unique id to identify the device")(
+        "Read YUV420 from the camera via libcamera, the `device` and `v4l2_format` flags will be "
+        "suspended")("no_audio", bpo::bool_switch()->default_value(args.no_audio),
+                     "Run without audio source")("uid",
+                                                 bpo::value<std::string>()->default_value(args.uid),
+                                                 "Set the unique id to identify the device")(
         "stun_url", bpo::value<std::string>()->default_value(args.stun_url),
         "Stun server, ex: stun:xxx.xxx.xxx")(
         "turn_url", bpo::value<std::string>()->default_value(args.turn_url),
@@ -38,6 +38,8 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
             "Mqtt server username")("mqtt_password",
                                     bpo::value<std::string>()->default_value(args.mqtt_password),
                                     "Mqtt server password")
+#elif USE_HTTP_SIGNALING
+        ("http_port", bpo::value<uint16_t>()->default_value(args.http_port), "Http server port")
 #endif
             ("record_path", bpo::value<std::string>()->default_value(args.record_path),
              "The path to save the recording video files. The recorder will not start if it's "
@@ -115,7 +117,6 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
         args.turn_password = vm["turn_password"].as<std::string>();
     }
 
-#if USE_MQTT_SIGNALING
     if (vm.count("mqtt_port")) {
         args.mqtt_port = vm["mqtt_port"].as<uint32_t>();
     }
@@ -131,7 +132,10 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
     if (vm.count("mqtt_password")) {
         args.mqtt_password = vm["mqtt_password"].as<std::string>();
     }
-#endif
+
+    if (vm.count("http_port")) {
+        args.http_port = vm["http_port"].as<uint16_t>();
+    }
 
     if (vm.count("record_path") && !vm["record_path"].as<std::string>().empty()) {
         if ((vm["record_path"].as<std::string>()).front() != '/') {

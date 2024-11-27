@@ -18,6 +18,7 @@ Turn your Raspberry Pi into a low-latency home security camera using the V4L2 DM
 
 - Pure P2P-based camera allows video playback and download without a media server.
 - Support [multiple users](doc/pi_4b_users_demo.gif) for simultaneous live streaming.
+- Support signaling via [WHEP](https://www.ietf.org/archive/id/draft-ietf-wish-whep-02.html) or MQTT.
 
 # How to use
 
@@ -27,7 +28,9 @@ To set up the environment, please check out the [tutorial video](https://youtu.b
 * Set up the network configuration and create a new client using one of the following options:
     * [Pi Camera](https://github.com/TzuHuanTai/Pi-Camera) app (Android).
     * [Pi Camera Web](https://picamera.live).
-    * Use [PiCamera.js](https://github.com/TzuHuanTai/PiCamera.js) to create your own.
+    * Javascript client
+        * [PiCamera.js](https://www.npmjs.com/package/picamera.js) (For MQTT).
+        * [eyevinn/webrtc-player](https://www.npmjs.com/package/@eyevinn/webrtc-player) (For WHEP).
 
 ## Hardware Requirements
 
@@ -64,8 +67,7 @@ tar -xzf pi_webrtc-1.0.2_pi-os-bookworm.tar.gz
 An MQTT server is required for communication between devices. For remote access, free cloud options include [HiveMQ](https://www.hivemq.com) and [EMQX](https://www.emqx.com/en).
 > [!TIP]
 > **Is MQTT registration necessary, and why is MQTT needed?**<br/>
-> Yes, MQTT is required for signaling P2P connection info between your camera and the client UI.
-If you choose to self-host an MQTT server (e.g., [Mosquitto](doc/SETUP_MOSQUITTO.md)) and need to access the signaling server remotely via mobile data, you may need to set up DDNS, port forwarding, and SSL/TLS.
+> MQTT is one option for signaling P2P connection information between your camera and the client UI. WHEP, on the other hand, runs an HTTP service locally and does not require a third-party server. It is only suitable for devices with a public hostname. If you choose to self-host an MQTT server (e.g., [Mosquitto](doc/SETUP_MOSQUITTO.md)) and need to access the signaling server remotely via mobile data, you may need to set up DDNS, port forwarding, and SSL/TLS.
 
 ## Running the Application
 

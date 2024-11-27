@@ -6,7 +6,11 @@
 #include "conductor.h"
 #include "parser.h"
 #include "recorder/recorder_manager.h"
+#if USE_MQTT_SIGNALING
 #include "signaling/mqtt_service.h"
+#elif USE_HTTP_SIGNALING
+#include "signaling/http_service.h"
+#endif
 
 int main(int argc, char *argv[]) {
     Args args;
@@ -26,6 +30,8 @@ int main(int argc, char *argv[]) {
     auto signaling_service = ([args, conductor]() -> std::shared_ptr<SignalingService> {
 #if USE_MQTT_SIGNALING
         return MqttService::Create(args, conductor);
+#elif USE_HTTP_SIGNALING
+        return HttpService::Create(args, conductor);
 #else
         return nullptr;
 #endif

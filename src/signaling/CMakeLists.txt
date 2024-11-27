@@ -7,6 +7,8 @@ if(USE_MQTT_SIGNALING)
         message(FATAL_ERROR "Mosquitto library not found")
     endif()
     set(SIGNALING_LIBS ${MOSQUITTO_LIBS})
+elseif(USE_HTTP_SIGNALING)
+    set(SIGNALING_SOURCE ./http_service.cpp)
 endif()
 
 add_library(${PROJECT_NAME} ${SIGNALING_SOURCE})

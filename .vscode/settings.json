@@ -78,7 +78,8 @@
         "span": "cpp",
         "valarray": "cpp",
         "coroutine": "cpp",
-        "source_location": "cpp"
+        "source_location": "cpp",
+        "regex": "cpp"
     },
     "clang-format.executable": "clang-format",
     "clang-format.style": "file",
