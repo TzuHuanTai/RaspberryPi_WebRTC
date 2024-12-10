@@ -96,13 +96,12 @@ An MQTT server is required for communication between devices. For remote access,
     <img src="doc/web_live_demo.jpg" alt="Pi 5 live demo on web">
 </p>
 
-# Advance
+# [Advance](https://github.com/TzuHuanTai/RaspberryPi_WebRTC/wiki/Advanced-Settings)
 
-For recording video, two-way communication, legacy V4L2 driver, or running as a background service, please refer to the [wiki page](https://github.com/TzuHuanTai/RaspberryPi_WebRTC/wiki/Advanced-Settings).
-
-## Frontend Development with PiCamera.js
-
-If you are building a frontend application that needs to connect to and stream video, check out the JavaScript package [picamera.js](https://www.npmjs.com/package/picamera.js). 
+- [Recording](https://github.com/TzuHuanTai/RaspberryPi-WebRTC/wiki/Advanced-Settings#recording)
+- [Two-way communication](https://github.com/TzuHuanTai/RaspberryPi-WebRTC/wiki/Advanced-Settings#two-way-communication)
+- [Legacy V4L2 driver](https://github.com/TzuHuanTai/RaspberryPi-WebRTC/wiki/Advanced-Settings#using-the-legacy-v4l2-driver) for usb camera
+- [Run as a background service](https://github.com/TzuHuanTai/RaspberryPi-WebRTC/wiki/Advanced-Settings#run-as-linux-service)
 
 # License
 
