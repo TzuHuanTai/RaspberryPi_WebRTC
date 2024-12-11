@@ -102,6 +102,7 @@ An MQTT server is required for communication between devices. For remote access,
 - [Two-way communication](https://github.com/TzuHuanTai/RaspberryPi-WebRTC/wiki/Advanced-Settings#two-way-communication)
 - [Legacy V4L2 driver](https://github.com/TzuHuanTai/RaspberryPi-WebRTC/wiki/Advanced-Settings#using-the-legacy-v4l2-driver) for usb camera
 - [Run as a background service](https://github.com/TzuHuanTai/RaspberryPi-WebRTC/wiki/Advanced-Settings#run-as-linux-service)
+- [WHEP with Nginx proxy](https://github.com/TzuHuanTai/RaspberryPi-WebRTC/wiki/Advanced-Settings#whep-with-nginx-proxy)
 
 # License
 
