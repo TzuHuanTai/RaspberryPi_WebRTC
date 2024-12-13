@@ -26,7 +26,7 @@ void LibcameraCapturer::Init(std::string device) {
 
     if (cm_->cameras().size() == 0) {
         ERROR_PRINT("No camera is available via libcamera.");
-        exit(0);
+        exit(1);
     }
 
     std::string cameraId = cm_->cameras()[0]->id();
@@ -76,7 +76,7 @@ LibcameraCapturer &LibcameraCapturer::SetFormat(int width, int height) {
         INFO_PRINT("camera adjusted format: %s.", camera_config_->at(0).toString().c_str());
     } else {
         ERROR_PRINT("Failed to validate camera configuration.");
-        exit(-1);
+        exit(1);
     }
 
     width_ = camera_config_->at(0).size.width;
@@ -132,7 +132,7 @@ void LibcameraCapturer::AllocateBuffer() {
     auto &buffers = allocator_->buffers(stream_);
     if (buffer_count_ != buffers.size()) {
         ERROR_PRINT("Buffer counts not match allocated buffer number");
-        exit(-1);
+        exit(1);
     }
 
     for (unsigned int i = 0; i < buffer_count_; i++) {
@@ -162,7 +162,8 @@ void LibcameraCapturer::AllocateBuffer() {
 
 void LibcameraCapturer::RequestComplete(libcamera::Request *request) {
     if (request->status() == libcamera::Request::RequestCancelled) {
-        return;
+        DEBUG_PRINT("Request has been cancelled");
+        exit(1);
     }
 
     auto &buffers = request->buffers();
@@ -197,7 +198,7 @@ void LibcameraCapturer::StartCapture() {
     int ret = camera_->configure(camera_config_.get());
     if (ret < 0) {
         ERROR_PRINT("Failed to configure camera");
-        exit(-1);
+        exit(1);
     }
 
     AllocateBuffer();
@@ -207,7 +208,7 @@ void LibcameraCapturer::StartCapture() {
     ret = camera_->start(&controls_);
     if (ret) {
         ERROR_PRINT("Failed to start capturing");
-        exit(-1);
+        exit(1);
     }
 
     controls_.clear();
