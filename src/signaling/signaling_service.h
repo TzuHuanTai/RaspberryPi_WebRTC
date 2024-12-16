@@ -9,15 +9,18 @@
 
 class SignalingService {
   public:
-    SignalingService(std::shared_ptr<Conductor> conductor, bool is_candidates_in_sdp = false)
+    SignalingService(std::shared_ptr<Conductor> conductor, bool has_candidates_in_sdp = false)
         : conductor_(conductor),
-          is_candidates_in_sdp_(is_candidates_in_sdp){};
+          has_candidates_in_sdp_(has_candidates_in_sdp){};
     virtual ~SignalingService(){};
 
     rtc::scoped_refptr<RtcPeer> CreatePeer() {
         RefreshPeerMap();
 
-        auto peer = conductor_->CreatePeerConnection(is_candidates_in_sdp_);
+        PeerConfig config;
+        config.has_candidates_in_sdp = has_candidates_in_sdp_;
+
+        auto peer = conductor_->CreatePeerConnection(std::move(config));
         peer_map_[peer->GetId()] = peer;
         return peer;
     };
@@ -52,7 +55,7 @@ class SignalingService {
     virtual void Disconnect() = 0;
 
   private:
-    bool is_candidates_in_sdp_;
+    bool has_candidates_in_sdp_;
     std::shared_ptr<Conductor> conductor_;
     std::unordered_map<std::string, rtc::scoped_refptr<RtcPeer>> peer_map_;
 };

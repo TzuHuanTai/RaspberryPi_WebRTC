@@ -101,7 +101,7 @@ void Conductor::AddTracks(rtc::scoped_refptr<webrtc::PeerConnectionInterface> pe
     }
 }
 
-rtc::scoped_refptr<RtcPeer> Conductor::CreatePeerConnection(bool is_candidates_in_sdp) {
+rtc::scoped_refptr<RtcPeer> Conductor::CreatePeerConnection(PeerConfig peer_config) {
     webrtc::PeerConnectionInterface::RTCConfiguration config;
     config.sdp_semantics = webrtc::SdpSemantics::kUnifiedPlan;
     webrtc::PeerConnectionInterface::IceServer server;
@@ -116,7 +116,8 @@ rtc::scoped_refptr<RtcPeer> Conductor::CreatePeerConnection(bool is_candidates_i
         config.servers.push_back(turn_server);
     }
 
-    auto peer = RtcPeer::Create(is_candidates_in_sdp);
+    peer_config.timeout = args.peer_timeout;
+    auto peer = RtcPeer::Create(std::move(peer_config));
     auto result = peer_connection_factory_->CreatePeerConnectionOrError(
         config, webrtc::PeerConnectionDependencies(peer.get()));
 

@@ -8,13 +8,13 @@
 
 #include "common/logging.h"
 
-rtc::scoped_refptr<RtcPeer> RtcPeer::Create(bool is_candidates_in_sdp) {
-    return rtc::make_ref_counted<RtcPeer>(is_candidates_in_sdp);
+rtc::scoped_refptr<RtcPeer> RtcPeer::Create(PeerConfig config) {
+    return rtc::make_ref_counted<RtcPeer>(std::move(config));
 }
 
-RtcPeer::RtcPeer(bool is_candidates_in_sdp)
+RtcPeer::RtcPeer(PeerConfig config)
     : id_(Utils::GenerateUuid()),
-      is_candidates_in_sdp_(is_candidates_in_sdp),
+      config_(std::move(config)),
       is_connected_(false),
       is_complete_(false) {}
 
@@ -27,8 +27,8 @@ void RtcPeer::Terminate() {
     is_connected_.store(false);
     is_complete_.store(true);
 
-    if (timeout_thread_.joinable()) {
-        timeout_thread_.join();
+    if (peer_timeout_.joinable()) {
+        peer_timeout_.join();
     }
     if (sent_sdp_timeout_.joinable()) {
         sent_sdp_timeout_.join();
@@ -118,8 +118,8 @@ void RtcPeer::OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState 
     auto state = webrtc::PeerConnectionInterface::AsString(new_state);
     DEBUG_PRINT("OnSignalingChange => %s", std::string(state).c_str());
     if (new_state == webrtc::PeerConnectionInterface::SignalingState::kHaveRemoteOffer) {
-        timeout_thread_ = std::thread([this]() {
-            std::this_thread::sleep_for(std::chrono::seconds(10));
+        peer_timeout_ = std::thread([this]() {
+            std::this_thread::sleep_for(std::chrono::seconds(config_.timeout));
             if (peer_connection_ && !is_complete_.load() && !is_connected_.load()) {
                 DEBUG_PRINT("Connection timeout after kConnecting. Closing connection.");
                 peer_connection_->Close();
@@ -156,9 +156,11 @@ void RtcPeer::OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnection
 }
 
 void RtcPeer::OnIceCandidate(const webrtc::IceCandidateInterface *candidate) {
-    if (is_candidates_in_sdp_ && modified_desc_) {
+    if (config_.has_candidates_in_sdp && modified_desc_) {
         modified_desc_->AddCandidate(candidate);
-    } else if (on_local_ice_fn_) {
+    }
+
+    if (on_local_ice_fn_) {
         std::string candidate_str;
         candidate->ToString(&candidate_str);
         on_local_ice_fn_(id_, candidate->sdp_mid(), candidate->sdp_mline_index(), candidate_str);
@@ -195,7 +197,7 @@ void RtcPeer::OnSuccess(webrtc::SessionDescriptionInterface *desc) {
     peer_connection_->SetLocalDescription(SetSessionDescription::Create(nullptr, nullptr).get(),
                                           modified_desc_.get());
 
-    if (is_candidates_in_sdp_) {
+    if (config_.has_candidates_in_sdp) {
         EmitLocalSdp(1);
     } else {
         EmitLocalSdp();

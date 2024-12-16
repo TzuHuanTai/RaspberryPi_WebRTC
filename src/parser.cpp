@@ -14,6 +14,8 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
         "height", bpo::value<uint32_t>()->default_value(args.height), "Set camera frame height")(
         "rotation_angle", bpo::value<uint32_t>()->default_value(args.rotation_angle),
         "Set the rotation angle of the frame")(
+        "peer_timeout", bpo::value<uint32_t>()->default_value(args.peer_timeout),
+        "The connection timeout, in seconds, after receiving a remote offer")(
         "device", bpo::value<std::string>()->default_value(args.device),
         "Read the specific camera file via V4L2, default is /dev/video0")(
         "use_libcamera", bpo::bool_switch()->default_value(args.use_libcamera),
@@ -74,6 +76,10 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
 
     if (vm.count("rotation_angle")) {
         args.rotation_angle = vm["rotation_angle"].as<uint32_t>();
+    }
+
+    if (vm.count("peer_timeout")) {
+        args.peer_timeout = vm["peer_timeout"].as<uint32_t>();
     }
 
     if (vm.count("device")) {
