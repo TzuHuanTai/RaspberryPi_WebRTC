@@ -11,6 +11,11 @@
 #include "args.h"
 #include "data_channel_subject.h"
 
+struct PeerConfig {
+    int timeout = 10;
+    bool has_candidates_in_sdp = false;
+};
+
 class SetSessionDescription : public webrtc::SetSessionDescriptionObserver {
   public:
     typedef std::function<void()> OnSuccessFunc;
@@ -72,9 +77,9 @@ class RtcPeer : public webrtc::PeerConnectionObserver,
   public:
     using OnCommand = std::function<void(std::shared_ptr<DataChannelSubject>, std::string)>;
 
-    static rtc::scoped_refptr<RtcPeer> Create(bool is_candidates_in_sdp);
+    static rtc::scoped_refptr<RtcPeer> Create(PeerConfig config);
 
-    RtcPeer(bool is_candidates_in_sdp);
+    RtcPeer(PeerConfig config);
     ~RtcPeer();
     void Terminate();
     bool IsConnected() const;
@@ -114,10 +119,10 @@ class RtcPeer : public webrtc::PeerConnectionObserver,
     void EmitLocalSdp(int delay_sec = 0);
 
     std::string id_;
-    bool is_candidates_in_sdp_;
+    PeerConfig config_;
     std::atomic<bool> is_connected_;
     std::atomic<bool> is_complete_;
-    std::thread timeout_thread_;
+    std::thread peer_timeout_;
     std::thread sent_sdp_timeout_;
 
     std::string modified_sdp_;
