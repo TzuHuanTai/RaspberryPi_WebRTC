@@ -129,80 +129,11 @@ rtc::scoped_refptr<RtcPeer> Conductor::CreatePeerConnection(PeerConfig peer_conf
     peer->SetPeer(result.MoveValue());
     peer->CreateDataChannel();
     peer->OnSnapshot([this](std::shared_ptr<DataChannelSubject> datachannel, std::string msg) {
-        try {
-            std::stringstream ss(msg);
-            int num;
-            ss >> num;
-            int quality = ss.fail() ? 100 : num;
-
-            auto i420buff = video_capture_source_->GetI420Frame();
-            auto jpg_buffer =
-                Utils::ConvertYuvToJpeg(i420buff->DataY(), args.width, args.height, quality);
-            datachannel->Send(std::move(jpg_buffer));
-        } catch (const std::exception &e) {
-            ERROR_PRINT("%s", e.what());
-        }
+        OnSnapshot(datachannel, msg);
     });
 
     peer->OnMetadata([this](std::shared_ptr<DataChannelSubject> datachannel, std::string msg) {
-        std::cout << "======> OnMetadata msg:" << msg << std::endl;
-        json jsonObj = json::parse(msg.c_str());
-
-        MetadataCommand cmd = jsonObj["command"];
-        std::string message = jsonObj["message"];
-        DEBUG_PRINT("parse meta cmd message => %hhu, %s", cmd, message.c_str());
-
-        if (args.record_path.empty()) {
-            return;
-        }
-        try {
-            if (cmd == MetadataCommand::LATEST) {
-                auto latest_mp4_path = Utils::FindSecondNewestFile(args.record_path, ".mp4");
-                MetaMessage metadata(latest_mp4_path);
-                auto metadata_str = metadata.ToString();
-                int file_size = metadata_str.length();
-                std::string size_str = std::to_string(file_size);
-
-                datachannel->Send(CommandType::METADATA, (uint8_t *)size_str.c_str(),
-                                  size_str.length());
-                datachannel->Send(CommandType::METADATA, (uint8_t *)metadata_str.c_str(),
-                                  file_size);
-                datachannel->Send(CommandType::METADATA, nullptr, 0);
-            } else if (cmd == MetadataCommand::OLDER) {
-                if (message.empty()) {
-                    message = Utils::FindLatestFile(args.record_path, ".mp4");
-                }
-                auto paths = Utils::FindOlderFiles(message, 8);
-
-                for (auto &path : paths) {
-                    MetaMessage metadata(path);
-                    auto metadata_str = metadata.ToString();
-                    int file_size = metadata_str.length();
-                    std::string size_str = std::to_string(file_size);
-
-                    datachannel->Send(CommandType::METADATA, (uint8_t *)size_str.c_str(),
-                                      size_str.length());
-                    datachannel->Send(CommandType::METADATA, (uint8_t *)metadata_str.c_str(),
-                                      file_size);
-                    datachannel->Send(CommandType::METADATA, nullptr, 0);
-                }
-            } else if (cmd == MetadataCommand::SPECIFIC_TIME) {
-                auto path = Utils::FindFilesFromDatetime(args.record_path, message);
-
-                MetaMessage metadata(path);
-                auto metadata_str = metadata.ToString();
-                int file_size = metadata_str.length();
-                std::string size_str = std::to_string(file_size);
-
-                datachannel->Send(CommandType::METADATA, (uint8_t *)size_str.c_str(),
-                                  size_str.length());
-                datachannel->Send(CommandType::METADATA, (uint8_t *)metadata_str.c_str(),
-                                  file_size);
-                datachannel->Send(CommandType::METADATA, nullptr, 0);
-            }
-        } catch (const std::exception &e) {
-            ERROR_PRINT("%s", e.what());
-        }
+        OnMetadata(datachannel, msg);
     });
 
     peer->OnRecord([this](std::shared_ptr<DataChannelSubject> datachannel, std::string msg) {
@@ -215,7 +146,82 @@ rtc::scoped_refptr<RtcPeer> Conductor::CreatePeerConnection(PeerConfig peer_conf
     return peer;
 }
 
-void Conductor::OnRecord(std::shared_ptr<DataChannelSubject> datachannel, std::string path) {
+void Conductor::OnSnapshot(std::shared_ptr<DataChannelSubject> datachannel, std::string &msg) {
+    try {
+        std::stringstream ss(msg);
+        int num;
+        ss >> num;
+        int quality = ss.fail() ? 100 : num;
+
+        auto i420buff = video_capture_source_->GetI420Frame();
+        auto jpg_buffer =
+            Utils::ConvertYuvToJpeg(i420buff->DataY(), args.width, args.height, quality);
+        datachannel->Send(std::move(jpg_buffer));
+    } catch (const std::exception &e) {
+        ERROR_PRINT("%s", e.what());
+    }
+}
+
+void Conductor::OnMetadata(std::shared_ptr<DataChannelSubject> datachannel, std::string &msg) {
+    DEBUG_PRINT("OnMetadata msg: %s", msg.c_str());
+    json jsonObj = json::parse(msg.c_str());
+
+    MetadataCommand cmd = jsonObj["command"];
+    std::string message = jsonObj["message"];
+    DEBUG_PRINT("parse meta cmd message => %hhu, %s", cmd, message.c_str());
+
+    if (args.record_path.empty()) {
+        return;
+    }
+    try {
+        if (cmd == MetadataCommand::LATEST) {
+            auto latest_mp4_path = Utils::FindSecondNewestFile(args.record_path, ".mp4");
+            MetaMessage metadata(latest_mp4_path);
+            auto metadata_str = metadata.ToString();
+            int file_size = metadata_str.length();
+            std::string size_str = std::to_string(file_size);
+
+            datachannel->Send(CommandType::METADATA, (uint8_t *)size_str.c_str(),
+                              size_str.length());
+            datachannel->Send(CommandType::METADATA, (uint8_t *)metadata_str.c_str(), file_size);
+            datachannel->Send(CommandType::METADATA, nullptr, 0);
+        } else if (cmd == MetadataCommand::OLDER) {
+            if (message.empty()) {
+                message = Utils::FindLatestFile(args.record_path, ".mp4");
+            }
+            auto paths = Utils::FindOlderFiles(message, 8);
+
+            for (auto &path : paths) {
+                MetaMessage metadata(path);
+                auto metadata_str = metadata.ToString();
+                int file_size = metadata_str.length();
+                std::string size_str = std::to_string(file_size);
+
+                datachannel->Send(CommandType::METADATA, (uint8_t *)size_str.c_str(),
+                                  size_str.length());
+                datachannel->Send(CommandType::METADATA, (uint8_t *)metadata_str.c_str(),
+                                  file_size);
+                datachannel->Send(CommandType::METADATA, nullptr, 0);
+            }
+        } else if (cmd == MetadataCommand::SPECIFIC_TIME) {
+            auto path = Utils::FindFilesFromDatetime(args.record_path, message);
+
+            MetaMessage metadata(path);
+            auto metadata_str = metadata.ToString();
+            int file_size = metadata_str.length();
+            std::string size_str = std::to_string(file_size);
+
+            datachannel->Send(CommandType::METADATA, (uint8_t *)size_str.c_str(),
+                              size_str.length());
+            datachannel->Send(CommandType::METADATA, (uint8_t *)metadata_str.c_str(), file_size);
+            datachannel->Send(CommandType::METADATA, nullptr, 0);
+        }
+    } catch (const std::exception &e) {
+        ERROR_PRINT("%s", e.what());
+    }
+}
+
+void Conductor::OnRecord(std::shared_ptr<DataChannelSubject> datachannel, std::string &path) {
     if (args.record_path.empty()) {
         return;
     }
