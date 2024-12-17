@@ -29,7 +29,7 @@ class HttpService : public SignalingService,
     static std::shared_ptr<HttpService> Create(Args args, std::shared_ptr<Conductor> conductor);
 
     HttpService(Args args, std::shared_ptr<Conductor> conductor);
-    ~HttpService() override;
+    ~HttpService();
 
     void Connect() override;
     void Disconnect() override;
