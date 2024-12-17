@@ -13,7 +13,7 @@ class MqttService : public SignalingService {
     static std::shared_ptr<MqttService> Create(Args args, std::shared_ptr<Conductor> conductor);
 
     MqttService(Args args, std::shared_ptr<Conductor> conductor);
-    ~MqttService() override;
+    ~MqttService();
 
     void Connect() override;
     void Disconnect() override;

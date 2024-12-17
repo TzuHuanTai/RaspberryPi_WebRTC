@@ -5,7 +5,6 @@
 #include <functional>
 #include <iostream>
 #include <memory>
-#include <mutex>
 #include <string>
 
 #include <api/peer_connection_interface.h>

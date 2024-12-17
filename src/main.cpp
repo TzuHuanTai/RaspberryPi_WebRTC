@@ -6,6 +6,7 @@
 #include "conductor.h"
 #include "parser.h"
 #include "recorder/recorder_manager.h"
+#include "signaling/signaling_service.h"
 #if USE_MQTT_SIGNALING
 #include "signaling/mqtt_service.h"
 #elif USE_HTTP_SIGNALING
@@ -38,7 +39,7 @@ int main(int argc, char *argv[]) {
     })();
 
     if (signaling_service) {
-        signaling_service->Connect();
+        signaling_service->Start();
     } else {
         INFO_PRINT("There is no any signaling service found!");
     }

@@ -1,10 +1,8 @@
 #ifndef SIGNALING_SERVICE_H_
 #define SIGNALING_SERVICE_H_
 
-#include <functional>
-#include <string>
-
 #include "common/logging.h"
+#include "common/worker.h"
 #include "conductor.h"
 
 class SignalingService {
@@ -12,11 +10,17 @@ class SignalingService {
     SignalingService(std::shared_ptr<Conductor> conductor, bool has_candidates_in_sdp = false)
         : conductor_(conductor),
           has_candidates_in_sdp_(has_candidates_in_sdp){};
-    virtual ~SignalingService(){};
+
+    void Start() {
+        worker_.reset(new Worker("cleaner", [this]() {
+            std::this_thread::sleep_for(std::chrono::seconds(60));
+            RefreshPeerMap();
+        }));
+        worker_->Run();
+        Connect();
+    }
 
     rtc::scoped_refptr<RtcPeer> CreatePeer() {
-        RefreshPeerMap();
-
         PeerConfig config;
         config.has_candidates_in_sdp = has_candidates_in_sdp_;
 
@@ -34,12 +38,12 @@ class SignalingService {
     };
 
     void RemovePeerFromMap(const std::string &peer_id) { peer_map_.erase(peer_id); };
+
+  protected:
     virtual void RefreshPeerMap() {
         auto pm_it = peer_map_.begin();
         while (pm_it != peer_map_.end()) {
             auto peer_id = pm_it->second->GetId();
-            DEBUG_PRINT("Refresh peer_map key: %s, value: %d", peer_id.c_str(),
-                        pm_it->second->IsConnected());
 
             if (pm_it->second && !pm_it->second->IsConnected()) {
                 pm_it = peer_map_.erase(pm_it);
@@ -49,13 +53,12 @@ class SignalingService {
             }
         }
     };
-    void ResetPeerMap() { peer_map_.clear(); };
-
     virtual void Connect() = 0;
     virtual void Disconnect() = 0;
 
   private:
     bool has_candidates_in_sdp_;
+    std::unique_ptr<Worker> worker_;
     std::shared_ptr<Conductor> conductor_;
     std::unordered_map<std::string, rtc::scoped_refptr<RtcPeer>> peer_map_;
 };
