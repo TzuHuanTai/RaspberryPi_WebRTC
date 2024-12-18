@@ -209,8 +209,8 @@ RecorderManager::~RecorderManager() {
     Stop();
     video_recorder.reset();
     audio_recorder.reset();
-    video_observer->UnSubscribe();
-    audio_observer->UnSubscribe();
+    video_observer.reset();
+    audio_observer.reset();
     rotation_worker_.reset();
 }
 
