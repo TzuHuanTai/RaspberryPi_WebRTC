@@ -11,6 +11,8 @@
 
 #include "common/logging.h"
 
+const int MAX_RETRIES = 10;
+
 std::shared_ptr<MqttService> MqttService::Create(Args args, std::shared_ptr<Conductor> conductor) {
     return std::make_shared<MqttService>(args, conductor);
 }
@@ -239,12 +241,23 @@ void MqttService::Connect() {
         service->OnMessage(mosq, obj, message);
     });
 
-    int rc = mosquitto_connect_async(connection_, hostname_.c_str(), port_, 60);
-    if (rc != MOSQ_ERR_SUCCESS) {
-        ERROR_PRINT("%s", mosquitto_strerror(rc));
+    int attempt = 0;
+    while (attempt < MAX_RETRIES) {
+        int rc = mosquitto_connect_async(connection_, hostname_.c_str(), port_, 60);
+        if (rc == MOSQ_ERR_SUCCESS) {
+            break;
+        }
+        attempt++;
+        std::this_thread::sleep_for(std::chrono::seconds(5));
+        ERROR_PRINT("The %d try connecting: %s", attempt, mosquitto_strerror(rc));
     }
 
-    rc = mosquitto_loop_forever(connection_, -1, 1); // already handle reconnections
+    if (attempt >= MAX_RETRIES) {
+        ERROR_PRINT("Can't connect to MQTT Broker, it reach max retries(%d)", MAX_RETRIES);
+        return;
+    }
+
+    int rc = mosquitto_loop_forever(connection_, -1, 1); // already handle reconnections
     if (rc != MOSQ_ERR_SUCCESS) {
         ERROR_PRINT("%s", mosquitto_strerror(rc));
     }
