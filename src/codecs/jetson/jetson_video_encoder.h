@@ -14,8 +14,9 @@
 
 class JetsonVideoEncoder : public webrtc::VideoEncoder {
   public:
-    static std::unique_ptr<webrtc::VideoEncoder> Create(Args args);
-    JetsonVideoEncoder(Args args);
+    static std::unique_ptr<webrtc::VideoEncoder>
+    Create(Args args, webrtc::VideoCodecType codec_type = webrtc::kVideoCodecGeneric);
+    JetsonVideoEncoder(Args args, webrtc::VideoCodecType codec_type = webrtc::kVideoCodecGeneric);
 
     int32_t InitEncode(const webrtc::VideoCodec *codec_settings,
                        const VideoEncoder::Settings &settings) override;
@@ -31,6 +32,7 @@ class JetsonVideoEncoder : public webrtc::VideoEncoder {
     int height_;
     int target_fps_;
     int target_bitrate_bps_;
+    int max_bitrate_kbps_;
     bool is_dma_;
     std::string name_;
     webrtc::VideoCodec codec_;
@@ -38,6 +40,7 @@ class JetsonVideoEncoder : public webrtc::VideoEncoder {
     std::atomic<webrtc::EncodedImageCallback *> callback_;
     std::optional<webrtc::VideoPlayoutDelay> playout_delay_;
     std::unique_ptr<JetsonEncoder> encoder_;
+    std::vector<webrtc::VideoEncoder::ResolutionBitrateLimits> bitrate_limits_;
 
     virtual void SendFrame(const webrtc::VideoFrame &frame, V4L2Buffer &encoded_buffer);
 
