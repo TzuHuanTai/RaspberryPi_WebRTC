@@ -15,6 +15,7 @@
 #include <absl/algorithm/container.h>
 #include <absl/strings/match.h>
 #include <api/video_codecs/scalability_mode_helper.h>
+#include <api/video_codecs/video_codec.h>
 #include <media/base/media_constants.h>
 #include <modules/video_coding/codecs/av1/av1_svc_config.h>
 #include <modules/video_coding/codecs/av1/libaom_av1_encoder.h>
@@ -133,7 +134,7 @@ CustomVideoEncoderFactory::CreateEncoder(const webrtc::Environment &env,
                                          const webrtc::SdpVideoFormat &format) {
 #if defined(USE_JETSON_HW_ENCODER)
     if (hw_encoder_) {
-        return JetsonVideoEncoder::Create(args_);
+        return JetsonVideoEncoder::Create(args_, webrtc::PayloadStringToCodecType(format.name));
     }
 #endif
 
