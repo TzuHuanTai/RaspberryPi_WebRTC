@@ -9,7 +9,8 @@ pi-webrtc encodes the video for each WebRTC connection, so each connection can f
 Which encoder WebRTC uses depends on `--hw-accel` and on the codecs the client offers in its
 SDP. It is worth running `v4l2-ctl -d /dev/video0 --list-formats-ext` before choosing a source
 format, since that decides which of the pipelines below you end up on. See [Video & Audio](README.md)
-for the sources and their formats.
+for the sources and their formats, and [Low Bitrate](low-bitrate.md) for how each encoder behaves
+when the network is slow.
 
 ## Hardware Encoding
 
