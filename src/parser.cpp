@@ -22,6 +22,10 @@ namespace bpo = boost::program_options;
 static constexpr int kAdaptiveStartBitrateKbps = 1000;
 static constexpr int kAdaptiveMinMaxBitrateKbps = 2500;
 static constexpr double kAdaptiveBitsPerPixel = 0.08;
+// Jetson NVENC encodes a still scene as skip frames below max(0.013 bpp, 20 kbit) per frame.
+// With adaptive scaling, JetsonVideoEncoder's resolution gears set the floor instead.
+static constexpr double kJetsonMinBitsPerPixel = 0.013;
+static constexpr double kJetsonMinFrameBits = 20000;
 
 static const std::unordered_map<std::string, int> v4l2_fmt_table = {
     {"mjpeg", V4L2_PIX_FMT_MJPEG},
@@ -197,9 +201,12 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
             "min. 2.5 Mbps), or 2.5 Mbps with --no-adaptive.")
         ("start-bitrate", bpo::value<int>(&args.start_bitrate)->default_value(args.start_bitrate),
             "Initial bandwidth estimate (kbps). 0: 1 Mbps with adaptive scaling, or 300 kbps with "
-            "--no-adaptive. Below 500 kbps, sources above VGA may be downscaled permanently.")
+            "--no-adaptive, but never below --min-bitrate. Below 500 kbps, sources above VGA may be "
+            "downscaled permanently.")
         ("min-bitrate", bpo::value<int>(&args.min_bitrate)->default_value(args.min_bitrate),
-            "Floor (in kbps) for the bandwidth estimate. 0 keeps WebRTC's default.")
+            "Floor (in kbps) for the bandwidth estimate and the video bitrate. 0: WebRTC's default, "
+            "except on Jetson with --hw-accel and --no-adaptive, where it keeps the encoder from "
+            "freezing.")
         ("hw-accel", bpo::bool_switch(&args.hw_accel)->default_value(args.hw_accel),
             "Enable hardware acceleration by sharing DMA buffers between the decoder, "
             "scaler, and encoder to reduce CPU usage.")
@@ -469,21 +476,24 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
             std::clamp(args.min_playout_delay_ms, 0, args.max_playout_delay_ms);
     }
 
+    const bool sub = args.live_stream_idx == 1;
+    const double pixels = static_cast<double>(sub ? args.sub_width : args.width) *
+                          (sub ? args.sub_height : args.height);
+
     // WebRTC's defaults lock an adaptive stream at a low resolution: below 500 kbps it scales
     // anything over VGA down before the first frame, and its max caps at 2500 whatever the fps.
-    if (!args.no_adaptive) {
-        const bool sub = args.live_stream_idx == 1;
-        const double pixels_per_sec = static_cast<double>(sub ? args.sub_width : args.width) *
-                                      (sub ? args.sub_height : args.height) * args.fps;
-        if (args.max_bitrate <= 0) {
-            const int bpp_kbps = static_cast<int>(pixels_per_sec * kAdaptiveBitsPerPixel / 1000);
-            args.max_bitrate = std::max(kAdaptiveMinMaxBitrateKbps, bpp_kbps);
-        }
-        if (args.start_bitrate <= 0) {
-            args.start_bitrate = kAdaptiveStartBitrateKbps;
-        }
-        INFO_PRINT("Adaptive scaling: start bitrate %d kbps, max bitrate %d kbps.",
-                   args.start_bitrate, args.max_bitrate);
+    if (!args.no_adaptive && args.max_bitrate <= 0) {
+        const int bpp_kbps = static_cast<int>(pixels * args.fps * kAdaptiveBitsPerPixel / 1000);
+        args.max_bitrate = std::max(kAdaptiveMinMaxBitrateKbps, bpp_kbps);
+    }
+#if defined(USE_JETSON_HW_ENCODER)
+    if (args.hw_accel && args.no_adaptive && args.min_bitrate <= 0) {
+        const double frame_bits = std::max(pixels * kJetsonMinBitsPerPixel, kJetsonMinFrameBits);
+        args.min_bitrate = static_cast<int>(frame_bits * args.fps / 1000);
+    }
+#endif
+    if (!args.no_adaptive && args.start_bitrate <= 0) {
+        args.start_bitrate = std::max(kAdaptiveStartBitrateKbps, args.min_bitrate);
     }
 
     // BitrateSettings is rejected outright unless 0 <= min <= start <= max, so an inconsistent
@@ -494,6 +504,10 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
     }
     if (args.start_bitrate > 0) {
         args.min_bitrate = std::min(args.min_bitrate, args.start_bitrate);
+    }
+    if (args.min_bitrate > 0 || args.start_bitrate > 0 || args.max_bitrate > 0) {
+        INFO_PRINT("Video bitrate: min %d, start %d, max %d kbps (0 keeps WebRTC's default).",
+                   args.min_bitrate, args.start_bitrate, args.max_bitrate);
     }
 
     args.record_type = ParseEnum(record_type_table, args.record_type_str);

@@ -189,6 +189,9 @@ void Conductor::AddTracks(webrtc::scoped_refptr<RtcPeer> peer) {
         parameters.degradation_preference = webrtc::DegradationPreference::MAINTAIN_FRAMERATE;
 
         if (!parameters.encodings.empty()) {
+            if (args.min_bitrate > 0) {
+                parameters.encodings[0].min_bitrate_bps = args.min_bitrate * 1000;
+            }
             if (args.max_bitrate > 0) {
                 parameters.encodings[0].max_bitrate_bps = args.max_bitrate * 1000;
             }
