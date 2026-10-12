@@ -43,6 +43,7 @@ bool Openh264Encoder::Init() {
     encoder_param.iRCMode =
         (config_.rc_mode == V4L2_MPEG_VIDEO_BITRATE_MODE_VBR) ? RC_QUALITY_MODE : RC_BITRATE_MODE;
     encoder_param.bEnableFrameSkip = config_.frame_dropping;
+    encoder_param.bEnableSceneChangeDetect = false;
     encoder_param.fMaxFrameRate = config_.fps;
     encoder_param.iTargetBitrate = config_.bitrate;
     encoder_param.iMaxBitrate = max_bitrate_;
