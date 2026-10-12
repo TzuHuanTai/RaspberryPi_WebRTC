@@ -9,6 +9,7 @@ pi-webrtc reads video from a camera or a stream, encodes it, and sends it over W
 - [RTSP cameras](rtsp.md): IP cameras, MediaMTX, GStreamer and DeepStream.
 - [Virtual cameras](virtual-camera.md): process frames with Python or AI first, then stream them.
 - [Encoding](encoding.md): hardware and software encoding.
+- [Low bitrate](low-bitrate.md): how each encoder follows the bitrate target, and how pi-webrtc changes resolution on the Jetson.
 - [Two-way audio](audio.md): a microphone and a speaker on the device.
 
 ## Video sources

@@ -1,0 +1,138 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="344" viewBox="0 0 960 344" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" role="img">
+<title>Output divided by target while the cap steps down</title><desc>Median output divided by target at each cap step on the way down, before and after the gear table.</desc>
+<rect width="960" height="344" rx="8" fill="#ffffff" stroke="#dde1e5"/>
+<text x="20.0" y="28.0" font-size="13" fill="#565b62" text-anchor="start" font-weight="400">Output ÷ target at each cap step on the way down (band = 0.8–1.2; ▲ = above 2)</text>
+<text x="20.0" y="58.0" font-size="13.5" fill="#16191d" text-anchor="start" font-weight="600">Jetson H.264 · 1080p60</text>
+<line x1="20.0" y1="74.0" x2="36.0" y2="74.0" stroke="#2a78d6" stroke-width="2.5"/>
+<text x="41.0" y="78.0" font-size="11.5" fill="#565b62" text-anchor="start" font-weight="400">resolution gears (now)</text>
+<line x1="214.4" y1="74.0" x2="230.4" y2="74.0" stroke="#eb6834" stroke-width="2.5"/>
+<text x="235.4" y="78.0" font-size="11.5" fill="#565b62" text-anchor="start" font-weight="400">QP scaling only (before)</text>
+<line x1="20.0" y1="92.0" x2="36.0" y2="92.0" stroke="#1baf7a" stroke-width="2.5"/>
+<text x="41.0" y="96.0" font-size="11.5" fill="#565b62" text-anchor="start" font-weight="400">libwebrtc OpenH264 (software)</text>
+<rect x="54.0" y="182.4" width="398.0" height="37.2" fill="#2a78d6" fill-opacity="0.08"/>
+<line x1="54.0" y1="294.0" x2="452.0" y2="294.0" stroke="#e7e9ec" stroke-width="1"/>
+<text x="49.0" y="298.0" font-size="10.5" fill="#565b62" text-anchor="end" font-weight="400">0.0</text>
+<line x1="54.0" y1="247.5" x2="452.0" y2="247.5" stroke="#e7e9ec" stroke-width="1"/>
+<text x="49.0" y="251.5" font-size="10.5" fill="#565b62" text-anchor="end" font-weight="400">0.5</text>
+<line x1="54.0" y1="201.0" x2="452.0" y2="201.0" stroke="#dde1e5" stroke-width="1"/>
+<text x="49.0" y="205.0" font-size="10.5" fill="#565b62" text-anchor="end" font-weight="400">1.0</text>
+<line x1="54.0" y1="154.5" x2="452.0" y2="154.5" stroke="#e7e9ec" stroke-width="1"/>
+<text x="49.0" y="158.5" font-size="10.5" fill="#565b62" text-anchor="end" font-weight="400">1.5</text>
+<line x1="54.0" y1="108.0" x2="452.0" y2="108.0" stroke="#e7e9ec" stroke-width="1"/>
+<text x="49.0" y="112.0" font-size="10.5" fill="#565b62" text-anchor="end" font-weight="400">2.0</text>
+<line x1="54.0" y1="108.0" x2="54.0" y2="294.0" stroke="#e7e9ec" stroke-width="1"/>
+<text x="54.0" y="308.0" font-size="10.5" fill="#565b62" text-anchor="middle" font-weight="400">100</text>
+<line x1="121.4" y1="108.0" x2="121.4" y2="294.0" stroke="#e7e9ec" stroke-width="1"/>
+<text x="121.4" y="308.0" font-size="10.5" fill="#565b62" text-anchor="middle" font-weight="400">200</text>
+<line x1="188.8" y1="108.0" x2="188.8" y2="294.0" stroke="#e7e9ec" stroke-width="1"/>
+<text x="188.8" y="308.0" font-size="10.5" fill="#565b62" text-anchor="middle" font-weight="400">400</text>
+<line x1="256.1" y1="108.0" x2="256.1" y2="294.0" stroke="#e7e9ec" stroke-width="1"/>
+<text x="256.1" y="308.0" font-size="10.5" fill="#565b62" text-anchor="middle" font-weight="400">800</text>
+<line x1="323.5" y1="108.0" x2="323.5" y2="294.0" stroke="#e7e9ec" stroke-width="1"/>
+<text x="323.5" y="308.0" font-size="10.5" fill="#565b62" text-anchor="middle" font-weight="400">1.6M</text>
+<line x1="390.9" y1="108.0" x2="390.9" y2="294.0" stroke="#e7e9ec" stroke-width="1"/>
+<text x="390.9" y="308.0" font-size="10.5" fill="#565b62" text-anchor="middle" font-weight="400">3.2M</text>
+<text x="452.0" y="322.0" font-size="10.5" fill="#565b62" text-anchor="end" font-weight="400">target kbps (log)</text>
+<path d="M442.7,201.9L401.7,201.9L366.4,201.9L357.2,203.8L331.1,214.9L318.3,204.7L294.3,207.5L249.5,200.1L243.3,204.7L197.1,201.0L182.0,207.5L155.1,220.5L143.5,202.9L143.5,204.7" fill="none" stroke="#2a78d6" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="442.7" cy="201.9" r="3.5" fill="#2a78d6" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="401.7" cy="201.9" r="3.5" fill="#2a78d6" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="366.4" cy="201.9" r="3.5" fill="#2a78d6" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="357.2" cy="203.8" r="3.5" fill="#2a78d6" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="331.1" cy="214.9" r="3.5" fill="#2a78d6" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="318.3" cy="204.7" r="3.5" fill="#2a78d6" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="294.3" cy="207.5" r="3.5" fill="#2a78d6" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="249.5" cy="200.1" r="3.5" fill="#2a78d6" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="243.3" cy="204.7" r="3.5" fill="#2a78d6" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="197.1" cy="201.0" r="3.5" fill="#2a78d6" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="182.0" cy="207.5" r="3.5" fill="#2a78d6" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="155.1" cy="220.5" r="3.5" fill="#2a78d6" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="143.5" cy="202.9" r="3.5" fill="#2a78d6" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="143.5" cy="204.7" r="3.5" fill="#2a78d6" stroke="#ffffff" stroke-width="1.5"/>
+<path d="M444.3,201.9L405.4,201.9L370.1,202.9L357.6,240.1L340.8,289.4L319.1,287.5L298.9,291.2L273.4,281.0L251.7,291.2L223.7,291.2L195.8,290.3L156.1,289.4L116.4,286.6L88.8,287.5" fill="none" stroke="#eb6834" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="444.3" cy="201.9" r="3.5" fill="#eb6834" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="405.4" cy="201.9" r="3.5" fill="#eb6834" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="370.1" cy="202.9" r="3.5" fill="#eb6834" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="357.6" cy="240.1" r="3.5" fill="#eb6834" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="340.8" cy="289.4" r="3.5" fill="#eb6834" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="319.1" cy="287.5" r="3.5" fill="#eb6834" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="298.9" cy="291.2" r="3.5" fill="#eb6834" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="273.4" cy="281.0" r="3.5" fill="#eb6834" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="251.7" cy="291.2" r="3.5" fill="#eb6834" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="223.7" cy="291.2" r="3.5" fill="#eb6834" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="195.8" cy="290.3" r="3.5" fill="#eb6834" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="156.1" cy="289.4" r="3.5" fill="#eb6834" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="116.4" cy="286.6" r="3.5" fill="#eb6834" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="88.8" cy="287.5" r="3.5" fill="#eb6834" stroke="#ffffff" stroke-width="1.5"/>
+<path d="M447.6,268.9L408.2,254.0L380.1,229.8L357.6,221.5L339.8,214.9L315.8,203.8L295.3,201.9L269.3,201.9L248.2,201.9L219.5,201.9L191.9,201.9L149.1,201.9L112.2,201.9L83.9,201.0" fill="none" stroke="#1baf7a" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="447.6" cy="268.9" r="3.5" fill="#1baf7a" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="408.2" cy="254.0" r="3.5" fill="#1baf7a" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="380.1" cy="229.8" r="3.5" fill="#1baf7a" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="357.6" cy="221.5" r="3.5" fill="#1baf7a" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="339.8" cy="214.9" r="3.5" fill="#1baf7a" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="315.8" cy="203.8" r="3.5" fill="#1baf7a" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="295.3" cy="201.9" r="3.5" fill="#1baf7a" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="269.3" cy="201.9" r="3.5" fill="#1baf7a" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="248.2" cy="201.9" r="3.5" fill="#1baf7a" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="219.5" cy="201.9" r="3.5" fill="#1baf7a" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="191.9" cy="201.9" r="3.5" fill="#1baf7a" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="149.1" cy="201.9" r="3.5" fill="#1baf7a" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="112.2" cy="201.9" r="3.5" fill="#1baf7a" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="83.9" cy="201.0" r="3.5" fill="#1baf7a" stroke="#ffffff" stroke-width="1.5"/>
+<text x="480.0" y="58.0" font-size="13.5" fill="#16191d" text-anchor="start" font-weight="600">Jetson AV1 · 1080p60</text>
+<line x1="480.0" y1="74.0" x2="496.0" y2="74.0" stroke="#2a78d6" stroke-width="2.5"/>
+<text x="501.0" y="78.0" font-size="11.5" fill="#565b62" text-anchor="start" font-weight="400">resolution gears (now)</text>
+<line x1="674.4" y1="74.0" x2="690.4" y2="74.0" stroke="#eb6834" stroke-width="2.5"/>
+<text x="695.4" y="78.0" font-size="11.5" fill="#565b62" text-anchor="start" font-weight="400">QP scaling only (before)</text>
+<rect x="514.0" y="171.6" width="398.0" height="40.8" fill="#2a78d6" fill-opacity="0.08"/>
+<line x1="514.0" y1="294.0" x2="912.0" y2="294.0" stroke="#e7e9ec" stroke-width="1"/>
+<text x="509.0" y="298.0" font-size="10.5" fill="#565b62" text-anchor="end" font-weight="400">0.0</text>
+<line x1="514.0" y1="243.0" x2="912.0" y2="243.0" stroke="#e7e9ec" stroke-width="1"/>
+<text x="509.0" y="247.0" font-size="10.5" fill="#565b62" text-anchor="end" font-weight="400">0.5</text>
+<line x1="514.0" y1="192.0" x2="912.0" y2="192.0" stroke="#dde1e5" stroke-width="1"/>
+<text x="509.0" y="196.0" font-size="10.5" fill="#565b62" text-anchor="end" font-weight="400">1.0</text>
+<line x1="514.0" y1="141.0" x2="912.0" y2="141.0" stroke="#e7e9ec" stroke-width="1"/>
+<text x="509.0" y="145.0" font-size="10.5" fill="#565b62" text-anchor="end" font-weight="400">1.5</text>
+<line x1="514.0" y1="90.0" x2="912.0" y2="90.0" stroke="#e7e9ec" stroke-width="1"/>
+<text x="509.0" y="94.0" font-size="10.5" fill="#565b62" text-anchor="end" font-weight="400">2.0</text>
+<line x1="514.0" y1="90.0" x2="514.0" y2="294.0" stroke="#e7e9ec" stroke-width="1"/>
+<text x="514.0" y="308.0" font-size="10.5" fill="#565b62" text-anchor="middle" font-weight="400">100</text>
+<line x1="581.4" y1="90.0" x2="581.4" y2="294.0" stroke="#e7e9ec" stroke-width="1"/>
+<text x="581.4" y="308.0" font-size="10.5" fill="#565b62" text-anchor="middle" font-weight="400">200</text>
+<line x1="648.8" y1="90.0" x2="648.8" y2="294.0" stroke="#e7e9ec" stroke-width="1"/>
+<text x="648.8" y="308.0" font-size="10.5" fill="#565b62" text-anchor="middle" font-weight="400">400</text>
+<line x1="716.1" y1="90.0" x2="716.1" y2="294.0" stroke="#e7e9ec" stroke-width="1"/>
+<text x="716.1" y="308.0" font-size="10.5" fill="#565b62" text-anchor="middle" font-weight="400">800</text>
+<line x1="783.5" y1="90.0" x2="783.5" y2="294.0" stroke="#e7e9ec" stroke-width="1"/>
+<text x="783.5" y="308.0" font-size="10.5" fill="#565b62" text-anchor="middle" font-weight="400">1.6M</text>
+<line x1="850.9" y1="90.0" x2="850.9" y2="294.0" stroke="#e7e9ec" stroke-width="1"/>
+<text x="850.9" y="308.0" font-size="10.5" fill="#565b62" text-anchor="middle" font-weight="400">3.2M</text>
+<text x="912.0" y="322.0" font-size="10.5" fill="#565b62" text-anchor="end" font-weight="400">target kbps (log)</text>
+<path d="M900.8,191.0L863.9,191.0L857.4,192.0L810.1,186.9L794.7,188.9L776.8,210.4L727.9,173.6L708.6,165.5L694.0,175.7L644.0,156.3L633.5,167.5L633.5,188.9L633.5,188.9L633.5,188.9" fill="none" stroke="#2a78d6" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="900.8" cy="191.0" r="3.5" fill="#2a78d6" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="863.9" cy="191.0" r="3.5" fill="#2a78d6" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="857.4" cy="192.0" r="3.5" fill="#2a78d6" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="810.1" cy="186.9" r="3.5" fill="#2a78d6" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="794.7" cy="188.9" r="3.5" fill="#2a78d6" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="776.8" cy="210.4" r="3.5" fill="#2a78d6" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="727.9" cy="173.6" r="3.5" fill="#2a78d6" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="708.6" cy="165.5" r="3.5" fill="#2a78d6" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="694.0" cy="175.7" r="3.5" fill="#2a78d6" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="644.0" cy="156.3" r="3.5" fill="#2a78d6" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="633.5" cy="167.5" r="3.5" fill="#2a78d6" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="633.5" cy="188.9" r="3.5" fill="#2a78d6" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="633.5" cy="188.9" r="3.5" fill="#2a78d6" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="633.5" cy="188.9" r="3.5" fill="#2a78d6" stroke="#ffffff" stroke-width="1.5"/>
+<path d="M894.9,191.0L858.3,191.0L840.2,209.3L818.5,259.3L800.8,265.4L779.1,257.3L758.9,254.2L733.4,250.1L711.7,241.0L683.7,222.6L655.8,199.1L548.8,90.0" fill="none" stroke="#eb6834" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="894.9" cy="191.0" r="3.5" fill="#eb6834" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="858.3" cy="191.0" r="3.5" fill="#eb6834" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="840.2" cy="209.3" r="3.5" fill="#eb6834" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="818.5" cy="259.3" r="3.5" fill="#eb6834" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="800.8" cy="265.4" r="3.5" fill="#eb6834" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="779.1" cy="257.3" r="3.5" fill="#eb6834" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="758.9" cy="254.2" r="3.5" fill="#eb6834" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="733.4" cy="250.1" r="3.5" fill="#eb6834" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="711.7" cy="241.0" r="3.5" fill="#eb6834" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="683.7" cy="222.6" r="3.5" fill="#eb6834" stroke="#ffffff" stroke-width="1.5"/>
+<circle cx="655.8" cy="199.1" r="3.5" fill="#eb6834" stroke="#ffffff" stroke-width="1.5"/>
+<path d="M548.8,89.0L553.8,98.0L543.8,98.0Z" fill="#eb6834" stroke="#ffffff" stroke-width="1.5"/>
+</svg>

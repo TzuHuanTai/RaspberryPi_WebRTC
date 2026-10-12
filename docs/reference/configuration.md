@@ -118,8 +118,8 @@ DataChannel commands that drive on-demand capture.
 |---|---|---|
 | `--peer-timeout` | `60` | Connection timeout in seconds after receiving a remote offer. |
 | `--max-bitrate` | `0` | Maximum video bitrate (kbps). `0`: **0.08 bpp** with adaptive scaling (~10 Mbps at 1080p60, min. 2.5 Mbps), or **2.5 Mbps** with `--no-adaptive`. |
-| `--start-bitrate` | `0` | Initial bandwidth estimate (kbps). `0`: **1 Mbps** with adaptive scaling, or **300 kbps** with `--no-adaptive`. Below 500 kbps, sources above VGA may be downscaled permanently. |
-| `--min-bitrate` | `0` | Floor in kbps for the bandwidth estimate. `0` keeps WebRTC's default. |
+| `--start-bitrate` | `0` | Initial bandwidth estimate (kbps). `0`: **1 Mbps** with adaptive scaling, or **300 kbps** with `--no-adaptive`, but never below `--min-bitrate`. Below 500 kbps, sources above VGA may be downscaled permanently. |
+| `--min-bitrate` | `0` | Floor in kbps for the bandwidth estimate and the video bitrate. `0`: WebRTC's default, except on Jetson with `--hw-accel` and `--no-adaptive`, where the floor keeps the encoder from freezing. See [Low Bitrate](../media/low-bitrate.md). |
 | `--hw-accel` | `false` | Share DMA buffers between decoder, scaler, and encoder to cut CPU usage. See [Encoding](../media/encoding.md#hardware-encoding). |
 | `--no-adaptive` | `false` | Disable adaptive resolution scaling, keeping the output resolution fixed regardless of network or device conditions. |
 | `--scalability-mode` | | Temporal layers for the software video encoders, e.g. `L1T2` or `L1T3`. Not supported with `--hw-accel`. Empty keeps WebRTC's default (`L1T1`). |
