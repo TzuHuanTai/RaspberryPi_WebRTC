@@ -59,14 +59,26 @@ Anyone who joins the same room can watch the stream. With `--enable-ipc`, DataCh
 
 ## Cloudflare Realtime
 
+The device connects to a [cf-sfu-worker](https://github.com/mazupo/cf-sfu-worker). The worker holds the Cloudflare credentials. The device only needs the worker's device public key.
+
+The device streams only while someone watches:
+
+- The device connects to the worker and waits. It does not stream.
+- When a viewer joins one of the device's rooms, the device starts streaming. The first picture usually takes 2 to 3 seconds.
+- About 30 seconds after the last viewer leaves, the device stops streaming.
+
+The camera stays on the whole time, so recording is not affected.
+
 ### Free test server
 
-| URL | Device API key | Viewer API key |
+<!-- TODO: fill in the public keys when the worker is deployed. -->
+
+| URL | Device public key | Viewer public key |
 | --- | --- | --- |
-| `https://api.mazupo.com` | `81f899b8fab5692b0faa76c3372b7ae6` | `ec0478c67e729b6f429eda1e97829af0` |
+| `https://api.mazupo.com/cloudflare` | `DEVICE_PUBLIC_KEY` | `VIEWER_PUBLIC_KEY` |
 
 > [!WARNING]
-> This is a shared test environment. All users share the free Cloudflare quota, and it stops when the monthly limit is reached. Use a unique `--uid`, so you do not clash with other users. For your own environment, see [Sponsors](../sponsors.md#commercial--oem-notes).
+> This is a shared test environment. All users share the free Cloudflare quota. Anyone who knows a room name can watch that room, so use room names and a `--uid` that are hard to guess. For your own environment, deploy your own worker.
 
 ### 1. Run on the device
 
@@ -75,24 +87,56 @@ Anyone who joins the same room can watch the stream. With `--enable-ipc`, DataCh
     --fps=30 \
     --width=1920 \
     --height=1080 \
-    --uid=your-display-name \
+    --uid=your-device-name \
     --use-cloudflare \
-    --api-url=https://api.mazupo.com \
-    --api-key=81f899b8fab5692b0faa76c3372b7ae6
+    --api-url=https://api.mazupo.com/cloudflare \
+    --api-key=DEVICE_PUBLIC_KEY \
+    --cloudflare-room=your-room
 ```
 
-The device connects to Cloudflare Realtime through the Mazupo API. Cloudflare gives the device a new session each time it reconnects, and the API links that session to the device's `uid`.
+- `--api-url`: the worker's API URL. It ends with `/cloudflare`.
+- `--api-key`: the worker's device public key.
+- `--uid`: the device ID. Use letters, digits, `.`, `_` and `-`. Every device needs its own ID. When a second device connects with the same `--uid`, the first device stops and writes an error to its log.
+- `--cloudflare-room`: a room the device joins. Viewers watch a room.
 
-- `--api-url`: the API address.
-- `--api-key`: the key that lets the device use the API.
-- `--uid`: the device name. Anyone who knows it can find the stream.
+### Rooms
+
+A viewer joins one room and sees every device in it. A device can join up to 4 rooms. Give `--cloudflare-room` once for each room:
+
+```bash
+    --cloudflare-room=front-yard \
+    --cloudflare-room=cam-1-only
+```
+
+To let someone watch only one device, give that device a room of its own, like `cam-1-only` above.
+
+In a [YAML config file](../reference/configuration.md#config-file), write the rooms as a list:
+
+```yaml
+use-cloudflare: true
+cloudflare-room: [front-yard, cam-1-only]
+```
+
+### Log messages
+
+| Message | Meaning |
+| --- | --- |
+| `Connected to the Cloudflare worker as ... (state sleeping, ...)` | The device is connected and waits for viewers. |
+| `Someone is watching` | A viewer joined. The device starts streaming. |
+| `Publishing to Cloudflare` | The stream reaches Cloudflare. Viewers can play it. |
+| `Nobody is watching. Stopping the Cloudflare stream` | The last viewer left. The device stops streaming. |
+| `Another device connected to the Cloudflare worker with --uid=...` | Two devices use the same `--uid`. This device stops. Change the `--uid` of one device and restart it. |
+| `no access token from ... 401 key_invalid` | `--api-key` is not the worker's device public key. |
+
+When the connection to the worker drops, the device connects again. The stream keeps going while it reconnects.
 
 Cloudflare Realtime does not carry DataChannel or IPC messages yet. `--enable-ipc` still works for the other signaling that you turn on.
 
 ### 2. Watch the stream
 
+- Web app: open [app.mazupo.com/cloudflare](https://app.mazupo.com/cloudflare). Enter the viewer public key and the room.
 - Code example: [Pull from the Cloudflare Realtime SFU](https://mazupo.com/docs/client-sdk-js/guides/cloudflare)
-- Web app: open [app.mazupo.com/cloudflare](https://app.mazupo.com/cloudflare). Under **Settings → Network**, enter the URL and the **Viewer API key**. Add a device with the same `uid`, then select it.
+- The worker has a demo viewer page too. See its [README](https://github.com/mazupo/cf-sfu-worker#readme).
 
 ## Keep device control with MQTT
 

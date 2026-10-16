@@ -180,19 +180,16 @@ At least one signaling transport must be enabled or the process exits. See
 
 ### Cloudflare Realtime SFU
 
-The device API relays the handshake and holds the session a viewer has to pull. See
-[SFU](../signaling/sfu.md#cloudflare-realtime) for a worked example.
+The device connects to a [cf-sfu-worker](https://github.com/mazupo/cf-sfu-worker) and streams
+only while someone watches one of its rooms. See [SFU](../signaling/sfu.md#cloudflare-realtime)
+for a worked example.
 
 | Option | Default | Description |
 |---|---|---|
-| `--use-cloudflare` | `false` | Publish to a Cloudflare Realtime SFU over its HTTPS API. |
-| `--api-url` | | Base URL of the device API, e.g. `https://api.mazupo.com`. Every Realtime call goes to `<api-url>/sfu/...`, and the session is published to `PUT <api-url>/devices/<uid>/session` on connect and refreshed every 15 minutes. **Required** with `--use-cloudflare`. |
-| `--api-key` | | Bearer token authenticating this device against `--api-url`. **Required** with `--api-url`. |
-| `--cloudflare-url` <sup>[\*](../sponsors.md#sponsor-benefits)</sup> | | Base URL of the Realtime API, including the API version path. Defaults to `https://rtc.live.cloudflare.com/v1`; only worth setting when Cloudflare publishes a newer version. |
-| `--cloudflare-app-id` <sup>[\*](../sponsors.md#sponsor-benefits)</sup> | | Realtime App ID to publish into. **Required** with `--use-cloudflare` in the sponsor build. |
-| `--cloudflare-app-secret` <sup>[\*](../sponsors.md#sponsor-benefits)</sup> | | Realtime App Secret, sent as the bearer token. **Required** with `--use-cloudflare` in the sponsor build. |
-
-The App ID and Secret are what let a device handshake with Cloudflare itself instead of going through the relay, and only the sponsor build carries that logic.
+| `--use-cloudflare` | `false` | Publish to a Cloudflare Realtime SFU through the worker at `--api-url`. `--uid` is the device ID on the worker: 1 to 64 letters, digits, `.`, `_` or `-`. |
+| `--cloudflare-room` | | A room the device joins. Viewers watch a room. Give it once per room, up to 4 rooms. Same characters as `--uid`. In a YAML file, use a list. **Required** with `--use-cloudflare`. |
+| `--api-url` | | The worker's API URL, e.g. `https://api.mazupo.com/cloudflare`. Before each connection, the device gets an access token from `POST <api-url>/token`. **Required** with `--use-cloudflare`. |
+| `--api-key` | | The worker's device public key. **Required** with `--api-url`. |
 
 ## Object Detection and Tracking
 
@@ -253,8 +250,9 @@ Things worth knowing:
   in the file, which makes the file a good place for defaults you occasionally override.
 - **Unknown keys are ignored** rather than treated as errors, so a config file can carry
   comments-as-keys or settings for a newer version without breaking an older binary.
-- **Only scalar values are read.** Nested mappings and sequences are skipped, with the single
-  exception of the sponsor build's `cameras:` list (see [Multiple cameras](../deployment/multi-camera.md)).
+- **Only plain values and lists of plain values are read.** A list, like `cloudflare-room:`, works
+  like giving the option once per item. Nested mappings are skipped, with the single exception of
+  the sponsor build's `cameras:` list (see [Multiple cameras](../deployment/multi-camera.md)).
 
 ## Multi-camera
 
