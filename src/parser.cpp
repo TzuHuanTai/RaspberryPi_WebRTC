@@ -99,6 +99,18 @@ static const std::unordered_map<std::string, int> afSpeed_table = {
     {"normal", libcamera::controls::AfSpeedNormal}, {"fast", libcamera::controls::AfSpeedFast}};
 #endif
 
+// Device and room IDs as the cf-sfu-worker accepts them.
+static bool IsWorkerId(const std::string &id) {
+    if (id.empty() || id.size() > 64 || !isalnum(static_cast<unsigned char>(id[0]))) {
+        return false;
+    }
+    return std::all_of(id.begin(), id.end(), [](char c) {
+        return isalnum(static_cast<unsigned char>(c)) || c == '.' || c == '_' || c == '-';
+    });
+}
+
+static constexpr size_t kMaxCloudflareRooms = 4;
+
 inline int ParseEnum(const std::unordered_map<std::string, int> table, const std::string &str) {
     auto it = table.find(str);
     if (it == table.end()) {
@@ -269,12 +281,17 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
         ("livekit-key", bpo::value<std::string>(&args.livekit_key)->default_value(args.livekit_key),
             "The LiveKit API key used to authenticate with the server.")
         ("use-cloudflare", bpo::bool_switch(&args.use_cloudflare)->default_value(args.use_cloudflare),
-            "Enables publishing to a Cloudflare Realtime SFU through the device API. Requires "
-            "--api-url and --api-key; the Realtime credentials stay on the API side.")
+            "Publish to a Cloudflare Realtime SFU through a cf-sfu-worker at --api-url. The device "
+            "publishes only while someone watches one of its rooms. Requires --api-url, --api-key "
+            "and --cloudflare-room.")
+        ("cloudflare-room", bpo::value<std::vector<std::string>>(&args.cloudflare_rooms),
+            "A room this device joins on the Cloudflare worker. Viewers watch a room. Give the "
+            "option once per room, up to 4 rooms. To let people watch only this device, add a "
+            "room that only this device joins.")
         ("api-url", bpo::value<std::string>(&args.api_url)->default_value(args.api_url),
-            "Base URL of the picamera device API, e.g. https://api.mazupo.com.")
+            "The Cloudflare worker's API URL, e.g. https://api.mazupo.com/cloudflare.")
         ("api-key", bpo::value<std::string>(&args.api_key)->default_value(args.api_key),
-            "Bearer token authenticating this device against --api-url.")
+            "The worker's device public key.")
         ("config", bpo::value<std::string>()->default_value(""),
             "Path to a YAML configuration file. All CLI options can be specified as YAML keys. "
             "Command-line arguments take priority over values in the config file.");
@@ -301,6 +318,14 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
                 if (it->second.IsScalar()) {
                     ini_str +=
                         it->first.as<std::string>() + "=" + it->second.as<std::string>() + "\n";
+                } else if (it->second.IsSequence()) {
+                    // A list becomes one line per item, e.g. `cloudflare-room: [lab, door]`.
+                    for (const auto &item : it->second) {
+                        if (item.IsScalar()) {
+                            ini_str +=
+                                it->first.as<std::string>() + "=" + item.as<std::string>() + "\n";
+                        }
+                    }
                 }
             }
             ini.str(ini_str);
@@ -370,7 +395,7 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
         }
     } else {
         if (args.api_url.rfind("https://", 0) != 0 && args.api_url.rfind("http://", 0) != 0) {
-            ERROR_PRINT("--api-url must be a full url, e.g. https://api.mazupo.com.");
+            ERROR_PRINT("--api-url must be a full url, e.g. https://api.mazupo.com/cloudflare.");
             exit(1);
         }
         if (args.api_key.empty()) {
@@ -379,9 +404,38 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
         }
     }
 
-    if (args.use_cloudflare && args.api_url.empty()) {
-        ERROR_PRINT("--api-url is required when --use-cloudflare is specified.");
-        exit(1);
+    if (args.use_cloudflare) {
+        if (args.api_url.empty()) {
+            ERROR_PRINT("--api-url is required when --use-cloudflare is specified.");
+            exit(1);
+        }
+        if (!IsWorkerId(args.uid)) {
+            ERROR_PRINT("With --use-cloudflare, --uid must be 1 to 64 letters, digits, '.', '_' "
+                        "or '-', and start with a letter or digit.");
+            exit(1);
+        }
+        std::vector<std::string> rooms;
+        for (const auto &room : args.cloudflare_rooms) {
+            if (!IsWorkerId(room)) {
+                ERROR_PRINT("Invalid --cloudflare-room \"%s\": use 1 to 64 letters, digits, '.', "
+                            "'_' or '-', and start with a letter or digit.",
+                            room.c_str());
+                exit(1);
+            }
+            if (std::find(rooms.begin(), rooms.end(), room) == rooms.end()) {
+                rooms.push_back(room);
+            }
+        }
+        if (rooms.empty()) {
+            ERROR_PRINT("--cloudflare-room is required when --use-cloudflare is specified.");
+            exit(1);
+        }
+        if (rooms.size() > kMaxCloudflareRooms) {
+            ERROR_PRINT("A device can join up to %zu rooms; got %zu --cloudflare-room options.",
+                        kMaxCloudflareRooms, rooms.size());
+            exit(1);
+        }
+        args.cloudflare_rooms = rooms;
     }
 
     if (args.use_mqtt) {

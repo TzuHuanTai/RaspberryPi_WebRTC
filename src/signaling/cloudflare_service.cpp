@@ -1,61 +1,50 @@
 #include "signaling/cloudflare_service.h"
 
 #include <algorithm>
-#include <cctype>
 #include <cstdlib>
-#include <iomanip>
-#include <sstream>
 
 #include <nlohmann/json.hpp>
 
 #include "common/logging.h"
+#include "signaling/http_client.h"
 
 namespace net = boost::asio;
 namespace http = boost::beast::http;
 using json = nlohmann::json;
+using PeerState = webrtc::PeerConnectionInterface::PeerConnectionState;
 
 namespace {
 
 constexpr int kMinReconnectDelaySec = 1;
 constexpr int kMaxReconnectDelaySec = 30;
 constexpr int kApiTimeoutSec = 10;
-// Cloudflare KV allows ~1000 writes/day on the free plan and a Workers binding write costs the
-// same as a REST one, so this interval is really a write budget: 15 min is 96 writes/day/device
-// before the API-side dedupe halves it, against a record that expires in an hour.
-constexpr int kReportIntervalSec = 900;
-constexpr int kReportRetryDelaySec = 30;
-// How long the peer may stay unconnected before the session is torn down, counted from the
-// moment the offer went out and, once media has flowed, from the moment the link dropped.
+// Not 1000/1001: those make the worker remove the device from its rooms.
+constexpr int kCloseReconnecting = 3000;
 constexpr int kConnectTimeoutSec = 20;
 constexpr int kPeerDownGraceSec = 10;
 constexpr int kHealthIntervalSec = 2;
-constexpr int kStatusPollSec = 30;
+constexpr int kPublishRetrySec = 3;
+constexpr int kNominationCheckMs = 250;
 
-// Cloudflare answers 2xx with an `errorCode` in the body rather than an HTTP error status, so
-// every response has to be inspected even when the request itself succeeded.
-std::string ErrorOf(const json &obj) {
-    if (!obj.contains("errorCode")) {
-        return "";
+// e.g. "401 key_invalid: This public key is not valid for this worker."
+std::string DescribeFailure(const HttpClient::Response &res) {
+    if (res.status == 0) {
+        return res.body;
     }
-    return obj.value("errorCode", "unknown") + ": " + obj.value("errorDescription", "");
+    json obj = json::parse(res.body, nullptr, false);
+    if (!obj.is_discarded() && obj.contains("error") && obj["error"].is_object()) {
+        return std::to_string(res.status) + " " + obj["error"].value("code", "") + ": " +
+               obj["error"].value("message", "");
+    }
+    return std::to_string(res.status) + " " + res.body;
 }
 
-// The uid becomes a path segment of the device API url, and nothing constrains it to url-safe
-// characters.
-std::string UrlEncode(const std::string &value) {
-    std::ostringstream escaped;
-    escaped.fill('0');
-    escaped << std::hex;
-
-    for (const char c : value) {
-        if (isalnum(static_cast<unsigned char>(c)) || c == '-' || c == '_' || c == '.' ||
-            c == '~') {
-            escaped << c;
-        } else {
-            escaped << '%' << std::setw(2) << std::uppercase << int(static_cast<unsigned char>(c));
-        }
+std::string Join(const google::protobuf::RepeatedPtrField<std::string> &items) {
+    std::string out;
+    for (const auto &item : items) {
+        out += (out.empty() ? "" : ", ") + item;
     }
-    return escaped.str();
+    return out.empty() ? "none" : out;
 }
 
 } // namespace
@@ -72,404 +61,123 @@ CloudflareService::CloudflareService(Args args, std::shared_ptr<Conductor> condu
       ioc_(ioc),
       reconnect_timer_(ioc),
       health_timer_(ioc),
-      status_timer_(ioc),
-      report_timer_(ioc) {
-    // The device API fronts the Realtime API and holds the App ID and Secret on its side.
-    base_url_ = args_.api_url + "/sfu";
-    report_url_ = args_.api_url + "/devices/" + UrlEncode(args_.uid) + "/session";
+      retry_timer_(ioc) {
+    token_url_ = args_.api_url + "/token";
 }
 
 CloudflareService::~CloudflareService() { Disconnect(); }
 
-void CloudflareService::Connect() { StartSession(); }
+void CloudflareService::Connect() { StartConnection(); }
 
 void CloudflareService::Disconnect() {
     stopped_ = true;
-    CleanupSession();
+    connection_++;
+    reconnect_timer_.cancel();
+    StopPublishing();
+    publishing_ = false;
+    // A normal close: the worker removes the device from its rooms right away.
+    DropSocket(1000, "device stopped");
 }
 
-void CloudflareService::StartSession() {
+// -----------------------------------------------------------------------------
+// Connection to the worker
+// -----------------------------------------------------------------------------
+
+void CloudflareService::StartConnection() {
     if (stopped_) {
         return;
     }
-
     reconnect_pending_ = false;
-    generation_++;
-    CreateSession(generation_);
+    RequestToken(++connection_);
 }
 
-void CloudflareService::CreateSession(uint64_t gen) {
-    INFO_PRINT("Creating a Cloudflare session through %s", base_url_.c_str());
-
-    Request(gen, http::verb::post, "/sessions/new", "",
-            [weak_self = weak_from_this(), gen](const HttpClient::Response &res) {
-                auto self = weak_self.lock();
-                if (!self) {
-                    return;
-                }
-
-                json obj = json::parse(res.body, nullptr, false);
-                if (obj.is_discarded()) {
-                    self->ScheduleReconnect("could not parse the /sessions/new response");
-                    return;
-                }
-                auto error = ErrorOf(obj);
-                if (!error.empty()) {
-                    self->ScheduleReconnect("/sessions/new rejected, " + error);
-                    return;
-                }
-
-                self->session_id_ = obj.value("sessionId", "");
-                if (self->session_id_.empty()) {
-                    self->ScheduleReconnect("/sessions/new returned no sessionId");
-                    return;
-                }
-
-                self->CreatePeerAndOffer(gen);
-            });
-}
-
-void CloudflareService::CreatePeerAndOffer(uint64_t gen) {
-    if (!conductor_) {
-        ERROR_PRINT("Conductor is not initialized.");
-        return;
-    }
-
-    PeerConfig config;
-    // Cloudflare registers channels through POST /datachannels/new and requires each one
-    // pre-negotiated on the stream id that call returns, so CreateDataChannel has to be
-    // handed that id rather than the RoleId default. Its data channels carry no envelope,
-    // unlike LiveKit's -- hence a backend of its own rather than a shared "is an SFU" flag.
-    config.backend = SignalingBackend::Cloudflare;
-    config.is_publisher = true;
-    // Cloudflare has no trickle-ICE endpoint, so the candidates have to be in the offer.
-    config.has_candidates_in_sdp = true;
-    // Cloudflare data channels are registered through /datachannels/new rather than negotiated
-    // in the SDP, and the SFU channels the conductor would otherwise build speak LiveKit's
-    // protobuf framing. Publishing media is all this backend does for now.
-    config.no_data_channels = true;
-
-    peer_ = conductor_->CreatePeerConnection(config);
-    if (!peer_) {
-        ScheduleReconnect("failed to create the peer connection");
-        return;
-    }
-
-    peer_->OnLocalSdp([weak_self = weak_from_this(),
-                       gen](const std::string &, const std::string &sdp, const std::string &type) {
-        auto self = weak_self.lock();
-        if (!self) {
-            return;
-        }
-
-        // This runs on the libwebrtc signaling thread. The mids are already assigned because
-        // RtcPeer::OnSuccess applies the local description before emitting the SDP, so read
-        // them here and hop back onto the io_context for the HTTP call.
-        auto tracks = type == "offer" ? self->CollectLocalTracks() : std::vector<LocalTrack>{};
-        net::post(self->ioc_, [weak_self, gen, sdp, type, tracks]() {
-            auto self = weak_self.lock();
-            if (!self || self->stopped_ || gen != self->generation_) {
-                return;
-            }
-            if (type == "offer") {
-                self->PublishTracks(gen, sdp, tracks);
-            } else {
-                self->Renegotiate(gen, sdp);
-            }
-        });
-    });
-
-    // No OnLocalIce handler: there is nowhere to send trickle candidates.
-    peer_->CreateOffer();
-    MonitorPeer(gen);
-}
-
-std::vector<CloudflareService::LocalTrack> CloudflareService::CollectLocalTracks() const {
-    std::vector<LocalTrack> tracks;
-    if (!peer_ || !peer_->GetPeer()) {
-        return tracks;
-    }
-
-    for (auto &transceiver : peer_->GetPeer()->GetTransceivers()) {
-        auto sender = transceiver->sender();
-        if (!sender || !sender->track() || !transceiver->mid()) {
-            continue;
-        }
-        // The track id is what Conductor names the source (`video_track`, `video_track_<alias>`,
-        // `audio_track`), which makes the published trackName predictable for subscribers.
-        tracks.push_back({*transceiver->mid(), sender->track()->id()});
-    }
-    return tracks;
-}
-
-void CloudflareService::PublishTracks(uint64_t gen, const std::string &offer_sdp,
-                                      const std::vector<LocalTrack> &tracks) {
-    if (tracks.empty()) {
-        ScheduleReconnect("the offer carried no local tracks");
-        return;
-    }
-
+void CloudflareService::RequestToken(uint64_t connection) {
     json body;
-    body["sessionDescription"] = {{"sdp", offer_sdp}, {"type", "offer"}};
-    body["tracks"] = json::array();
-    for (const auto &track : tracks) {
-        body["tracks"].push_back(
-            {{"location", "local"}, {"mid", track.mid}, {"trackName", track.name}});
+    body["device_id"] = args_.uid;
+    body["room_ids"] = args_.cloudflare_rooms;
+    body["can_subscribe"] = false;
+    // Keeps the stream across the reconnect.
+    if (publishing_ && generation_ > 0) {
+        body["generation"] = generation_;
     }
-
-    Request(gen, http::verb::post, "/sessions/" + session_id_ + "/tracks/new", body.dump(),
-            [weak_self = weak_from_this(), gen](const HttpClient::Response &res) {
-                auto self = weak_self.lock();
-                if (!self) {
-                    return;
-                }
-
-                json obj = json::parse(res.body, nullptr, false);
-                if (obj.is_discarded()) {
-                    self->ScheduleReconnect("could not parse the /tracks/new response");
-                    return;
-                }
-                auto error = ErrorOf(obj);
-                if (!error.empty()) {
-                    self->ScheduleReconnect("/tracks/new rejected, " + error);
-                    return;
-                }
-
-                if (!obj.contains("sessionDescription")) {
-                    self->ScheduleReconnect("/tracks/new returned no sessionDescription");
-                    return;
-                }
-
-                // Subscribers need the session id and the track names to pull this stream, and
-                // Cloudflare picks the session id, so both go to the device API and to the log,
-                // which is the only surface when no device API is configured. Only the tracks
-                // Cloudflare accepted are worth advertising.
-                INFO_PRINT("Publishing to Cloudflare session %s", self->session_id_.c_str());
-                self->track_names_.clear();
-                for (const auto &track : obj.value("tracks", json::array())) {
-                    auto name = track.value("trackName", "");
-                    const char *label = name.empty() ? "?" : name.c_str();
-                    auto track_error = ErrorOf(track);
-                    if (!track_error.empty()) {
-                        ERROR_PRINT("Track %s was rejected, %s", label, track_error.c_str());
-                        continue;
-                    }
-                    INFO_PRINT("  track %s (mid %s)", label, track.value("mid", "?").c_str());
-                    if (!name.empty()) {
-                        self->track_names_.push_back(std::move(name));
-                    }
-                }
-
-                // Normally an answer. When Cloudflare needs an immediate renegotiation it
-                // replies with an offer instead, and RtcPeer answers it on its own; that answer
-                // comes back through OnLocalSdp and is routed to /renegotiate.
-                const auto &desc = obj["sessionDescription"];
-                self->peer_->SetRemoteSdp(desc.value("sdp", ""), desc.value("type", "answer"));
-
-                self->ReportSession(gen);
-                self->PollSessionStatus(gen);
-            });
-}
-
-void CloudflareService::Renegotiate(uint64_t gen, const std::string &answer_sdp) {
-    json body;
-    body["sessionDescription"] = {{"sdp", answer_sdp}, {"type", "answer"}};
-
-    Request(gen, http::verb::put, "/sessions/" + session_id_ + "/renegotiate", body.dump(),
-            [weak_self = weak_from_this()](const HttpClient::Response &res) {
-                auto self = weak_self.lock();
-                if (!self) {
-                    return;
-                }
-
-                // A successful renegotiation carries nothing worth reading, so an empty body is
-                // as good as an empty object here.
-                json obj = json::parse(res.body, nullptr, false);
-                if (!obj.is_discarded()) {
-                    auto error = ErrorOf(obj);
-                    if (!error.empty()) {
-                        self->ScheduleReconnect("/renegotiate rejected, " + error);
-                        return;
-                    }
-                }
-                DEBUG_PRINT("Renegotiated session %s", self->session_id_.c_str());
-            });
-}
-
-void CloudflareService::MonitorPeer(uint64_t gen) {
-    health_timer_.expires_after(std::chrono::seconds(kHealthIntervalSec));
-    health_timer_.async_wait(
-        [weak_self = weak_from_this(), gen](const boost::system::error_code &ec) {
-            auto self = weak_self.lock();
-            if (ec || !self || self->stopped_ || gen != self->generation_) {
-                return;
-            }
-
-            if (!self->peer_ || self->peer_->is_expired()) {
-                self->ScheduleReconnect("the peer connection expired");
-                return;
-            }
-
-            if (self->peer_->is_connected()) {
-                self->peer_was_connected_ = true;
-                self->retry_count_ = 0;
-                self->peer_down_since_ = {};
-            } else {
-                auto now = std::chrono::steady_clock::now();
-                if (self->peer_down_since_.time_since_epoch().count() == 0) {
-                    self->peer_down_since_ = now;
-                }
-                // Before the first connect this is the offer/answer timeout; afterwards it is a
-                // grace window that lets ICE recover on its own instead of churning sessions.
-                auto limit = self->peer_was_connected_ ? kPeerDownGraceSec : kConnectTimeoutSec;
-                auto down =
-                    std::chrono::duration_cast<std::chrono::seconds>(now - self->peer_down_since_);
-                if (down.count() >= limit) {
-                    self->ScheduleReconnect(self->peer_was_connected_
-                                                ? "the peer connection dropped"
-                                                : "the peer connection never came up");
-                    return;
-                }
-            }
-
-            self->MonitorPeer(gen);
-        });
-}
-
-void CloudflareService::PollSessionStatus(uint64_t gen) {
-    status_timer_.expires_after(std::chrono::seconds(kStatusPollSec));
-    status_timer_.async_wait(
-        [weak_self = weak_from_this(), gen](const boost::system::error_code &ec) {
-            auto self = weak_self.lock();
-            if (ec || !self || self->stopped_ || gen != self->generation_) {
-                return;
-            }
-
-            self->Request(gen, http::verb::get, "/sessions/" + self->session_id_, "",
-                          [weak_self, gen](const HttpClient::Response &res) {
-                              auto self = weak_self.lock();
-                              if (!self) {
-                                  return;
-                              }
-
-                              json obj = json::parse(res.body, nullptr, false);
-                              if (!obj.is_discarded()) {
-                                  for (const auto &track : obj.value("tracks", json::array())) {
-                                      DEBUG_PRINT("Cloudflare track %s is %s",
-                                                  track.value("trackName", "?").c_str(),
-                                                  track.value("status", "?").c_str());
-                                  }
-                              }
-                              self->PollSessionStatus(gen);
-                          });
-        });
-}
-
-// Cloudflare picks the session id and mints a new one on every reconnect, so a viewer has no way
-// to derive it. Publishing it under the uid is what makes the uid enough to pull the stream.
-//
-// Deliberately not routed through Request(): that helper tears the session down on any failure.
-// The registry is a convenience, and a rejected report says nothing about a stream that is
-// already flowing.
-void CloudflareService::ReportSession(uint64_t gen) {
-    if (report_url_.empty() || session_id_.empty()) {
-        return;
-    }
-
-    json body;
-    body["sessionId"] = session_id_;
-    body["backend"] = "cloudflare";
-    body["tracks"] = track_names_;
 
     HttpClient::Request request;
-    request.method = http::verb::put;
-    request.url = report_url_;
+    request.method = http::verb::post;
+    request.url = token_url_;
     request.body = body.dump();
     request.bearer_token = args_.api_key;
     request.timeout_sec = kApiTimeoutSec;
 
     HttpClient::Send(
         ioc_, std::move(request),
-        [weak_self = weak_from_this(), gen](const HttpClient::Response &res) {
+        [weak_self = weak_from_this(), connection](const HttpClient::Response &res) {
             auto self = weak_self.lock();
-            if (!self || self->stopped_ || gen != self->generation_) {
+            if (!self || self->stopped_ || connection != self->connection_) {
                 return;
             }
 
-            if (res.ok) {
-                self->report_retry_count_ = 0;
-                DEBUG_PRINT("Reported session %s to the device API", self->session_id_.c_str());
-                self->ScheduleSessionReport(gen, kReportIntervalSec);
+            if (!res.ok) {
+                auto reason = DescribeFailure(res);
+                if (res.status == 401) {
+                    reason += " Check --api-key: it must be the worker's device public key.";
+                }
+                self->ScheduleReconnect("no access token from " + self->token_url_ + ", " + reason);
                 return;
             }
 
-            // A record that never arrives only costs a viewer the lookup, so back
-            // off and leave the stream alone.
-            int delay = kReportRetryDelaySec << std::min(self->report_retry_count_, 3);
-            delay = std::min(delay, kReportIntervalSec);
-            self->report_retry_count_++;
-            ERROR_PRINT("Could not report the session to %s (%d), %s; retrying in %ds",
-                        self->report_url_.c_str(), res.status, res.body.c_str(), delay);
-            self->ScheduleSessionReport(gen, delay);
+            json obj = json::parse(res.body, nullptr, false);
+            std::string token = obj.is_object() ? obj.value("token", "") : "";
+            std::string url = obj.is_object() ? obj.value("url", "") : "";
+            if (token.empty() || url.empty()) {
+                self->ScheduleReconnect("the token response has no token or url");
+                return;
+            }
+            self->OpenSocket(connection, url, token);
         });
 }
 
-void CloudflareService::ScheduleSessionReport(uint64_t gen, int delay_sec) {
-    report_timer_.expires_after(std::chrono::seconds(delay_sec));
-    report_timer_.async_wait(
-        [weak_self = weak_from_this(), gen](const boost::system::error_code &ec) {
+void CloudflareService::OpenSocket(uint64_t connection, const std::string &url,
+                                   const std::string &token) {
+    auto socket = WebSocketClient::Create(ioc_);
+    socket_ = socket;
+
+    socket->OnMessage([weak_self = weak_from_this(), connection](const std::string &data) {
+        auto self = weak_self.lock();
+        if (self && !self->stopped_ && connection == self->connection_) {
+            self->OnMessage(data);
+        }
+    });
+    socket->OnClose(
+        [weak_self = weak_from_this(), connection](int code, const std::string &reason) {
             auto self = weak_self.lock();
-            if (ec || !self || self->stopped_ || gen != self->generation_) {
-                return;
+            if (self && !self->stopped_ && connection == self->connection_) {
+                self->OnSocketClosed(code, reason);
             }
-            self->ReportSession(gen);
         });
+
+    DEBUG_PRINT("Connecting to the Cloudflare worker at %s", url.c_str());
+    // The token is base64url, so it needs no escaping.
+    socket->Open(url + (url.find('?') == std::string::npos ? "?" : "&") + "access_token=" + token);
 }
 
-void CloudflareService::Request(uint64_t gen, http::verb method, const std::string &path,
-                                const std::string &body,
-                                std::function<void(const HttpClient::Response &)> on_complete) {
-    HttpClient::Request request;
-    request.method = method;
-    request.url = base_url_ + path;
-    request.body = body;
-    request.bearer_token = args_.api_key;
-    request.timeout_sec = kApiTimeoutSec;
+void CloudflareService::OnSocketClosed(int code, const std::string &reason) {
+    socket_ = nullptr;
 
-    HttpClient::Send(ioc_, std::move(request),
-                     [weak_self = weak_from_this(), gen, path,
-                      on_complete = std::move(on_complete)](const HttpClient::Response &res) {
-                         auto self = weak_self.lock();
-                         if (!self || self->stopped_ || gen != self->generation_) {
-                             return;
-                         }
-                         if (!res.ok) {
-                             self->ScheduleReconnect(path + " failed with " +
-                                                     std::to_string(res.status) + ", " + res.body);
-                             return;
-                         }
-                         on_complete(res);
-                     });
-}
-
-void CloudflareService::CleanupSession() {
-    generation_++;
-
-    reconnect_timer_.cancel();
-    health_timer_.cancel();
-    status_timer_.cancel();
-    report_timer_.cancel();
-
-    if (peer_) {
-        peer_->Terminate();
-        peer_ = nullptr;
+    if (code == protocol::CLOSE_CODE_REPLACED) {
+        ERROR_PRINT("Another device connected to the Cloudflare worker with --uid=%s, so this one "
+                    "was disconnected. Give every device its own --uid. Cloudflare publishing "
+                    "stops and does not reconnect.",
+                    args_.uid.c_str());
+        stopped_ = true;
+        reconnect_timer_.cancel();
+        StopPublishing();
+        publishing_ = false;
+        return;
     }
 
-    session_id_.clear();
-    track_names_.clear();
-    report_retry_count_ = 0;
-    peer_was_connected_ = false;
-    peer_down_since_ = {};
+    ScheduleReconnect(code != 0 ? "the worker closed the connection, " + std::to_string(code) +
+                                      " " + reason
+                                : reason);
 }
 
 void CloudflareService::ScheduleReconnect(const std::string &reason) {
@@ -477,18 +185,18 @@ void CloudflareService::ScheduleReconnect(const std::string &reason) {
         return;
     }
     reconnect_pending_ = true;
-    CleanupSession();
+    connection_++;
+    // The PeerConnection stays, so the stream goes on while reconnecting.
+    DropSocket(kCloseReconnecting, "reconnecting");
 
     int delay = kMinReconnectDelaySec << std::min(retry_count_, 5);
     delay = std::min(delay, kMaxReconnectDelaySec);
     retry_count_++;
 
     auto jitter_ms = std::rand() % 500;
-    ERROR_PRINT("Cloudflare session failure (%s), reconnecting in %d.%03ds", reason.c_str(), delay,
-                jitter_ms);
+    ERROR_PRINT("Cloudflare worker connection failed (%s), reconnecting in %d.%03ds",
+                reason.c_str(), delay, jitter_ms);
 
-    // A Cloudflare session is tied to one PeerConnection, so a retry always mints a new one
-    // rather than trying to re-attach to the session that just went away.
     reconnect_timer_.expires_after(std::chrono::milliseconds(delay * 1000 + jitter_ms));
     reconnect_timer_.async_wait(
         [weak_self = weak_from_this()](const boost::system::error_code &ec) {
@@ -496,6 +204,323 @@ void CloudflareService::ScheduleReconnect(const std::string &reason) {
             if (ec || !self) {
                 return;
             }
-            self->StartSession();
+            self->StartConnection();
+        });
+}
+
+void CloudflareService::DropSocket(int code, const std::string &reason) {
+    if (!socket_) {
+        return;
+    }
+    // Its callbacks belong to an older connection now and are ignored.
+    auto socket = std::move(socket_);
+    socket_ = nullptr;
+    socket->Close(code, reason);
+}
+
+bool CloudflareService::Send(const protocol::DeviceRequest &request) {
+    if (!socket_ || !socket_->is_open()) {
+        DEBUG_PRINT("Not connected to the Cloudflare worker, a request is not sent.");
+        return false;
+    }
+    socket_->Send(request.SerializeAsString());
+    return true;
+}
+
+void CloudflareService::SendReady() {
+    ready_sent_ = true;
+    protocol::DeviceRequest request;
+    request.mutable_ready();
+    Send(request);
+}
+
+// -----------------------------------------------------------------------------
+// Worker messages
+// -----------------------------------------------------------------------------
+
+void CloudflareService::OnMessage(const std::string &data) {
+    protocol::DeviceResponse response;
+    if (!response.ParseFromString(data)) {
+        DEBUG_PRINT("Ignored a worker message that is not a DeviceResponse.");
+        return;
+    }
+
+    switch (response.message_case()) {
+        case protocol::DeviceResponse::kJoined:
+            OnJoined(response.joined());
+            break;
+        case protocol::DeviceResponse::kWake:
+            OnWake();
+            break;
+        case protocol::DeviceResponse::kAnswer:
+            OnAnswer(response.answer());
+            break;
+        case protocol::DeviceResponse::kSleep:
+            OnSleep();
+            break;
+        case protocol::DeviceResponse::kError:
+            OnError(response.error());
+            break;
+        default:
+            DEBUG_PRINT("Ignored worker message %d.", response.message_case());
+            break;
+    }
+}
+
+void CloudflareService::OnJoined(const protocol::DeviceJoined &joined) {
+    retry_count_ = 0;
+
+    ice_servers_.clear();
+    for (const auto &item : joined.ice_servers()) {
+        webrtc::PeerConnectionInterface::IceServer server;
+        server.urls.assign(item.urls().begin(), item.urls().end());
+        server.username = item.username();
+        server.password = item.credential();
+        if (!server.urls.empty()) {
+            ice_servers_.push_back(std::move(server));
+        }
+    }
+
+    INFO_PRINT("Connected to the Cloudflare worker as %s in room(s) %s (%s, generation %u)",
+               args_.uid.c_str(), Join(joined.rooms()).c_str(),
+               protocol::DeviceState_Name(joined.state()).c_str(), joined.generation());
+
+    // Replies to offers on the old connection are lost.
+    unanswered_ = 0;
+    if (!publishing_) {
+        return;
+    }
+    // Without the generation of an answer in the token, the worker starts over and says so here.
+    if (joined.state() == protocol::DEVICE_STATE_SLEEPING) {
+        INFO_PRINT("The worker ended the publication while the device was away. Stopping the "
+                   "stream.");
+        StopPublishing();
+        publishing_ = false;
+    } else if (peer_ && peer_->is_connected()) {
+        // `ready` may have been lost with the old connection.
+        SendReady();
+    }
+}
+
+void CloudflareService::OnWake() {
+    if (publishing_) {
+        // The worker repeats a wake when `ready` did not come in time.
+        INFO_PRINT("The worker asked to publish again. Starting over.");
+    } else {
+        INFO_PRINT("Someone is watching. Publishing to Cloudflare.");
+    }
+    publishing_ = true;
+    StartPublishing();
+}
+
+void CloudflareService::OnAnswer(const protocol::PublishAnswer &answer) {
+    unanswered_ = std::max(0, unanswered_ - 1);
+    if (!peer_ || !offer_sent_ || unanswered_ > 0) {
+        DEBUG_PRINT("Ignored the answer to an older offer (generation %u).", answer.generation());
+        return;
+    }
+    generation_ = answer.generation();
+    INFO_PRINT("Got the SFU answer (generation %u). Connecting.", generation_);
+    peer_->SetRemoteSdp(answer.sdp(), "answer");
+}
+
+void CloudflareService::OnSleep() {
+    if (publishing_) {
+        INFO_PRINT("Nobody is watching. Stopping the Cloudflare stream.");
+    }
+    StopPublishing();
+    publishing_ = false;
+}
+
+void CloudflareService::OnError(const protocol::SignalError &error) {
+    auto where = error.request().empty() ? std::string() : " for " + error.request();
+    ERROR_PRINT("The Cloudflare worker reported %s%s: %s",
+                protocol::ErrorCode_Name(error.code()).c_str(), where.c_str(),
+                error.message().c_str());
+
+    if (error.request() != "offer") {
+        return;
+    }
+    unanswered_ = std::max(0, unanswered_ - 1);
+    if (!offer_sent_ || unanswered_ > 0) {
+        return; // the reply to an older offer
+    }
+    if (error.code() == protocol::ERROR_CODE_WAKE_STALE) {
+        // The worker sends a new wake if someone still watches.
+        StopPublishing();
+        publishing_ = false;
+    } else {
+        RetryPublishing("the worker could not publish the offer", kPublishRetrySec);
+    }
+}
+
+// -----------------------------------------------------------------------------
+// Publishing
+// -----------------------------------------------------------------------------
+
+void CloudflareService::StartPublishing() {
+    StopPublishing();
+    auto publication = publication_;
+
+    if (!conductor_) {
+        ERROR_PRINT("Conductor is not initialized.");
+        return;
+    }
+
+    PeerConfig config;
+    config.backend = SignalingBackend::Cloudflare;
+    config.is_publisher = true;
+    // The SFU is ICE-lite, so the offer needs no local candidates.
+    config.has_candidates_in_sdp = false;
+    config.no_data_channels = true;
+    config.servers = ice_servers_;
+    // The SFU may hold DTLS until the pair is nominated. Check often so that happens early.
+    config.ice_check_interval_strong_connectivity = kNominationCheckMs;
+    config.stable_writable_connection_ping_interval_ms = kNominationCheckMs;
+
+    peer_ = conductor_->CreatePeerConnection(config);
+    if (!peer_) {
+        RetryPublishing("could not create the PeerConnection", kPublishRetrySec);
+        return;
+    }
+
+    RtcPeer *raw_peer = peer_.get();
+    peer_->OnLocalSdp([weak_self = weak_from_this(), publication, raw_peer](
+                          const std::string &, const std::string &sdp, const std::string &type) {
+        if (type != "offer") {
+            return;
+        }
+        // On the signaling thread, after the local description set the mids.
+        protocol::DeviceRequest request;
+        auto *offer = request.mutable_offer();
+        offer->set_sdp(sdp);
+        for (const auto &transceiver : raw_peer->LocalTracks()) {
+            auto *track = offer->add_tracks();
+            track->set_mid(*transceiver->mid());
+            track->set_track_name(transceiver->sender()->track()->id());
+        }
+        auto self = weak_self.lock();
+        if (!self) {
+            return;
+        }
+        net::post(self->ioc_, [weak_self, publication, request]() mutable {
+            auto self = weak_self.lock();
+            if (!self || self->stopped_ || publication != self->publication_) {
+                return;
+            }
+            if (request.offer().tracks().empty()) {
+                self->RetryPublishing("the offer has no tracks", kPublishRetrySec);
+                return;
+            }
+            if (self->Send(request)) {
+                self->unanswered_++;
+                self->offer_sent_ = true;
+            }
+        });
+    });
+
+    peer_->OnConnectionState([weak_self = weak_from_this(), publication](PeerState state) {
+        auto self = weak_self.lock();
+        if (!self) {
+            return;
+        }
+        net::post(self->ioc_, [weak_self, publication, state]() {
+            auto self = weak_self.lock();
+            if (!self || self->stopped_ || publication != self->publication_) {
+                return;
+            }
+            self->OnPeerState(state);
+        });
+    });
+
+    peer_->CreateOffer();
+    MonitorPeer(publication);
+}
+
+void CloudflareService::StopPublishing() {
+    publication_++;
+    health_timer_.cancel();
+    retry_timer_.cancel();
+
+    if (peer_) {
+        peer_->Terminate();
+        peer_ = nullptr;
+    }
+
+    generation_ = 0;
+    offer_sent_ = false;
+    ready_sent_ = false;
+    peer_was_connected_ = false;
+    peer_down_since_ = {};
+}
+
+void CloudflareService::RetryPublishing(const std::string &reason, int delay_sec) {
+    if (!publishing_) {
+        return;
+    }
+    StopPublishing();
+    ERROR_PRINT("Cloudflare publishing failed (%s), trying again in %ds", reason.c_str(),
+                delay_sec);
+
+    // A new offer starts a new generation. A sleep or wake meanwhile cancels the timer.
+    retry_timer_.expires_after(std::chrono::seconds(delay_sec));
+    retry_timer_.async_wait([weak_self = weak_from_this()](const boost::system::error_code &ec) {
+        auto self = weak_self.lock();
+        if (ec || !self || self->stopped_ || !self->publishing_) {
+            return;
+        }
+        self->StartPublishing();
+    });
+}
+
+void CloudflareService::OnPeerState(PeerState state) {
+    if (state == PeerState::kConnected) {
+        peer_was_connected_ = true;
+        peer_down_since_ = {};
+        if (!ready_sent_) {
+            INFO_PRINT("Publishing to Cloudflare (generation %u).", generation_);
+            SendReady();
+        }
+    } else if (state == PeerState::kFailed) {
+        RetryPublishing("the PeerConnection failed", 0);
+    }
+}
+
+void CloudflareService::MonitorPeer(uint64_t publication) {
+    health_timer_.expires_after(std::chrono::seconds(kHealthIntervalSec));
+    health_timer_.async_wait(
+        [weak_self = weak_from_this(), publication](const boost::system::error_code &ec) {
+            auto self = weak_self.lock();
+            if (ec || !self || self->stopped_ || publication != self->publication_) {
+                return;
+            }
+
+            if (!self->peer_ || self->peer_->is_expired()) {
+                self->RetryPublishing("the PeerConnection closed", kPublishRetrySec);
+                return;
+            }
+
+            if (self->peer_->is_connected()) {
+                self->peer_was_connected_ = true;
+                self->peer_down_since_ = {};
+            } else {
+                auto now = std::chrono::steady_clock::now();
+                if (self->peer_down_since_.time_since_epoch().count() == 0) {
+                    self->peer_down_since_ = now;
+                }
+                // Before the first connect: the connect timeout. After: time for ICE to recover.
+                auto limit = self->peer_was_connected_ ? kPeerDownGraceSec : kConnectTimeoutSec;
+                auto down =
+                    std::chrono::duration_cast<std::chrono::seconds>(now - self->peer_down_since_);
+                if (down.count() >= limit) {
+                    self->RetryPublishing(self->peer_was_connected_
+                                              ? "the PeerConnection dropped"
+                                              : "the PeerConnection did not connect",
+                                          0);
+                    return;
+                }
+            }
+
+            self->MonitorPeer(publication);
         });
 }

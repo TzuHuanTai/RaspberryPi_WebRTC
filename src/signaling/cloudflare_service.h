@@ -9,21 +9,14 @@
 #include <boost/asio.hpp>
 
 #include "args.h"
+#include "proto/cloudflare.pb.h"
 #include "rtc/conductor.h"
-#include "signaling/http_client.h"
 #include "signaling/signaling_service.h"
+#include "signaling/websocket_client.h"
 
-// Publishes the local tracks into a Cloudflare Realtime SFU through the picamera device API.
-//
-// The device never holds the Realtime App ID or App Secret: every call goes to
-// <api-url>/sfu/..., which attaches them and forwards the request. That is what makes SFU
-// streaming usable without a Cloudflare account of your own.
-//
-// There is no signaling socket either way — the whole exchange is a handful of one-shot HTTPS
-// requests, the device is always the offerer, and there is no trickle-ICE endpoint, so the
-// candidates have to ride inside the offer. With no socket to watch, a dropped link is only
-// visible through the PeerConnection state, which is why this service polls the peer instead of
-// reacting to a read error.
+// Publishes to Cloudflare Realtime through a cf-sfu-worker
+// (https://github.com/mazupo/cf-sfu-worker). The worker sends `wake` when someone watches one of
+// the device's rooms and `sleep` when nobody does; only then is there a PeerConnection.
 class CloudflareService : public SignalingService,
                           public std::enable_shared_from_this<CloudflareService> {
   public:
@@ -37,57 +30,56 @@ class CloudflareService : public SignalingService,
     void Disconnect() override;
 
   private:
-    struct LocalTrack {
-        std::string mid;
-        std::string name;
-    };
-
     std::shared_ptr<Conductor> conductor_;
     Args args_;
     boost::asio::io_context &ioc_;
-    boost::asio::steady_timer reconnect_timer_, health_timer_, status_timer_, report_timer_;
+    boost::asio::steady_timer reconnect_timer_, health_timer_, retry_timer_;
+    std::shared_ptr<WebSocketClient> socket_;
     webrtc::scoped_refptr<RtcPeer> peer_;
+    std::vector<webrtc::PeerConnectionInterface::IceServer> ice_servers_;
 
-    std::string base_url_;
-    std::string report_url_;
-    std::string session_id_;
-    // The track names the SFU accepted, kept so the periodic re-report does not have to walk the
-    // transceivers again from the io thread.
-    std::vector<std::string> track_names_;
-    int report_retry_count_ = 0;
+    std::string token_url_;
+    // From wake until sleep: the worker wants this device to publish.
+    bool publishing_ = false;
+    // The generation of the answer the PeerConnection uses, or 0 before the answer.
+    uint32_t generation_ = 0;
+    // Offers sent on this connection with no reply yet. Only the reply to the last offer counts.
+    int unanswered_ = 0;
+    bool offer_sent_ = false;
     int retry_count_ = 0;
     bool stopped_ = false;
     bool reconnect_pending_ = false;
+    bool ready_sent_ = false;
     bool peer_was_connected_ = false;
     std::chrono::steady_clock::time_point peer_down_since_;
-    // Bumped on every (re)connect attempt so that handlers belonging to a torn-down session
-    // can be discarded instead of interfering with the new one.
-    uint64_t generation_ = 0;
+    // Callbacks of an older connection or PeerConnection compare these and return.
+    uint64_t connection_ = 0;
+    uint64_t publication_ = 0;
 
-    // connection lifecycle
-    void StartSession();
-    void CreateSession(uint64_t gen);
-    void CreatePeerAndOffer(uint64_t gen);
+    // connection to the worker
+    void StartConnection();
+    void RequestToken(uint64_t connection);
+    void OpenSocket(uint64_t connection, const std::string &url, const std::string &token);
+    void OnSocketClosed(int code, const std::string &reason);
     void ScheduleReconnect(const std::string &reason);
-    void CleanupSession();
+    void DropSocket(int code, const std::string &reason);
+    bool Send(const protocol::DeviceRequest &request);
+    void SendReady();
 
-    // signaling
-    void PublishTracks(uint64_t gen, const std::string &offer_sdp,
-                       const std::vector<LocalTrack> &tracks);
-    void Renegotiate(uint64_t gen, const std::string &answer_sdp);
-    std::vector<LocalTrack> CollectLocalTracks() const;
+    // worker messages
+    void OnMessage(const std::string &data);
+    void OnJoined(const protocol::DeviceJoined &joined);
+    void OnWake();
+    void OnAnswer(const protocol::PublishAnswer &answer);
+    void OnSleep();
+    void OnError(const protocol::SignalError &error);
 
-    // liveness
-    void MonitorPeer(uint64_t gen);
-    void PollSessionStatus(uint64_t gen);
-
-    // session registry
-    void ReportSession(uint64_t gen);
-    void ScheduleSessionReport(uint64_t gen, int delay_sec);
-
-    void Request(uint64_t gen, boost::beast::http::verb method, const std::string &path,
-                 const std::string &body,
-                 std::function<void(const HttpClient::Response &)> on_complete);
+    // publishing
+    void StartPublishing();
+    void StopPublishing();
+    void RetryPublishing(const std::string &reason, int delay_sec);
+    void OnPeerState(webrtc::PeerConnectionInterface::PeerConnectionState state);
+    void MonitorPeer(uint64_t publication);
 };
 
 #endif // CLOUDFLARE_SERVICE_H_
