@@ -2,7 +2,7 @@
 
 Send data both ways between the browser and a program on the device: AI events, sensor values, or remote-control commands. pi-webrtc passes the messages between a WebRTC DataChannel and a Unix socket on the device.
 
-This works with `--use-mqtt` and `--use-livekit`.
+This works with `--use-mqtt`, `--use-livekit` and `--use-cloudflare`.
 
 ## Two channels
 
@@ -14,6 +14,9 @@ With [`--enable-ipc`](../reference/configuration.md#ipc), pi-webrtc opens two ex
 | Reliable | Messages that must arrive, such as commands |
 
 The client chooses the channel for each message. [client-sdk-js](https://github.com/mazupo/client-sdk-js) uses the reliable channel by default.
+
+> [!NOTE]
+> With `--use-cloudflare`, messages from the device go to every viewer with IPC. Only the one viewer that controls the device can send to it. See [Cloudflare Realtime](../signaling/sfu.md#ipc-messages).
 
 > [!NOTE]
 > With `--use-livekit`, messages go to everyone in the room.

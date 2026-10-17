@@ -130,7 +130,13 @@ cloudflare-room: [front-yard, cam-1-only]
 
 When the connection to the worker drops, the device connects again. The stream keeps going while it reconnects.
 
-Cloudflare Realtime does not carry DataChannel or IPC messages yet. `--enable-ipc` still works for the other signaling that you turn on.
+### IPC messages
+
+Add [`--enable-ipc`](../reference/configuration.md#ipc) to send messages between the browser and a program on the device. See [IPC messages](../integrations/ipc.md).
+
+- Messages from the device go to every viewer that turned on IPC.
+- Only the viewer that controls the device can send to it. Other viewers wait in line.
+- When a viewer takes control, the log says `Cloudflare viewer <room>/<viewer> controls this device`. The program on the Unix socket is not told.
 
 ### 2. Watch the stream
 
