@@ -73,6 +73,8 @@ class CloudflareService : public SignalingService,
     void OnAnswer(const protocol::PublishAnswer &answer);
     void OnSleep();
     void OnError(const protocol::SignalError &error);
+    void OnChannels(const protocol::DeviceChannels &channels);
+    void OnControl(const protocol::ControlChanged &control);
 
     // publishing
     void StartPublishing();

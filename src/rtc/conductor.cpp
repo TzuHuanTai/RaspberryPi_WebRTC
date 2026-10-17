@@ -75,6 +75,8 @@ std::shared_ptr<AudioCapturer> Conductor::AudioSource() const { return audio_cap
 
 std::shared_ptr<VideoCapturer> Conductor::VideoSource() const { return video_capture_source_; }
 
+std::shared_ptr<EndpointRegistry> Conductor::IpcEndpoints() const { return endpoint_registry_; }
+
 void Conductor::InitializeTracks() {
     if (!audio_track_ && !args.no_audio) {
         audio_capture_source_ = ([this]() -> std::shared_ptr<AudioCapturer> {

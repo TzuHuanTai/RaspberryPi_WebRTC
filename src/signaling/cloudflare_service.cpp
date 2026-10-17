@@ -261,6 +261,12 @@ void CloudflareService::OnMessage(const std::string &data) {
         case protocol::DeviceResponse::kError:
             OnError(response.error());
             break;
+        case protocol::DeviceResponse::kChannels:
+            OnChannels(response.channels());
+            break;
+        case protocol::DeviceResponse::kControl:
+            OnControl(response.control());
+            break;
         default:
             DEBUG_PRINT("Ignored worker message %d.", response.message_case());
             break;
@@ -338,7 +344,8 @@ void CloudflareService::OnError(const protocol::SignalError &error) {
                 protocol::ErrorCode_Name(error.code()).c_str(), where.c_str(),
                 error.message().c_str());
 
-    if (error.request() != "offer") {
+    // NO_DATA_CHANNELS comes after the answer: the video still goes out, only IPC is missing.
+    if (error.request() != "offer" || error.code() == protocol::ERROR_CODE_NO_DATA_CHANNELS) {
         return;
     }
     unanswered_ = std::max(0, unanswered_ - 1);
@@ -351,6 +358,33 @@ void CloudflareService::OnError(const protocol::SignalError &error) {
         publishing_ = false;
     } else {
         RetryPublishing("the worker could not publish the offer", kPublishRetrySec);
+    }
+}
+
+void CloudflareService::OnChannels(const protocol::DeviceChannels &channels) {
+    if (!peer_ || generation_ == 0 || unanswered_ > 0) {
+        DEBUG_PRINT("Ignored data channels for an older offer.");
+        return;
+    }
+    for (const auto &channel : channels.channels()) {
+        auto role = RoleFromLabel(channel.label());
+        if (role != ChannelRole::Lossy && role != ChannelRole::Reliable) {
+            continue;
+        }
+        // A reconnect sends the same channels again.
+        if (!peer_->GetChannel(*role)) {
+            peer_->CreateDataChannel(*role, static_cast<int>(channel.id()));
+        }
+    }
+    INFO_PRINT("Opened the IPC data channels (generation %u).", generation_);
+}
+
+void CloudflareService::OnControl(const protocol::ControlChanged &control) {
+    if (control.has_controller()) {
+        INFO_PRINT("Cloudflare viewer %s/%s controls this device.",
+                   control.controller().room().c_str(), control.controller().viewer_id().c_str());
+    } else {
+        INFO_PRINT("No Cloudflare viewer controls this device.");
     }
 }
 
@@ -384,6 +418,19 @@ void CloudflareService::StartPublishing() {
         return;
     }
 
+    if (args_.enable_ipc) {
+        // Any channel puts an m=application section in the offer. The worker sends the ids of
+        // _lossy and _reliable after the answer.
+        peer_->SetEndpointRegistry(conductor_->IpcEndpoints());
+        webrtc::DataChannelInit init;
+        init.negotiated = true;
+        init.id = 0;
+        auto result = peer_->GetPeer()->CreateDataChannelOrError("server-events", &init);
+        if (!result.ok()) {
+            ERROR_PRINT("Could not add data channels to the offer: %s", result.error().message());
+        }
+    }
+
     RtcPeer *raw_peer = peer_.get();
     peer_->OnLocalSdp([weak_self = weak_from_this(), publication, raw_peer](
                           const std::string &, const std::string &sdp, const std::string &type) {
@@ -412,6 +459,7 @@ void CloudflareService::StartPublishing() {
                 self->RetryPublishing("the offer has no tracks", kPublishRetrySec);
                 return;
             }
+            request.mutable_offer()->set_data_channels(self->args_.enable_ipc);
             if (self->Send(request)) {
                 self->unanswered_++;
                 self->offer_sent_ = true;
