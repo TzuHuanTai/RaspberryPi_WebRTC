@@ -64,7 +64,7 @@ On a Raspberry Pi, use a sub-stream width that is a multiple of 64, such as `640
 | Option | Default | Description |
 |---|---|---|
 | `--sample-rate` | `48000` | Microphone sample rate, in Hz. |
-| `--no-audio` | `false` | Run without an audio source. |
+| `--no-audio` | `false` | Run without audio: send none and play none. |
 | `--force-alsa` | `false` | Capture and play audio through ALSA instead of PulseAudio. |
 
 ## Image Controls

@@ -52,6 +52,8 @@ The SFU forwards the stream as it is, so every viewer gets the same quality. Set
 
 Anyone who joins the same room can watch the stream. With `--enable-ipc`, DataChannel messages also go to everyone in the room.
 
+Viewers in the room can talk. The device plays their voices only with `--enable-ipc`, and then it also gets the other devices' video and audio. See [Two-way audio](../media/audio.md#what-works-where).
+
 ### 2. Join the room
 
 - Code example: [Play through the LiveKit SFU](https://mazupo.com/docs/client-sdk-js/guides/livekit)
@@ -125,6 +127,7 @@ cloudflare-room: [front-yard, cam-1-only]
 | `Someone is watching` | A viewer joined. The device starts streaming. |
 | `Publishing to Cloudflare` | The stream reaches Cloudflare. Viewers can play it. |
 | `Nobody is watching. Stopping the Cloudflare stream` | The last viewer left. The device stops streaming. |
+| `Playing the voices of 2 viewer(s)` | A viewer started or stopped a microphone. The device now gets this many voices. |
 | `Another device connected to the Cloudflare worker with --uid=...` | Two devices use the same `--uid`. This device stops. Change the `--uid` of one device and restart it. |
 | `no access token from ... 401 key_invalid` | `--api-key` is not the worker's device public key. |
 
@@ -137,6 +140,15 @@ Add [`--enable-ipc`](../reference/configuration.md#ipc) to send messages between
 - Messages from the device go to every viewer that turned on IPC.
 - Only the viewer that controls the device can send to it. Other viewers wait in line.
 - When a viewer takes control, the log says `Cloudflare viewer <room>/<viewer> controls this device`. The program on the Unix socket is not told.
+
+### Viewers' voices
+
+Viewers in a room can talk to each other, and the device plays their voices on its speaker:
+
+- Viewers join muted. The device plays only the viewers who unmute.
+- A device in several rooms plays the viewers of every room.
+- With `--no-audio`, the device plays nothing, and the worker sends it no voices.
+- Keep the speaker away from the microphone. Otherwise the viewers hear themselves.
 
 ### 2. Watch the stream
 
