@@ -11,7 +11,7 @@ Fixes for the most common problems. If you are still stuck, [open an issue](http
 | `--uid is required.` | Add `--uid=<any-name>`. Every mode needs it. |
 | `No signaling service is running.` | Turn on at least one of `--use-whep`, `--use-mqtt`, `--use-livekit` or `--use-cloudflare`. |
 | `--cloudflare-room is required when --use-cloudflare is specified.` | Add `--cloudflare-room=<room>`. Viewers watch a room. See [Cloudflare Realtime](../signaling/sfu.md#cloudflare-realtime). |
-| `Another device connected to the Cloudflare worker with --uid=...` | Two devices use the same `--uid`. Give each device its own `--uid`, then restart it. |
+| `Another connection to the Cloudflare worker uses --uid=...` | Two devices use the same `--uid`. Change one of them. Right after a power cut, wait a minute. |
 | The WHEP player shows nothing | Open the player with `http://`, not `https://`. If the browser asks to access devices on your local network, click **Allow**. |
 | A USB camera shows no picture, or a broken picture | Use a format that the camera supports. List the formats with `v4l2-ctl -d /dev/videoN --list-formats-ext`, then set `--v4l2-format`, for example `--v4l2-format=mjpeg`. |
 | `libcamera:0` fails on a Jetson | A Jetson has no libcamera. Use `libargus:<id>` for a CSI camera, or `v4l2:<id>` for a USB camera. |

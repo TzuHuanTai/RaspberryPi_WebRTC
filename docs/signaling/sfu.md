@@ -98,7 +98,7 @@ The camera stays on the whole time, so recording is not affected.
 
 - `--api-url`: the worker's API URL. It ends with `/cloudflare`.
 - `--api-key`: the worker's device public key.
-- `--uid`: the device ID. Use letters, digits, `.`, `_` and `-`. Every device needs its own ID. When a second device connects with the same `--uid`, the first device stops and writes an error to its log.
+- `--uid`: the device ID. Use letters, digits, `.`, `_` and `-`. Every device needs its own ID. A second device with the same `--uid` cannot connect: it logs an error and tries again every 30 seconds.
 - `--cloudflare-room`: a room the device joins. Viewers watch a room.
 
 ### Rooms
@@ -128,7 +128,7 @@ cloudflare-room: [front-yard, cam-1-only]
 | `Publishing to Cloudflare` | The stream reaches Cloudflare. Viewers can play it. |
 | `Nobody is watching. Stopping the Cloudflare stream` | The last viewer left. The device stops streaming. |
 | `Playing the voices of 2 viewer(s)` | A viewer started or stopped a microphone. The device now gets this many voices. |
-| `Another device connected to the Cloudflare worker with --uid=...` | Two devices use the same `--uid`. This device stops. Change the `--uid` of one device and restart it. |
+| `Another connection to the Cloudflare worker uses --uid=...` | Two devices use the same `--uid`. Change one of them. Right after a power cut, it can be this device's last run: wait a minute. |
 | `no access token from ... 401 key_invalid` | `--api-key` is not the worker's device public key. |
 
 When the connection to the worker drops, the device connects again. The stream keeps going while it reconnects.
