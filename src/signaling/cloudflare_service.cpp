@@ -1,7 +1,9 @@
 #include "signaling/cloudflare_service.h"
 
 #include <algorithm>
+#include <cstdio>
 #include <cstdlib>
+#include <random>
 
 #include <nlohmann/json.hpp>
 
@@ -39,6 +41,18 @@ std::string DescribeFailure(const HttpClient::Response &res) {
     return std::to_string(res.status) + " " + res.body;
 }
 
+// 128 random bits as hex. Only a connection with the same secret can replace this one.
+std::string NewSecret() {
+    std::random_device random;
+    std::string out;
+    for (int i = 0; i < 4; i++) {
+        char part[9];
+        std::snprintf(part, sizeof(part), "%08x", static_cast<unsigned>(random()));
+        out += part;
+    }
+    return out;
+}
+
 std::string Join(const google::protobuf::RepeatedPtrField<std::string> &items) {
     std::string out;
     for (const auto &item : items) {
@@ -61,7 +75,8 @@ CloudflareService::CloudflareService(Args args, std::shared_ptr<Conductor> condu
       ioc_(ioc),
       reconnect_timer_(ioc),
       health_timer_(ioc),
-      retry_timer_(ioc) {
+      retry_timer_(ioc),
+      secret_(NewSecret()) {
     token_url_ = args_.api_url + "/token";
 }
 
@@ -96,6 +111,7 @@ void CloudflareService::RequestToken(uint64_t connection) {
     body["device_id"] = args_.uid;
     body["room_ids"] = args_.cloudflare_rooms;
     body["can_subscribe"] = false;
+    body["secret"] = secret_;
     // Keeps the stream across the reconnect.
     if (publishing_ && generation_ > 0) {
         body["generation"] = generation_;
@@ -163,16 +179,15 @@ void CloudflareService::OpenSocket(uint64_t connection, const std::string &url,
 void CloudflareService::OnSocketClosed(int code, const std::string &reason) {
     socket_ = nullptr;
 
-    if (code == protocol::CLOSE_CODE_REPLACED) {
-        ERROR_PRINT("Another device connected to the Cloudflare worker with --uid=%s, so this one "
-                    "was disconnected. Give every device its own --uid. Cloudflare publishing "
-                    "stops and does not reconnect.",
+    if (code == protocol::CLOSE_CODE_REPLACED || code == protocol::CLOSE_CODE_ID_IN_USE) {
+        // Two devices with one --uid. Or the worker still has the last run of this device, e.g.
+        // after a power cut: it lets go once that connection misses its pings for 45 s.
+        ERROR_PRINT("Another connection to the Cloudflare worker uses --uid=%s. Give every device "
+                    "its own --uid. This device tries again in a while.",
                     args_.uid.c_str());
-        stopped_ = true;
-        reconnect_timer_.cancel();
         StopPublishing();
         publishing_ = false;
-        return;
+        retry_count_ = std::max(retry_count_, 4); // 16 s, then 30 s
     }
 
     ScheduleReconnect(code != 0 ? "the worker closed the connection, " + std::to_string(code) +

@@ -39,6 +39,8 @@ class CloudflareService : public SignalingService,
     std::vector<webrtc::PeerConnectionInterface::IceServer> ice_servers_;
 
     std::string token_url_;
+    // Sent with each token request. Another process with this --uid has another one.
+    const std::string secret_;
     // From wake until sleep: the worker wants this device to publish.
     bool publishing_ = false;
     // The generation of the answer the PeerConnection uses, or 0 before the answer.
