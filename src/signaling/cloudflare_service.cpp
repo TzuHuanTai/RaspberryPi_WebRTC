@@ -267,6 +267,9 @@ void CloudflareService::OnMessage(const std::string &data) {
         case protocol::DeviceResponse::kControl:
             OnControl(response.control());
             break;
+        case protocol::DeviceResponse::kOffer:
+            OnVoicesOffer(response.offer());
+            break;
         default:
             DEBUG_PRINT("Ignored worker message %d.", response.message_case());
             break;
@@ -392,6 +395,17 @@ void CloudflareService::OnControl(const protocol::ControlChanged &control) {
 // Publishing
 // -----------------------------------------------------------------------------
 
+// The viewers' voices changed: the SFU's offer for this PeerConnection. The peer answers it, and
+// the audio device plays what arrives, as with a viewer's microphone over MQTT.
+void CloudflareService::OnVoicesOffer(const protocol::SubscribeOffer &offer) {
+    if (!peer_ || generation_ == 0 || unanswered_ > 0) {
+        DEBUG_PRINT("Ignored an offer for an older publication.");
+        return;
+    }
+    INFO_PRINT("Playing the voices of %d viewer(s).", offer.tracks_size());
+    peer_->SetRemoteSdp(offer.sdp(), "offer");
+}
+
 void CloudflareService::StartPublishing() {
     StopPublishing();
     auto publication = publication_;
@@ -434,6 +448,23 @@ void CloudflareService::StartPublishing() {
     RtcPeer *raw_peer = peer_.get();
     peer_->OnLocalSdp([weak_self = weak_from_this(), publication, raw_peer](
                           const std::string &, const std::string &sdp, const std::string &type) {
+        if (type == "answer") {
+            // To the SFU's offer for the viewers' voices.
+            auto self = weak_self.lock();
+            if (!self) {
+                return;
+            }
+            net::post(self->ioc_, [weak_self, publication, sdp]() {
+                auto self = weak_self.lock();
+                if (!self || self->stopped_ || publication != self->publication_) {
+                    return;
+                }
+                protocol::DeviceRequest request;
+                request.mutable_answer()->set_sdp(sdp);
+                self->Send(request);
+            });
+            return;
+        }
         if (type != "offer") {
             return;
         }
@@ -460,6 +491,8 @@ void CloudflareService::StartPublishing() {
                 return;
             }
             request.mutable_offer()->set_data_channels(self->args_.enable_ipc);
+            // With --no-audio there is nothing to play them on.
+            request.mutable_offer()->set_voices(!self->args_.no_audio);
             if (self->Send(request)) {
                 self->unanswered_++;
                 self->offer_sent_ = true;
