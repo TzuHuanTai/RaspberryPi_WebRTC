@@ -17,7 +17,6 @@ Sponsors get access to sponsor-only releases with additional features:
 | Object tracking | Jetson (DeepStream) | NvDCF or DeepSORT via NvMOT, toggled at runtime. |
 | Single-process multi-camera | All | All cameras in one process and one [YAML config](deployment/multi-camera.md#one-process-for-all-cameras), sharing one `uid` and WHEP port. Running one process per camera, see [multiple cameras](deployment/multi-camera.md). |
 | Direct LiveKit | All | Signs LiveKit tokens on-device, no token server needed. |
-| Direct Cloudflare Realtime | All | Talks to Cloudflare directly, no device API relay. |
 
 ## Tiers
 

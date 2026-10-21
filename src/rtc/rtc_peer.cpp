@@ -51,7 +51,6 @@ void RtcPeer::ArmConnectDeadline() {
                                              "connection (%s).",
                                              timeout_, id_.c_str());
                                  peer_connection_->Close();
-                                 peer_connection_ = nullptr;
                              }
                          }),
         webrtc::TimeDelta::Seconds(timeout_));
@@ -60,9 +59,7 @@ void RtcPeer::ArmConnectDeadline() {
 void RtcPeer::Terminate() {
     is_connected_.store(false);
     is_expired_.store(true);
-
-    on_local_sdp_fn_ = nullptr;
-    on_local_ice_fn_ = nullptr;
+    is_terminating_.store(true);
 
     if (connect_deadline_safety_) {
         connect_deadline_safety_->SetNotAlive();
@@ -74,6 +71,9 @@ void RtcPeer::Terminate() {
         peer_connection_->Close();
         peer_connection_ = nullptr;
     }
+    on_local_sdp_fn_ = nullptr;
+    on_local_ice_fn_ = nullptr;
+    on_connection_state_fn_ = nullptr;
     modified_desc_.release();
 
     TerminateChannels();
@@ -112,6 +112,24 @@ void RtcPeer::SetEndpointRegistry(std::shared_ptr<EndpointRegistry> registry) {
 
 // Fires once on the signaling thread, after the callback that expired the peer returns.
 void RtcPeer::OnExpired(OnExpiredFunc func) { on_expired_fn_ = std::move(func); }
+
+void RtcPeer::OnConnectionState(OnConnectionStateFunc func) {
+    on_connection_state_fn_ = std::move(func);
+}
+
+std::vector<webrtc::scoped_refptr<webrtc::RtpTransceiverInterface>> RtcPeer::LocalTracks() const {
+    std::vector<webrtc::scoped_refptr<webrtc::RtpTransceiverInterface>> transceivers;
+    if (!peer_connection_) {
+        return transceivers;
+    }
+    for (auto &transceiver : peer_connection_->GetTransceivers()) {
+        auto sender = transceiver->sender();
+        if (sender && sender->track() && transceiver->mid()) {
+            transceivers.push_back(transceiver);
+        }
+    }
+    return transceivers;
+}
 
 void RtcPeer::MarkExpired() {
     if (is_expired_.exchange(true) || !on_expired_fn_) {
@@ -310,6 +328,10 @@ void RtcPeer::OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnection
         is_connected_.store(false);
         MarkExpired();
     }
+
+    if (!is_terminating_.load() && on_connection_state_fn_) {
+        on_connection_state_fn_(new_state);
+    }
 }
 
 void RtcPeer::OnIceCandidate(const webrtc::IceCandidateInterface *candidate) {
@@ -317,7 +339,7 @@ void RtcPeer::OnIceCandidate(const webrtc::IceCandidateInterface *candidate) {
         modified_desc_->AddCandidate(candidate);
     }
 
-    if (on_local_ice_fn_) {
+    if (!is_terminating_.load() && on_local_ice_fn_) {
         std::string candidate_str;
         candidate->ToString(&candidate_str);
         on_local_ice_fn_(id_, candidate->sdp_mid(), candidate->sdp_mline_index(), candidate_str);
@@ -397,7 +419,7 @@ void RtcPeer::EmitLocalSdp(int delay_sec) {
 
 void RtcPeer::SendLocalSdp() {
     sdp_emit_safety_->SetNotAlive();
-    if (!on_local_sdp_fn_) {
+    if (is_terminating_.load() || !on_local_sdp_fn_) {
         return;
     }
     std::string type = webrtc::SdpTypeToString(modified_desc_->GetType());

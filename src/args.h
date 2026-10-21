@@ -7,6 +7,7 @@
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 enum RecordMode {
     Background = 0,
@@ -186,12 +187,13 @@ struct Args {
     std::string livekit_room = "";
     std::string livekit_key = "";
 
-    // Cloudflare Realtime SFU signaling
+    // Cloudflare Realtime SFU signaling, through a cf-sfu-worker
     bool use_cloudflare = false;
+    std::vector<std::string> cloudflare_rooms;
 
-    // picamera device API
+    // API that hosts the cf-sfu-worker, e.g. https://api.mazupo.com
     std::string api_url = "";
-    std::string api_key = ""; // bearer token for api_url
+    std::string api_key = ""; // the worker's device public key
 };
 
 #endif // ARGS_H_

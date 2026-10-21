@@ -17,7 +17,8 @@ To run pi-webrtc as a service with audio, also run PulseAudio as a system servic
 ## What works where
 
 - **Peer-to-peer (MQTT, WHEP):** audio goes both ways. The viewer's audio plays on the default output device.
-- **SFU (LiveKit, Cloudflare):** audio goes one way, from the device to the viewers.
+- **Cloudflare:** the viewers hear the device, and the device plays the viewers who unmute.
+- **LiveKit:** the viewers hear the device. The device plays the viewers only with `--enable-ipc`. It then also gets the other devices' audio.
 
 ## Hardware
 

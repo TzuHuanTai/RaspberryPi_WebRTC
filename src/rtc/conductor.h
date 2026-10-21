@@ -32,6 +32,7 @@ class Conductor {
     std::optional<std::string> ResolveWebrtcAlias(const std::string &requested) const;
     std::shared_ptr<AudioCapturer> AudioSource() const;
     std::shared_ptr<VideoCapturer> VideoSource() const;
+    std::shared_ptr<EndpointRegistry> IpcEndpoints() const;
     void EnsureTracksAdded(webrtc::scoped_refptr<RtcPeer> peer);
     void SetOnDemandRecorder(std::shared_ptr<RecorderManager> recorder);
 

@@ -96,10 +96,9 @@ Peer bookkeeping belongs to each service rather than the interface. `MqttService
 Every service reconnects on its own, so there is no lifecycle beyond connecting and tearing
 down on destruction.
 
-`CloudflareService` additionally talks to the device API (`--api-url`) over `HttpClient`: the
-SFU handshake is relayed through it, and the session id Cloudflare assigns is published under
-the device's uid so a viewer can find the stream. That second call is kept off the reconnect
-path — the registry failing says nothing about a stream that is already flowing.
+`CloudflareService` additionally asks the worker (`--api-url`) for an access token over
+`HttpClient` before each connection. Everything else, the SFU handshake included, goes over
+the worker's WebSocket.
 
 See [Signaling](../signaling/README.md).
 

@@ -21,10 +21,10 @@ Large transfers use `stream`, so they never block commands. Several transfers ca
 | --- |:---:|:---:|:---:|:---:|
 | `command` | ✅ | ❌ | ❌ | ❌ |
 | `stream` | ✅ | ❌ | ❌ | ❌ |
-| `_lossy` | ✅ | ❌ | ✅ | ❌ |
-| `_reliable` | ✅ | ❌ | ✅ | ❌ |
+| `_lossy` | ✅ | ❌ | ✅ | ✅ |
+| `_reliable` | ✅ | ❌ | ✅ | ✅ |
 
-WHEP and Cloudflare carry no DataChannel at all. SFU viewers never get `command` and `stream`, so snapshots, recording control, camera control and file transfer only work over MQTT. You can turn on `--use-mqtt` next to an SFU to keep them.
+WHEP carries no DataChannel at all. With Cloudflare, only the viewer that controls the device can send to it. See [Cloudflare Realtime](../signaling/sfu.md#ipc-messages). SFU viewers never get `command` and `stream`, so snapshots, recording control, camera control and file transfer only work over MQTT. You can turn on `--use-mqtt` next to an SFU to keep them.
 
 ## Commands
 

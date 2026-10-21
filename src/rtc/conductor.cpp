@@ -75,6 +75,8 @@ std::shared_ptr<AudioCapturer> Conductor::AudioSource() const { return audio_cap
 
 std::shared_ptr<VideoCapturer> Conductor::VideoSource() const { return video_capture_source_; }
 
+std::shared_ptr<EndpointRegistry> Conductor::IpcEndpoints() const { return endpoint_registry_; }
+
 void Conductor::InitializeTracks() {
     if (!audio_track_ && !args.no_audio) {
         audio_capture_source_ = ([this]() -> std::shared_ptr<AudioCapturer> {
@@ -235,6 +237,9 @@ webrtc::scoped_refptr<RtcPeer> Conductor::CreatePeerConnection(PeerConfig config
     }
 
     config.timeout = args.peer_timeout;
+    config.continual_gathering_policy = config.has_candidates_in_sdp
+                                            ? webrtc::PeerConnectionInterface::GATHER_ONCE
+                                            : webrtc::PeerConnectionInterface::GATHER_CONTINUALLY;
     auto peer = RtcPeer::Create(config);
     auto result = peer_connection_factory_->CreatePeerConnectionOrError(
         config, webrtc::PeerConnectionDependencies(peer.get()));

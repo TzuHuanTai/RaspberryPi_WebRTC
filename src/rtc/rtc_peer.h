@@ -101,6 +101,8 @@ class RtcPeer : public webrtc::PeerConnectionObserver,
                 public SignalingMessageObserver {
   public:
     using OnExpiredFunc = std::function<void(const std::string &peer_id)>;
+    using OnConnectionStateFunc =
+        std::function<void(webrtc::PeerConnectionInterface::PeerConnectionState state)>;
 
     static webrtc::scoped_refptr<RtcPeer> Create(PeerConfig config);
 
@@ -121,6 +123,8 @@ class RtcPeer : public webrtc::PeerConnectionObserver,
     webrtc::scoped_refptr<webrtc::PeerConnectionInterface> GetPeer();
     void SetEndpointRegistry(std::shared_ptr<EndpointRegistry> registry);
     void OnExpired(OnExpiredFunc func);
+    void OnConnectionState(OnConnectionStateFunc func);
+    std::vector<webrtc::scoped_refptr<webrtc::RtpTransceiverInterface>> LocalTracks() const;
     std::shared_ptr<RtcChannel> CreateDataChannel(ChannelRole role,
                                                   std::optional<int> id = std::nullopt);
     std::shared_ptr<RtcChannel> GetChannel(ChannelRole role) const;
@@ -175,8 +179,10 @@ class RtcPeer : public webrtc::PeerConnectionObserver,
     bool needs_renegotiation_ = false;
     std::atomic<bool> is_connected_ = false;
     std::atomic<bool> is_expired_ = false;
+    std::atomic<bool> is_terminating_ = false;
     std::atomic<bool> is_negotiating_ = false;
     OnExpiredFunc on_expired_fn_ = nullptr;
+    OnConnectionStateFunc on_connection_state_fn_ = nullptr;
     webrtc::scoped_refptr<webrtc::PendingTaskSafetyFlag> connect_deadline_safety_;
     webrtc::scoped_refptr<webrtc::PendingTaskSafetyFlag> sdp_emit_safety_;
 
