@@ -85,8 +85,7 @@ void LibcameraCapturer::InitCamera() {
 
     controls_ = libcamera::ControlList(camera_->controls());
     int64_t frame_time = 1000000 / fps_;
-    controls_.set(libcamera::controls::FrameDurationLimits,
-                  libcamera::Span<const int64_t, 2>({frame_time, frame_time}));
+    controls_.set(libcamera::controls::FrameDurationLimits, {frame_time, frame_time});
 
     // Both streams come out of one ISP pass, so they share the colour space of the main one.
     const auto color_space =
@@ -176,8 +175,7 @@ void LibcameraCapturer::InitControls(Args args) {
     }
 
     if (!controls_.get(libcamera::controls::ColourGains)) {
-        controls_.set(libcamera::controls::ColourGains,
-                      libcamera::Span<const float, 2>({args.awb_gain_r, args.awb_gain_b}));
+        controls_.set(libcamera::controls::ColourGains, {args.awb_gain_r, args.awb_gain_b});
     }
 
     if (!controls_.get(libcamera::controls::AfMode) &&
@@ -217,13 +215,11 @@ void LibcameraCapturer::InitControls(Args args) {
         int y = args.af_window_y * sensor_area.height;
         int w = args.af_window_width * sensor_area.width;
         int h = args.af_window_height * sensor_area.height;
-        libcamera::Rectangle afwindows_rectangle[1];
-        afwindows_rectangle[0] = libcamera::Rectangle(x, y, w, h);
-        afwindows_rectangle[0].translateBy(sensor_area.topLeft());
+        libcamera::Rectangle af_window(x, y, w, h);
+        af_window.translateBy(sensor_area.topLeft());
 
         controls_.set(libcamera::controls::AfMetering, libcamera::controls::AfMeteringWindows);
-        controls_.set(libcamera::controls::AfWindows,
-                      libcamera::Span<const libcamera::Rectangle>(afwindows_rectangle));
+        controls_.set(libcamera::controls::AfWindows, {af_window});
     }
 
     if (!controls_.get(libcamera::controls::AfTrigger) &&
