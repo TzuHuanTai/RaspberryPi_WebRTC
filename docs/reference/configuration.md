@@ -188,7 +188,7 @@ for a worked example.
 |---|---|---|
 | `--use-cloudflare` | `false` | Publish to a Cloudflare Realtime SFU through the worker at `--api-url`. `--uid` is the device ID on the worker: 1 to 64 letters, digits, `.`, `_` or `-`. |
 | `--cloudflare-room` | | A room the device joins. Viewers watch a room. Give it once per room, up to 4 rooms. Same characters as `--uid`. In a YAML file, use a list. **Required** with `--use-cloudflare`. |
-| `--api-url` | | The worker's API URL, e.g. `https://api.mazupo.com/cloudflare`. Before each connection, the device gets an access token from `POST <api-url>/token`. **Required** with `--use-cloudflare`. |
+| `--api-url` | | The worker's API URL, e.g. `https://api.mazupo.com/sfu`. Before each connection, the device gets an access token from `POST <api-url>/token`. **Required** with `--use-cloudflare`. |
 | `--api-key` | | The worker's device public key. **Required** with `--api-url`. |
 
 ## Object Detection and Tracking

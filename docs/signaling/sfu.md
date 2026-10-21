@@ -77,7 +77,7 @@ The camera stays on the whole time, so recording is not affected.
 
 | URL | Device public key | Viewer public key |
 | --- | --- | --- |
-| `https://api.mazupo.com/cloudflare` | `DEVICE_PUBLIC_KEY` | `VIEWER_PUBLIC_KEY` |
+| `https://api.mazupo.com/sfu` | `DEVICE_PUBLIC_KEY` | `VIEWER_PUBLIC_KEY` |
 
 > [!WARNING]
 > This is a shared test environment. All users share the free Cloudflare quota. Anyone who knows a room name can watch that room, so use room names and a `--uid` that are hard to guess. For your own environment, deploy your own worker.
@@ -91,12 +91,12 @@ The camera stays on the whole time, so recording is not affected.
     --height=1080 \
     --uid=your-device-name \
     --use-cloudflare \
-    --api-url=https://api.mazupo.com/cloudflare \
+    --api-url=https://api.mazupo.com/sfu \
     --api-key=DEVICE_PUBLIC_KEY \
     --cloudflare-room=your-room
 ```
 
-- `--api-url`: the worker's API URL. It ends with `/cloudflare`.
+- `--api-url`: the worker's API URL. It ends with `/sfu`.
 - `--api-key`: the worker's device public key.
 - `--uid`: the device ID. Use letters, digits, `.`, `_` and `-`. Every device needs its own ID. A second device with the same `--uid` cannot connect: it logs an error and tries again every 30 seconds.
 - `--cloudflare-room`: a room the device joins. Viewers watch a room.

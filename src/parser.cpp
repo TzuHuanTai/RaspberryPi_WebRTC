@@ -289,7 +289,7 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
             "option once per room, up to 4 rooms. To let people watch only this device, add a "
             "room that only this device joins.")
         ("api-url", bpo::value<std::string>(&args.api_url)->default_value(args.api_url),
-            "The Cloudflare worker's API URL, e.g. https://api.mazupo.com/cloudflare.")
+            "The Cloudflare worker's API URL, e.g. https://api.mazupo.com/sfu.")
         ("api-key", bpo::value<std::string>(&args.api_key)->default_value(args.api_key),
             "The worker's device public key.")
         ("config", bpo::value<std::string>()->default_value(""),
@@ -395,7 +395,7 @@ void Parser::ParseArgs(int argc, char *argv[], Args &args) {
         }
     } else {
         if (args.api_url.rfind("https://", 0) != 0 && args.api_url.rfind("http://", 0) != 0) {
-            ERROR_PRINT("--api-url must be a full url, e.g. https://api.mazupo.com/cloudflare.");
+            ERROR_PRINT("--api-url must be a full url, e.g. https://api.mazupo.com/sfu.");
             exit(1);
         }
         if (args.api_key.empty()) {
