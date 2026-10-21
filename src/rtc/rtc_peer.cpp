@@ -199,7 +199,6 @@ RtcPeer::AddChannel(ChannelRole role, webrtc::scoped_refptr<webrtc::DataChannelI
                 DEBUG_PRINT("Received DISCONNECT command. Closing peer connection.");
                 if (peer_connection_) {
                     peer_connection_->Close();
-                    peer_connection_ = nullptr;
                 }
                 const auto &request = ctx.request.disconnect();
                 DEBUG_PRINT(
