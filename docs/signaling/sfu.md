@@ -73,11 +73,9 @@ The camera stays on the whole time, so recording is not affected.
 
 ### Free test server
 
-<!-- TODO: fill in the public keys when the worker is deployed. -->
-
 | URL | Device public key | Viewer public key |
 | --- | --- | --- |
-| `https://api.mazupo.com/sfu` | `DEVICE_PUBLIC_KEY` | `VIEWER_PUBLIC_KEY` |
+| `https://api.mazupo.com/sfu` | `1L4-mUUztDWhzF_ORhPHb4xpQK2Y9bEgeif0pYn7PXI` | `-706d13ForZLHmv6FwARf9ZgEEfO78AattyxWhNoHFo` |
 
 > [!WARNING]
 > This is a shared test environment. All users share the free Cloudflare quota. Anyone who knows a room name can watch that room, so use room names and a `--uid` that are hard to guess. For your own environment, deploy your own worker.
@@ -92,7 +90,7 @@ The camera stays on the whole time, so recording is not affected.
     --uid=your-device-name \
     --use-cloudflare \
     --api-url=https://api.mazupo.com/sfu \
-    --api-key=DEVICE_PUBLIC_KEY \
+    --api-key=1L4-mUUztDWhzF_ORhPHb4xpQK2Y9bEgeif0pYn7PXI \
     --cloudflare-room=your-room
 ```
 
@@ -154,7 +152,7 @@ Viewers in a room can talk to each other, and the device plays their voices on i
 
 - Web app: open [app.mazupo.com/cloudflare](https://app.mazupo.com/cloudflare). Enter the viewer public key and the room.
 - Code example: [Pull from the Cloudflare Realtime SFU](https://mazupo.com/docs/client-sdk-js/guides/cloudflare)
-- The worker has a demo viewer page too. See its [README](https://github.com/mazupo/cf-sfu-worker#readme).
+- The worker's own viewer page: [api.mazupo.com/sfu/](https://api.mazupo.com/sfu/). Enter the viewer public key and the room.
 
 ## Keep device control with MQTT
 
